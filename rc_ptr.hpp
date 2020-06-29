@@ -8,23 +8,15 @@
 #include "mutex.hpp"
 
 template<typename T>
-class RcPtrControlBlock {
-public:
-	explicit RcPtrControlBlock(Mutex<unsigned long> mutex): refs(mutex) {}
-	T inner;
-	Mutex<unsigned long> refs;
-};
-
-template<typename T>
 class RcPtr {
 public:
 	RcPtr() {
-		this->control = new RcPtrControlBlock<T>(Mutex<unsigned long>(1));
+		this->control = new RcPtrControlBlock(Mutex<unsigned long>(1));
 		this->control->inner = T();
 	}
 
 	explicit RcPtr(T other) {
-		this->control = new RcPtrControlBlock<T>(Mutex<unsigned long>(1));
+		this->control = new RcPtrControlBlock(Mutex<unsigned long>(1));
 		this->control->inner = other;
 	}
 
@@ -63,7 +55,13 @@ public:
 			delete control;
 	}
 private:
-	RcPtrControlBlock<T>* control;
+	class RcPtrControlBlock {
+	public:
+		explicit RcPtrControlBlock(Mutex<unsigned long> mutex): refs(mutex) {}
+		T inner;
+		Mutex<unsigned long> refs;
+	};
+	RcPtrControlBlock* control;
 };
 
 #endif //ASYNCTEST2_RC_PTR_HPP

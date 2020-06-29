@@ -206,43 +206,56 @@ void	*basic_worker(void *msg) {
 	for (;;) {
 		IFuture<T>* fut = nullptr;
 		{
-			std::queue<IFuture<T>*>& current_queue = mutex_queue.lock().get();
+			auto current_queue_guard = mutex_queue.lock();
+			std::queue<IFuture<T> *> &current_queue = *current_queue_guard;
 
-			if (current_queue.empty()) {
-				// We don't have any tasks - steal one from another worker
-				for (auto& other_mutex_queue: message.info->get_tasks()) {
-					auto& other_queue = other_mutex_queue.lock().get();
-
-					// If we find another queue with more than one task, steal it from that queue.
-					if (!other_queue.empty()) {
-						fut = other_queue.front();
-						other_queue.pop();
-						std::cout << "A task has been stolen!" << std::endl;
-						break;
-					}
-				}
-
-				if (fut == nullptr) {
-					// We couldn't find any other available tasks - yield the thread
-					usleep(1000); // TODO: find a better way to yield the thread
-					continue;
-				}
-			} else {
+			if (!current_queue.empty())
+			{
 				fut = current_queue.front();
 				current_queue.pop();
 			}
 		}
 
+		// No task has been found.
+		if (fut == nullptr) {
+			// We don't have any tasks - steal one from another worker
+			for (auto &other_mutex_queue: message.info->get_tasks())
+			{
+				// Don't check for tasks in own queue
+				if (&other_mutex_queue == &mutex_queue)
+					continue;
+
+				auto other_queue_guard = other_mutex_queue.lock();
+				auto &other_queue = *other_queue_guard;
+
+				// If we find another queue with more than one task, steal it from that queue.
+				if (!other_queue.empty())
+				{
+					fut = other_queue.front();
+					other_queue.pop();
+					break;
+				}
+			}
+		}
+
+		// No task has been found in another queue either.
+		if (fut == nullptr) {
+			// We couldn't find any other available tasks - yield the thread
+			usleep(1000); // TODO: find a better way to yield the thread
+			continue;
+		}
+
 		if (fut->poll().is_ready()) {
 			std::cout << "Task has been ran to completion by " << message.id << std::endl;
 		} else {
-			std::queue<IFuture<T>*>& current_queue = mutex_queue.lock().get();
+			auto current_queue_guard = mutex_queue.lock();
+			std::queue<IFuture<T>*>& current_queue = *current_queue_guard;
 
 			// TODO: instead of requeueing the future, setup a waker system
 			current_queue.push(fut);
 		}
 	}
-	return (NULL);
+	return (nullptr);
 }
 
 template<typename T>
@@ -310,7 +323,8 @@ public:
 		unsigned long amt;
 
 		for (auto& mutex_queue: info->get_tasks()) {
-			std::queue<IFuture<T>*> queue = mutex_queue.lock().get();
+			auto guard = mutex_queue.lock();
+			std::queue<IFuture<T>*> queue = guard.get();
 
 			if (lowest_task == -1 || queue.size() < amt) {
 				lowest_task = current_task;
@@ -319,7 +333,8 @@ public:
 			current_task += 1;
 		}
 
-		std::queue<IFuture<T>*>& queue = info->get_tasks().at(lowest_task).lock().get();
+		auto guard = info->get_tasks().at(lowest_task).lock();
+		std::queue<IFuture<T>*>& queue = guard.get();
 
 		queue.push(future);
 		std::cout << "Enqueued a task onto " << lowest_task << ' ' << &queue << std::endl;
@@ -331,7 +346,7 @@ public:
     	for (unsigned long i = 0; i < info->get_tasks().size(); i += 1) {
 			pthread_t new_thread;
 
-			if (pthread_create(&new_thread, NULL, &basic_worker<T>, &info->get_messages().at(i))) {
+			if (pthread_create(&new_thread, nullptr, &basic_worker<T>, &info->get_messages().at(i))) {
 				throw "thread creation failed";
 			}
 
@@ -355,15 +370,15 @@ public:
 		return PollResult<void>::pending();
 	}
 };
-
 int main() {
     GetLine gl_future_1(0);
     GetLine gl_future_2(0);
     GetLine gl_future_3(0);
 
   	auto runtime = IoRuntimeBuilder<void>()
-  			.with_thread_count(2)
+  			.with_thread_count(8)
   			.build();
+
 
   	runtime.initialize();
 
@@ -371,13 +386,22 @@ int main() {
 
   	runtime.spawn(&never_ready);
   	usleep(10000);
-  	auto getline1 = gl_future_1.and_then([](auto const out) {std::cout << "From 1: " << out << std::endl; });
-  	auto getline2 = gl_future_2.and_then([](auto const out) {std::cout << "From 2: " << out << std::endl; });
-  	auto getline3 = gl_future_3.and_then([](auto const out) {std::cout << "From 3: " << out << std::endl; });
+  	auto getline1 = gl_future_1
+  			.and_then([](auto const out) {
+  				std::cout << "From 1: " << out << std::endl;
+  			});
+  	auto getline2 = gl_future_2
+  			.and_then([](auto const out) {
+  				std::cout << "From 2: " << out << std::endl;
+  			});
+  	auto getline3 = gl_future_3
+  			.and_then([](auto const out) {
+  				std::cout << "From 3: " << out << std::endl;
+  			});
   	runtime.spawn(&getline1);
   	runtime.spawn(&getline2);
   	runtime.spawn(&getline3);
-	for (;;);
+	for (;;) continue;
 
     return 0;
 }

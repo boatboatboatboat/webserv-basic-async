@@ -13,71 +13,59 @@ class Mutex;
 template<typename T>
 class MutexGuard {
 public:
-	MutexGuard(Mutex<T>& mutex);
+	MutexGuard() = delete;
+	explicit MutexGuard(Mutex<T>& mutex);
 	~MutexGuard();
+	T& operator*();
+	T* operator->();
 	T& get();
 private:
-	MutexGuard() = delete;
 	Mutex<T>& mutex;
 };
 
-template<typename T>
-MutexGuard<T>::MutexGuard(Mutex<T>& mutex):
-	mutex(mutex)
-{
-	pthread_mutex_lock(&mutex.get_inner_mutex());
-}
-
-template<typename T>
-MutexGuard<T>::~MutexGuard()
-{
-	pthread_mutex_unlock(&mutex.get_inner_mutex());
-}
-
-template<typename T>
-T& MutexGuard<T>::get() {
-	return mutex.get_inner_type();
+//TODO: implement void mutexguard
+template<>
+class MutexGuard<void> {
+public:
+	MutexGuard() = delete;
+	explicit MutexGuard(Mutex<void>& mutex);
+	~MutexGuard();
+private:
+	Mutex<void>& mutex;
 };
 
 template<typename T>
 class Mutex {
+	friend class MutexGuard<T>;
 public:
-	Mutex(T inner) {
-		int	result = pthread_mutex_init(&this->inner_mutex, NULL);
-
-		if (result) {
-			// TODO: make better mutex errors
-			throw "Nice Mutex Error!!!";
-		}
-
-		this->inner_type = inner;
-	}
-	~Mutex() {
-		/*
-		 * NOTE:
-		 * pthread_mutex_destroy can actually error,
-		 * but we can't error in a destructor.
-		 * however these errors are related to either having an invalid `inner_mutex`,
-		 * or still having a lock to the mutex,
-		 * which we can avoid by just using the mutexguards
-		 */
-		pthread_mutex_destroy(&this->inner_mutex);
-	}
-	MutexGuard<T> lock() {
-		return MutexGuard<T>(*this);
-	};
-
-	pthread_mutex_t& get_inner_mutex() {
-		return this->inner_mutex;
-	}
-
-	T& get_inner_type() {
-		return this->inner_type;
-	}
-private:
 	Mutex() = delete;
+	Mutex(const Mutex&) = default;
+	Mutex& operator=(Mutex const&) = default;
+	explicit Mutex(T inner);
+	~Mutex();
+	MutexGuard<T> lock();
+private:
+	pthread_mutex_t& get_inner_mutex();
+	T& get_inner_type();
 	pthread_mutex_t inner_mutex;
 	T inner_type;
 };
+
+//TODO: implement void mutex
+template<>
+class Mutex<void> {
+	friend class MutexGuard<void>;
+public:
+	Mutex();
+	~Mutex();
+	Mutex(const Mutex&) = default;
+	Mutex& operator=(Mutex const&) = default;
+	MutexGuard<void> lock();
+private:
+	pthread_mutex_t& get_inner_mutex();
+	pthread_mutex_t inner_mutex;
+};
+
+#include "mutex.ipp"
 
 #endif //ASYNCTEST2_MUTEX_HPP
