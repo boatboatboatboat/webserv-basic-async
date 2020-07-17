@@ -1,12 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
-project(asynctest2)
+project(webserv)
 
 set(CMAKE_CXX_STANDARD 20)
 
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
-
-add_executable(asynctest2 main.cpp rc_ptr.cpp rc_ptr.hpp box_ptr.cpp box_ptr.hpp mutex.ipp mutex.hpp)
-target_link_libraries(asynctest2 PRIVATE Threads::Threads)
-target_compile_options(asynctest2 PRIVATE -Wall -Wextra -Werror -fsanitize=address)
-target_link_options(asynctest2 PRIVATE -fsanitize=address)
+add_executable(webserv main.cpp futures/PollResult.hpp futures/futures.hpp futures/IFuture.hpp futures/Waker.hpp futures/Waker.cpp boxed/BoxPtr.hpp futures/PollResult.cpp util/mem_copy.hpp ioruntime/IoEventHandler.cpp ioruntime/IoEventHandler.hpp func/Functor.hpp ioruntime/EventHandler.hpp ioruntime/Runtime.cpp ioruntime/Runtime.hpp ioruntime/IExecutor.hpp ioruntime/PooledExecutor.cpp ioruntime/PooledExecutor.hpp ioruntime/ThreadlessExecutor.cpp ioruntime/ThreadlessExecutor.hpp ioruntime/ioruntime.hpp ioruntime/RuntimeBuilder.cpp ioruntime/RuntimeBuilder.hpp ioruntime/GlobalRuntime.cpp ioruntime/GlobalRuntime.hpp boxed/RcPtr.hpp mutex/mutex.hpp mutex/mutex.ipp)
