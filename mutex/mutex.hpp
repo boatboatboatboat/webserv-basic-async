@@ -9,91 +9,91 @@
 
 namespace mutex {
 
-    template<typename T>
-    class Mutex;
+template <typename T>
+class Mutex;
 
-    template<typename T>
-    class MutexGuard {
-    public:
-        MutexGuard() = delete;
+template <typename T>
+class MutexGuard {
+public:
+    MutexGuard() = delete;
 
-        explicit MutexGuard(Mutex<T> &mutex);
+    explicit MutexGuard(Mutex<T>& mutex);
 
-        ~MutexGuard();
+    ~MutexGuard();
 
-        T &operator*();
+    T& operator*();
 
-        T *operator->();
+    T* operator->();
 
-        T &get();
+    T& get();
 
-    private:
-        Mutex<T> &mutex;
-    };
+private:
+    Mutex<T>& mutex;
+};
 
-//TODO: implement void mutexguard
-    template<>
-    class MutexGuard<void> {
-    public:
-        MutexGuard() = delete;
+// TODO: implement void mutexguard
+template <>
+class MutexGuard<void> {
+public:
+    MutexGuard() = delete;
 
-        explicit MutexGuard(Mutex<void> &mutex);
+    explicit MutexGuard(Mutex<void>& mutex);
 
-        ~MutexGuard();
+    ~MutexGuard();
 
-    private:
-        Mutex<void> &mutex;
-    };
+private:
+    Mutex<void>& mutex;
+};
 
-    template<typename T>
-    class Mutex {
-        friend class MutexGuard<T>;
+template <typename T>
+class Mutex {
+    friend class MutexGuard<T>;
 
-    public:
-        Mutex() = delete;
+public:
+    Mutex() = delete;
 
-        Mutex(const Mutex &) = default;
+    Mutex(const Mutex&) = default;
 
-        Mutex &operator=(Mutex const &) = default;
+    Mutex& operator=(Mutex const&) = default;
 
-        explicit Mutex(T inner);
+    explicit Mutex(T inner);
 
-        ~Mutex();
+    ~Mutex();
 
-        MutexGuard<T> lock();
+    MutexGuard<T> lock();
 
-    private:
-        pthread_mutex_t &get_inner_mutex();
+private:
+    pthread_mutex_t& get_inner_mutex();
 
-        T &get_inner_type();
+    T& get_inner_type();
 
-        pthread_mutex_t inner_mutex;
-        T inner_type;
-    };
+    pthread_mutex_t inner_mutex;
+    T inner_type;
+};
 
-//TODO: implement void mutex
-    template<>
-    class Mutex<void> {
-        friend class MutexGuard<void>;
+// TODO: implement void mutex
+template <>
+class Mutex<void> {
+    friend class MutexGuard<void>;
 
-    public:
-        Mutex();
+public:
+    Mutex();
 
-        ~Mutex();
+    ~Mutex();
 
-        Mutex(const Mutex &) = default;
+    Mutex(const Mutex&) = default;
 
-        Mutex &operator=(Mutex const &) = default;
+    Mutex& operator=(Mutex const&) = default;
 
-        MutexGuard<void> lock();
+    MutexGuard<void> lock();
 
-    private:
-        pthread_mutex_t &get_inner_mutex();
+private:
+    pthread_mutex_t& get_inner_mutex();
 
-        pthread_mutex_t inner_mutex;
-    };
-}
+    pthread_mutex_t inner_mutex;
+};
+} // namespace mutex
 
 #include "mutex.ipp"
 
-#endif //ASYNCTEST2_MUTEX_HPP
+#endif // ASYNCTEST2_MUTEX_HPP

@@ -8,17 +8,18 @@
 #include <cstddef>
 
 namespace util {
-	template<typename T>
-	void mem_copy(T &destination, T &source) {
-		if (&destination == &source)
-			return;
+template <typename T>
+void mem_copy(T& destination, T& source)
+{
+    if (&destination == &source)
+        return;
 
-		unsigned char* dest = reinterpret_cast<unsigned char*>(&destination);
-		unsigned char* src = reinterpret_cast<unsigned char*>(&src);
-		for (size_t n = 0; n < sizeof(T); n += 1) {
-			dest[n] = src[n];
-		}
-	}
+    unsigned char* dest = reinterpret_cast<unsigned char*>(&destination);
+    unsigned char* src = reinterpret_cast<unsigned char*>(&src);
+    for (size_t n = 0; n < sizeof(T); n += 1) {
+        dest[n] = src[n];
+    }
 }
+} // namespace util
 
-#endif //WEBSERV_MEM_COPY_HPP
+#endif // WEBSERV_MEM_COPY_HPP

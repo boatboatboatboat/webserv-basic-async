@@ -5,21 +5,30 @@
 #ifndef WEBSERV_GLOBALRUNTIME_HPP
 #define WEBSERV_GLOBALRUNTIME_HPP
 
-#include "ioruntime.hpp"
-#include "../mutex/mutex.hpp"
 #include "../boxed/RcPtr.hpp"
+#include "../mutex/mutex.hpp"
+#include "ioruntime.hpp"
 
-using mutex::Mutex;
 using boxed::RcPtr;
+using mutex::Mutex;
+using mutex::MutexGuard;
 
 namespace ioruntime {
-    class GlobalRuntime {
-    public:
-        Mutex<RcPtr<Runtime>>& get();
-    private:
-        // fixme: this should be a weak ptr?
-        Mutex<RcPtr<Runtime>> runtime;
-    };
-}
+// Forward declarations
+class Runtime;
 
-#endif //WEBSERV_GLOBALRUNTIME_HPP
+// Class
+class GlobalRuntime {
+public:
+    GlobalRuntime() = delete;
+    ~GlobalRuntime() = delete;
+    static MutexGuard<Runtime*>&& get();
+    static void set_runtime(Runtime* new_runtime);
+
+private:
+    static Mutex<Runtime*> runtime;
+};
+
+} // namespace ioruntime
+
+#endif // WEBSERV_GLOBALRUNTIME_HPP

@@ -9,9 +9,10 @@
 
 class Functor {
 public:
-	virtual void operator()() = 0;
+    virtual ~Functor() = 0;
+    virtual void operator()() = 0;
 };
 
 using BoxFunctor = boxed::BoxPtr<Functor>;
 
-#endif //WEBSERV_FUNCTOR_HPP
+#endif // WEBSERV_FUNCTOR_HPP

@@ -2,19 +2,13 @@
 // Created by boat on 7/3/20.
 //
 
-#include <iostream>
 #include "Waker.hpp"
+#include <iostream>
 
 namespace futures {
-	void Waker::operator()() {
-		std::cout << "Wake" << std::endl;
-	}
+void Waker::operator()() { std::cout << "Wake" << std::endl; }
 
-    IFuture<void> &Waker::get_future() {
-        return *fut;
-    }
+IFuture<void>& Waker::get_future() { return *fut; }
 
-    Waker::Waker(BoxPtr<IFuture<void>>&& future) {
-        fut = std::move(future);
-	}
-}
+Waker::Waker(BoxPtr<IFuture<void>>&& future) { fut = std::move(future); }
+} // namespace futures

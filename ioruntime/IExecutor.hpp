@@ -8,11 +8,13 @@
 #include "../futures/futures.hpp"
 
 namespace ioruntime {
-    class IExecutor {
-    public:
-        virtual void spawn(BoxPtr<IFuture<void>>&& future) = 0;
-        virtual void step() = 0;
-    };
-}
+class IExecutor {
+public:
+    virtual ~IExecutor() = 0;
+    virtual void spawn(BoxPtr<IFuture<void>>&& future) = 0;
+    virtual void step() = 0;
+};
 
-#endif //WEBSERV_IEXECUTOR_HPP
+} // namespace ioruntime
+
+#endif // WEBSERV_IEXECUTOR_HPP

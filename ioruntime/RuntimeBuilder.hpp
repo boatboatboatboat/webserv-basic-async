@@ -9,16 +9,18 @@
 #include "Runtime.hpp"
 
 namespace ioruntime {
-    class RuntimeBuilder {
-    public:
-        RuntimeBuilder() = default;
-        RuntimeBuilder& with_workers(int d);
-        RuntimeBuilder& without_workers();
-        Runtime build();
-    private:
-        bool pooled = false;
-        int worker_count = 0;
-    };
-}
+class RuntimeBuilder {
+public:
+    RuntimeBuilder() = default;
+    RuntimeBuilder& with_workers(int d);
+    RuntimeBuilder& without_workers();
+    Runtime build();
+    static Runtime dead_runtime();
 
-#endif //WEBSERV_RUNTIMEBUILDER_HPP
+private:
+    bool pooled = false;
+    int worker_count = 0;
+};
+} // namespace ioruntime
+
+#endif // WEBSERV_RUNTIMEBUILDER_HPP

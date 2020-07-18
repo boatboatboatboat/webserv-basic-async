@@ -5,8 +5,8 @@
 #ifndef WEBSERV_FUTURES_HPP
 #define WEBSERV_FUTURES_HPP
 
-#include "PollResult.hpp"
 #include "IFuture.hpp"
+#include "PollResult.hpp"
 #include "Waker.hpp"
 
-#endif //WEBSERV_FUTURES_HPP
+#endif // WEBSERV_FUTURES_HPP

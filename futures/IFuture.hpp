@@ -8,15 +8,21 @@
 #include "futures.hpp"
 
 namespace futures {
-	// Forward declarations
-	class Waker;
+// Forward declarations
+class Waker;
+template <typename T>
+class PollResult;
 
-	// Classes
-	template<typename T = void>
-	class IFuture {
-	public:
-		virtual PollResult<T> poll(Waker&& waker) = 0;
-	};
-}
+// Classes
+template <typename T>
+class IFuture {
+public:
+    virtual ~IFuture() = 0;
+    virtual PollResult<T> poll(Waker&& waker) = 0;
+};
 
-#endif //WEBSERV_IFUTURE_HPP
+template <typename T>
+IFuture<T>::~IFuture() {}
+} // namespace futures
+
+#endif // WEBSERV_IFUTURE_HPP

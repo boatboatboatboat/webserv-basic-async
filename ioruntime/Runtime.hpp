@@ -5,28 +5,30 @@
 #ifndef WEBSERV_RUNTIME_HPP
 #define WEBSERV_RUNTIME_HPP
 
-#include <vector>
 #include "../boxed/BoxPtr.hpp"
-#include "EventHandler.hpp"
 #include "../futures/futures.hpp"
+#include "IEventHandler.hpp"
 #include "IExecutor.hpp"
+#include <vector>
 
 using boxed::BoxPtr;
 using futures::IFuture;
 
 namespace ioruntime {
-    class Runtime {
-        friend class RuntimeBuilder;
-    public:
-        void register_handler(BoxPtr<IEventHandler>&& handler);
-        void spawn(BoxPtr<IFuture<void>>&& future);
-        void naive_run();
-    private:
-        Runtime();
-        int running_tasks;
-        std::vector<BoxPtr<IEventHandler>> handlers;
-        BoxPtr<IExecutor> executor;
-    };
-}
+class Runtime {
+    friend class RuntimeBuilder;
 
-#endif //WEBSERV_RUNTIME_HPP
+public:
+    void register_handler(BoxPtr<IEventHandler>&& handler);
+    void spawn(BoxPtr<IFuture<void>>&& future);
+    void naive_run();
+
+private:
+    Runtime();
+    int running_tasks;
+    std::vector<BoxPtr<IEventHandler>> handlers;
+    BoxPtr<IExecutor> executor;
+};
+} // namespace ioruntime
+
+#endif // WEBSERV_RUNTIME_HPP

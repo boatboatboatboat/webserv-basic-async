@@ -8,14 +8,16 @@
 #include "ioruntime.hpp"
 
 namespace ioruntime {
-    class ThreadlessExecutor: public IExecutor {
-    public:
-        ThreadlessExecutor();
-        void spawn(BoxPtr<IFuture<void>>&& future) override;
-        void step() override;
-    private:
-        std::vector<BoxPtr<IFuture<void>>> tasks;
-    };
-}
+class ThreadlessExecutor : public IExecutor {
+public:
+    ThreadlessExecutor();
+    ~ThreadlessExecutor() = default;
+    void spawn(BoxPtr<IFuture<void>>&& future) override;
+    void step() override;
 
-#endif //WEBSERV_THREADLESSEXECUTOR_HPP
+private:
+    std::vector<BoxPtr<IFuture<void>>> tasks;
+};
+} // namespace ioruntime
+
+#endif // WEBSERV_THREADLESSEXECUTOR_HPP

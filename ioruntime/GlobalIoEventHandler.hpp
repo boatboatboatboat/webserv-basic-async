@@ -1,0 +1,15 @@
+//
+// Created by Djevayo Pattij on 7/18/20.
+//
+
+#ifndef WEBSERV_IORUNTIME_GLOBALIOEVENTHANDLER_HPP
+#define WEBSERV_IORUNTIME_GLOBALIOEVENTHANDLER_HPP
+
+class GlobalIoEventHandler
+{
+public:
+
+private:
+};
+
+#endif //WEBSERV_IORUNTIME_GLOBALIOEVENTHANDLER_HPP
