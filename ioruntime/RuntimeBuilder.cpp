@@ -32,9 +32,9 @@ Runtime RuntimeBuilder::build()
     Runtime rt;
 
     if (pooled) {
-        rt.executor = std::move(BoxPtr<PooledExecutor>());
+        //rt.executor = std::move(BoxPtr<PooledExecutor>::make());
     } else {
-        rt.executor = std::move(BoxPtr<ThreadlessExecutor>());
+        rt.executor = std::move(BoxPtr<ThreadlessExecutor>::make());
     }
     return rt;
 }

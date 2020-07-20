@@ -14,19 +14,26 @@ class BoxPtr {
 
 public:
     BoxPtr();
-    BoxPtr(BoxPtr&&) = default;
-    BoxPtr& operator=(BoxPtr&&) = default;
+    BoxPtr(BoxPtr&) = delete;
+    BoxPtr& operator=(BoxPtr&) = delete;
+
     ~BoxPtr();
     T& operator*();
     T* operator->();
     T* get();
+    void leak();
+    const T* get() const;
     template <typename... Args>
     static BoxPtr<T> make(Args&&... args);
+
+    // conversion operators
+    template<typename U>
+    BoxPtr(BoxPtr<U>&& other);
     template <typename U>
-    BoxPtr<T> operator=(const U& other);
+    BoxPtr<T>& operator=(BoxPtr<U>&& other);
+    explicit BoxPtr(t_ptr inner);
 
 private:
-    explicit BoxPtr(t_ptr inner);
     t_ptr inner;
 };
 } // namespace boxed

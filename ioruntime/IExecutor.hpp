@@ -12,7 +12,7 @@ class IExecutor {
 public:
     virtual ~IExecutor() = 0;
     virtual void spawn(BoxPtr<IFuture<void>>&& future) = 0;
-    virtual void step() = 0;
+    virtual bool step() = 0;
 };
 
 } // namespace ioruntime

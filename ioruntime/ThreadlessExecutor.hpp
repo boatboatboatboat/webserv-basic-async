@@ -13,9 +13,10 @@ public:
     ThreadlessExecutor();
     ~ThreadlessExecutor() = default;
     void spawn(BoxPtr<IFuture<void>>&& future) override;
-    void step() override;
+    bool step() override;
 
 private:
+    int tasks_until_completion = 0;
     std::vector<BoxPtr<IFuture<void>>> tasks;
 };
 } // namespace ioruntime

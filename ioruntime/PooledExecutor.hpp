@@ -5,7 +5,11 @@
 #ifndef WEBSERV_POOLEDEXECUTOR_HPP
 #define WEBSERV_POOLEDEXECUTOR_HPP
 
-class PooledExecutor {
-};
+#include "ioruntime.hpp"
+
+namespace ioruntime {
+    class PooledExecutor : public IExecutor {
+    };
+}
 
 #endif // WEBSERV_POOLEDEXECUTOR_HPP

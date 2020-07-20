@@ -6,6 +6,7 @@
 #define WEBSERV_MEM_COPY_HPP
 
 #include <cstddef>
+#include <cstring>
 
 namespace util {
 template <typename T>
@@ -13,12 +14,7 @@ void mem_copy(T& destination, T& source)
 {
     if (&destination == &source)
         return;
-
-    unsigned char* dest = reinterpret_cast<unsigned char*>(&destination);
-    unsigned char* src = reinterpret_cast<unsigned char*>(&src);
-    for (size_t n = 0; n < sizeof(T); n += 1) {
-        dest[n] = src[n];
-    }
+    memcpy(&destination, &source, sizeof(T));
 }
 } // namespace util
 

@@ -5,11 +5,33 @@
 #ifndef WEBSERV_IORUNTIME_GLOBALIOEVENTHANDLER_HPP
 #define WEBSERV_IORUNTIME_GLOBALIOEVENTHANDLER_HPP
 
-class GlobalIoEventHandler
-{
-public:
+#include "../func/Functor.hpp"
+#include "ioruntime.hpp"
 
-private:
-};
+namespace ioruntime {
+    class GlobalIoEventHandler {
+    public:
+        static void register_reader_callback(int fd, BoxFunctor &&x);
+
+        static void register_writer_callback(int fd, BoxFunctor &&x);
+
+        static void register_special_callback(int fd, BoxFunctor &&x);
+
+        static void register_reader_callback_once(int fd, BoxFunctor &&x);
+        static void register_writer_callback_once(int fd, BoxFunctor &&x);
+        static void register_special_callback_once(int fd, BoxFunctor &&x);
+
+        static void unregister_reader_callbacks(int fd);
+
+        static void unregister_writer_callbacks(int fd);
+
+        static void unregister_special_callbacks(int fd);
+
+        static void set(IoEventHandler *handler);
+
+    private:
+        static Mutex<IoEventHandler*> event_handler;
+    };
+}
 
 #endif //WEBSERV_IORUNTIME_GLOBALIOEVENTHANDLER_HPP

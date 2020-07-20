@@ -3,6 +3,7 @@
 //
 
 #include "BoxPtr.hpp"
+#include <iostream>
 
 namespace boxed {
 template <typename T>
@@ -33,7 +34,7 @@ T* BoxPtr<T>::get()
 }
 
 template <typename T>
-BoxPtr<T>::BoxPtr(BoxPtr::t_ptr inner)
+BoxPtr<T>::BoxPtr(BoxPtr::t_ptr inner): inner(inner)
 {
 }
 
@@ -44,10 +45,32 @@ BoxPtr<T> BoxPtr<T>::make(Args&&... args)
     return BoxPtr<T>(new T(std::forward<Args>(args)...));
 }
 
+
 template <typename T>
 template <typename U>
-BoxPtr<T> BoxPtr<T>::operator=(const U& other)
+BoxPtr<T>& BoxPtr<T>::operator=(BoxPtr<U>&& other)
 {
-    return BoxPtr<T>();
+    if (static_cast<const void *>(other.get()) == static_cast<const void *>(inner))
+        return *this;
+    inner = other.get();
+    other.leak();
+    return *this;
 }
+
+template <typename T>
+template <typename U>
+BoxPtr<T>::BoxPtr(BoxPtr<U>&& other) {
+    inner = other.get();
+    other.leak();
+}
+
+    template<typename T>
+    const T *BoxPtr<T>::get() const {
+        return this;
+    }
+
+    template<typename T>
+    void BoxPtr<T>::leak() {
+        inner = nullptr;
+    }
 }

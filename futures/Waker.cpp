@@ -3,10 +3,16 @@
 //
 
 #include "Waker.hpp"
+#include "../ioruntime/ioruntime.hpp"
 #include <iostream>
 
+using ioruntime::GlobalRuntime;
+
 namespace futures {
-void Waker::operator()() { std::cout << "Wake" << std::endl; }
+void Waker::operator()() {
+    // TODO: waker should unregister itself?
+    GlobalRuntime::spawn(std::move(fut));
+}
 
 IFuture<void>& Waker::get_future() { return *fut; }
 

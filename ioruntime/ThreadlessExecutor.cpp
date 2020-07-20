@@ -8,6 +8,7 @@
 namespace ioruntime {
 void ThreadlessExecutor::spawn(BoxPtr<IFuture<void>>&& future)
 {
+    tasks_until_completion += 1;
     tasks.push_back(std::move(future));
 }
 
@@ -16,12 +17,15 @@ ThreadlessExecutor::ThreadlessExecutor()
     std::cout << "new threadless executor" << std::endl;
 }
 
-void ThreadlessExecutor::step()
+bool ThreadlessExecutor::step()
 {
     while (!tasks.empty()) {
         Waker waker(std::move(tasks.back()));
-        waker.get_future().poll(std::move(waker));
+        auto result = waker.get_future().poll(std::move(waker));
+        if (result.is_ready())
+            tasks_until_completion -= 1;
         tasks.pop_back();
     }
+    return (tasks_until_completion > 0);
 }
 } // namespace ioruntime

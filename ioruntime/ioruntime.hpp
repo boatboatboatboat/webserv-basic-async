@@ -13,5 +13,6 @@
 #include "Runtime.hpp"
 #include "RuntimeBuilder.hpp"
 #include "ThreadlessExecutor.hpp"
+#include "GlobalIoEventHandler.hpp"
 
 #endif // WEBSERV_IORUNTIME_HPP
