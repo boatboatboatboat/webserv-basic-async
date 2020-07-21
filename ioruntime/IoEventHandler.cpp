@@ -55,12 +55,20 @@ void IoEventHandler::fire_listeners_for(int fd, fd_set& selected,
 {
     if (FD_ISSET(fd, &selected)) {
         auto range = listeners.equal_range(fd);
-        for (auto it = range.first; it != range.second; ++it) {
+        auto it = range.first;
+        while (it != range.second) {
+			(*it->second.bf)();
+			if (it->second.once)
+				it = listeners.erase(it);
+			else
+        		++it;
+        }
+        /* for (auto it = range.first; it != range.second; ++it) {
             // it = pair<int, Waker>, it->second() = Waker()
             (*it->second.bf)();
             if (it->second.once)
                 listeners.erase(it);
-        }
+        } */
     }
 }
 

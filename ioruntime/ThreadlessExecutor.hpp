@@ -6,6 +6,7 @@
 #define WEBSERV_THREADLESSEXECUTOR_HPP
 
 #include "ioruntime.hpp"
+#include <vector>
 
 namespace ioruntime {
 class ThreadlessExecutor : public IExecutor {

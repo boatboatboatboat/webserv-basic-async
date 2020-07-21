@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fcntl.h>
 #include "ioruntime/ioruntime.hpp"
 
 using ioruntime::GlobalRuntime;
@@ -48,6 +49,8 @@ public:
         can_read = false;
         GlobalIoEventHandler::register_reader_callback(
                 STDIN_FILENO, std::move(ptr));
+        // TODO: error handling for fcntl
+        fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
     }
     ~GetLine() {
         /* clean up our read-ready callback */
