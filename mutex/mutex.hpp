@@ -50,7 +50,7 @@ class Mutex {
     friend class MutexGuard<T>;
 
 public:
-    Mutex() = delete;
+    Mutex();
 
     Mutex(const Mutex&) = default;
 

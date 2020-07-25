@@ -9,7 +9,8 @@
 using ioruntime::GlobalRuntime;
 
 namespace futures {
-void Waker::operator()() {
+void Waker::operator()()
+{
     // TODO: waker should unregister itself?
     GlobalRuntime::spawn(std::move(fut));
 }

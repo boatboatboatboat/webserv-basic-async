@@ -19,6 +19,7 @@ namespace ioruntime {
 
 class Runtime {
     friend class RuntimeBuilder;
+
 public:
     void register_handler(BoxPtr<IEventHandler>&& handler);
     void spawn(BoxPtr<IFuture<void>>&& future);

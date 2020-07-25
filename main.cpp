@@ -45,6 +45,7 @@ public:
     GetLine() {
         // code looks stupid because of C++ template limitation:
         // there's only template typechecking for *this exact case*
+        // fixme: could be fixed with having an assignment operator with two type parameters
         BoxPtr<Functor> ptr = BoxPtr<Functor>(new SetReadyFunctor(&can_read));
         can_read = false;
         GlobalIoEventHandler::register_reader_callback(

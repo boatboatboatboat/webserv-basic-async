@@ -6,14 +6,14 @@
 #define WEBSERV_GLOBALRUNTIME_HPP
 
 #include "../boxed/RcPtr.hpp"
+#include "../futures/futures.hpp"
 #include "../mutex/mutex.hpp"
 #include "ioruntime.hpp"
-#include "../futures/futures.hpp"
 
 using boxed::RcPtr;
+using futures::IFuture;
 using mutex::Mutex;
 using mutex::MutexGuard;
-using futures::IFuture;
 
 namespace ioruntime {
 // Forward declarations

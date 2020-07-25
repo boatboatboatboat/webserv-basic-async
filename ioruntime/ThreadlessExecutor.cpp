@@ -14,7 +14,7 @@ void ThreadlessExecutor::spawn(BoxPtr<IFuture<void>>&& future)
 
 ThreadlessExecutor::ThreadlessExecutor()
 {
-    std::cout << "new threadless executor" << std::endl;
+    std::cout << "Threadless executor created" << std::endl;
 }
 
 bool ThreadlessExecutor::step()

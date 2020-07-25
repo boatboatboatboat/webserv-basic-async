@@ -27,7 +27,7 @@ public:
     static BoxPtr<T> make(Args&&... args);
 
     // conversion operators
-    template<typename U>
+    template <typename U>
     BoxPtr(BoxPtr<U>&& other);
     template <typename U>
     BoxPtr<T>& operator=(BoxPtr<U>&& other);

@@ -8,8 +8,11 @@
 #include "ioruntime.hpp"
 
 namespace ioruntime {
-    class PooledExecutor : public IExecutor {
-    };
+class PooledExecutor : public IExecutor {
+public:
+private:
+    std::vector < Mutex<std::queue<BoxPtr<IFuture<void>>>> tasks;
+};
 }
 
 #endif // WEBSERV_POOLEDEXECUTOR_HPP

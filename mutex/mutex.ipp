@@ -3,6 +3,7 @@
 //
 
 #include "mutex.hpp"
+#include <iostream>
 
 // Typed mutexguard
 
@@ -40,6 +41,19 @@ T* MutexGuard<T>::operator->()
 }
 
 template <typename T>
+Mutex<T>::Mutex()
+{
+    int result = pthread_mutex_init(&this->inner_mutex, NULL);
+
+    if (result) {
+        // TODO: better mutex errors
+        throw "Nice Mutex error!!!";
+    }
+
+    this->inner_type = T();
+}
+
+template <typename T>
 Mutex<T>::Mutex(T inner)
 {
     int result = pthread_mutex_init(&this->inner_mutex, NULL);
@@ -49,7 +63,7 @@ Mutex<T>::Mutex(T inner)
         throw "Nice Mutex Error!!!";
     }
 
-    this->inner_type = inner;
+    this->inner_type = std::move(inner);
 }
 
 template <typename T>
@@ -83,4 +97,5 @@ T& Mutex<T>::get_inner_type()
 {
     return this->inner_type;
 }
+
 }

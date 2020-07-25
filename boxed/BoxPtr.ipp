@@ -34,7 +34,8 @@ T* BoxPtr<T>::get()
 }
 
 template <typename T>
-BoxPtr<T>::BoxPtr(BoxPtr::t_ptr inner): inner(inner)
+BoxPtr<T>::BoxPtr(BoxPtr::t_ptr inner)
+    : inner(inner)
 {
 }
 
@@ -45,12 +46,11 @@ BoxPtr<T> BoxPtr<T>::make(Args&&... args)
     return BoxPtr<T>(new T(std::forward<Args>(args)...));
 }
 
-
 template <typename T>
 template <typename U>
 BoxPtr<T>& BoxPtr<T>::operator=(BoxPtr<U>&& other)
 {
-    if (static_cast<const void *>(other.get()) == static_cast<const void *>(inner))
+    if (static_cast<const void*>(other.get()) == static_cast<const void*>(inner))
         return *this;
     inner = other.get();
     other.leak();
@@ -59,18 +59,21 @@ BoxPtr<T>& BoxPtr<T>::operator=(BoxPtr<U>&& other)
 
 template <typename T>
 template <typename U>
-BoxPtr<T>::BoxPtr(BoxPtr<U>&& other) {
+BoxPtr<T>::BoxPtr(BoxPtr<U>&& other)
+{
     inner = other.get();
     other.leak();
 }
 
-    template<typename T>
-    const T *BoxPtr<T>::get() const {
-        return this;
-    }
+template <typename T>
+const T* BoxPtr<T>::get() const
+{
+    return this;
+}
 
-    template<typename T>
-    void BoxPtr<T>::leak() {
-        inner = nullptr;
-    }
+template <typename T>
+void BoxPtr<T>::leak()
+{
+    inner = nullptr;
+}
 }

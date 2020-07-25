@@ -11,10 +11,12 @@
 #include "../boxed/BoxPtr.hpp"
 #include "../func/Functor.hpp"
 #include "../futures/futures.hpp"
+#include "../mutex/mutex.hpp"
 #include "IEventHandler.hpp"
 
 using futures::Waker;
 using ioruntime::IEventHandler;
+using mutex::Mutex;
 
 namespace ioruntime {
 class IoEventHandler : public IEventHandler {
@@ -22,6 +24,7 @@ class IoEventHandler : public IEventHandler {
         bool once;
         BoxFunctor bf;
     };
+
 public:
     IoEventHandler();
     void register_reader_callback(int fd, BoxFunctor&& x);
@@ -36,15 +39,16 @@ public:
     void reactor_step() override;
 
 private:
-    static void fire_listeners_for(int fd, fd_set& selected, std::multimap<int, CallbackInfo>& listeners);
+    static void fire_listeners_for(int fd, fd_set& selected, Mutex<std::multimap<int, CallbackInfo>>& listeners);
+    void register_callback(int fd, BoxFunctor&& x, Mutex<std::multimap<int, CallbackInfo>>& listeners, Mutex<fd_set>& set, bool once);
 
-    fd_set readfds;
-    fd_set writefds;
-    fd_set specialfds;
-    std::multimap<int, CallbackInfo> read_listeners;
-    std::multimap<int, CallbackInfo> write_listeners;
-    std::multimap<int, CallbackInfo> special_listeners;
-    int maxfds;
+    Mutex<fd_set> read_fds = Mutex(fd_set {});
+    Mutex<fd_set> write_fds = Mutex(fd_set {});
+    Mutex<fd_set> special_fds = Mutex(fd_set {});
+    Mutex<std::multimap<int, CallbackInfo>> read_listeners = Mutex(std::multimap<int, CallbackInfo>());
+    Mutex<std::multimap<int, CallbackInfo>> write_listeners = Mutex(std::multimap<int, CallbackInfo>());
+    Mutex<std::multimap<int, CallbackInfo>> special_listeners = Mutex(std::multimap<int, CallbackInfo>());
+    Mutex<int> maxfds = Mutex(0);
 };
 } // namespace ioruntime
 
