@@ -61,7 +61,7 @@ private:
     class RcPtrControlBlock {
     public:
         explicit RcPtrControlBlock(Mutex<unsigned long> mutex)
-            : refs(mutex)
+            : refs(std::move(mutex))
         {
         }
 

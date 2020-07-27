@@ -6,12 +6,31 @@
 #define WEBSERV_POOLEDEXECUTOR_HPP
 
 #include "ioruntime.hpp"
+#include "../mutex/mutex.hpp"
+#include <queue>
+#include <pthread.h>
+
+
+using TaskQueue = std::queue<BoxPtr<IFuture<void>>>;
+
+struct WorkerMessage {
+	int id;
+	std::vector<Mutex<TaskQueue>>* queues;
+};
 
 namespace ioruntime {
 class PooledExecutor : public IExecutor {
 public:
+	PooledExecutor() = delete;
+	PooledExecutor(int worker_count);
+	~PooledExecutor();
+	void spawn(BoxPtr<IFuture<void>>&& future) override;
+	bool step() override;
 private:
-    std::vector < Mutex<std::queue<BoxPtr<IFuture<void>>>> tasks;
+	static void* worker_thread_function(WorkerMessage* message);
+    std::vector<pthread_t>			workers;
+    std::vector<WorkerMessage>		messages;
+	std::vector<Mutex<TaskQueue>>	task_queues;
 };
 }
 

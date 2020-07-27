@@ -52,9 +52,10 @@ class Mutex {
 public:
     Mutex();
 
-    Mutex(const Mutex&) = default;
-
-    Mutex& operator=(Mutex const&) = default;
+    Mutex(const Mutex&) = delete;
+    Mutex& operator=(Mutex const&) = delete;
+	Mutex(Mutex&&) = default;
+	Mutex& operator=(Mutex&&) = default;
 
     explicit Mutex(T inner);
 
@@ -81,9 +82,8 @@ public:
 
     ~Mutex();
 
-    Mutex(const Mutex&) = default;
-
-    Mutex& operator=(Mutex const&) = default;
+    Mutex(const Mutex&) = delete;
+    Mutex& operator=(Mutex const&) = delete;
 
     MutexGuard<void> lock();
 
