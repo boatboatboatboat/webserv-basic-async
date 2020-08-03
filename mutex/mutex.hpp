@@ -54,8 +54,8 @@ public:
 
     Mutex(const Mutex&) = delete;
     Mutex& operator=(Mutex const&) = delete;
-	Mutex(Mutex&&) = default;
-	Mutex& operator=(Mutex&&) = default;
+    Mutex(Mutex&&) = default;
+    Mutex& operator=(Mutex&&) = default;
 
     explicit Mutex(T inner);
 

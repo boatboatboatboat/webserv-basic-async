@@ -6,7 +6,9 @@
 #define WEBSERV_FUTURES_HPP
 
 #include "IFuture.hpp"
+#include "IStream.hpp"
 #include "PollResult.hpp"
+#include "StreamPollResult.hpp"
 #include "Waker.hpp"
 
 #endif // WEBSERV_FUTURES_HPP
