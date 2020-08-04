@@ -22,7 +22,7 @@ MutexGuard<Runtime*> GlobalRuntime::get()
     return guard;
 }
 
-void GlobalRuntime::spawn(BoxPtr<IFuture<void>>&& fut)
+void GlobalRuntime::spawn(RcPtr<IFuture<void>>&& fut)
 {
     auto guard = GlobalRuntime::get();
     (*guard)->spawn(std::move(fut));

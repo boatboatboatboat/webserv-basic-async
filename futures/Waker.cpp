@@ -11,11 +11,15 @@ using ioruntime::GlobalRuntime;
 namespace futures {
 void Waker::operator()()
 {
-    // TODO: waker should unregister itself?
     GlobalRuntime::spawn(std::move(fut));
 }
 
 IFuture<void>& Waker::get_future() { return *fut; }
 
-Waker::Waker(BoxPtr<IFuture<void>>&& future) { fut = std::move(future); }
+Waker::Waker(RcPtr<IFuture<void>>&& future) { *fut = std::move(*future); }
+
+Waker::Waker(const Waker& other)
+{
+    fut = other.fut;
+}
 } // namespace futures

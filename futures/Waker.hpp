@@ -6,10 +6,11 @@
 #define WEBSERV_WAKER_HPP
 
 #include "../boxed/BoxPtr.hpp"
+#include "../boxed/RcPtr.hpp"
 #include "../func/Functor.hpp"
 #include "futures.hpp"
 
-using boxed::BoxPtr;
+using boxed::RcPtr;
 using futures::IFuture;
 
 namespace futures {
@@ -19,12 +20,15 @@ namespace futures {
 // Classes
 class Waker : public Functor {
 public:
-    Waker(BoxPtr<IFuture<void>>&& future);
+    Waker() = delete;
+    Waker(Waker const& waker);
+    ~Waker() = default;
+    Waker(RcPtr<IFuture<void>>&& future);
     void operator()() override;
     IFuture<void>& get_future();
 
 private:
-    BoxPtr<IFuture<void>> fut;
+    RcPtr<IFuture<void>> fut;
 };
 } // namespace futures
 

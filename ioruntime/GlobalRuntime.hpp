@@ -26,7 +26,7 @@ public:
     ~GlobalRuntime() = delete;
     static MutexGuard<Runtime*> get();
     static void set_runtime(Runtime* new_runtime);
-    static void spawn(BoxPtr<IFuture<void>>&& fut);
+    static void spawn(RcPtr<IFuture<void>>&& fut);
 
 private:
     static Mutex<Runtime*> runtime;

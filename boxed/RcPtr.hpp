@@ -19,10 +19,16 @@ public:
         this->control->inner = T();
     }
 
-    explicit RcPtr(T other)
+    explicit RcPtr(T&& other)
     {
         this->control = new RcPtrControlBlock(Mutex<unsigned long>(1));
-        this->control->inner = other;
+        this->control->inner = std::move(other);
+    }
+
+    template <typename... Args>
+    static RcPtr<T> make(Args&&... args)
+    {
+        return RcPtr<T>(std::move(T(std::forward<Args>(args)...)));
     }
 
     RcPtr(const RcPtr<T>& other)
