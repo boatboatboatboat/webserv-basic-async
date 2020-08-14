@@ -5,7 +5,7 @@
 #ifndef WEBSERV_WAKER_HPP
 #define WEBSERV_WAKER_HPP
 
-#include "../boxed/BoxPtr.hpp"
+#include "../ioruntime/IExecutor.hpp"
 #include "../boxed/RcPtr.hpp"
 #include "../func/Functor.hpp"
 #include "futures.hpp"
@@ -16,19 +16,20 @@ using futures::IFuture;
 namespace futures {
 // Forward declarations
 // template<typename T> class IFuture;
+class Task;
 
 // Classes
 class Waker : public Functor {
 public:
     Waker() = delete;
-    Waker(Waker const& waker);
+    Waker(Waker& waker);
     ~Waker() = default;
-    Waker(RcPtr<IFuture<void>>&& future);
+    Waker(RcPtr<Task>&& future);
     void operator()() override;
-    IFuture<void>& get_future();
+    RcPtr<Task>& get_task();
 
 private:
-    RcPtr<IFuture<void>> fut;
+    RcPtr<Task> task;
 };
 } // namespace futures
 

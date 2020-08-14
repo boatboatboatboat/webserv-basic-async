@@ -8,7 +8,7 @@ using ioruntime::Runtime;
 using ioruntime::RuntimeBuilder;
 using futures::IFuture;
 using futures::PollResult;
-
+/*
 class FileDescriptor {
 public:
 	[[nodiscard]] bool has_data_to_read() const {
@@ -54,14 +54,14 @@ public:
         fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
     }
     ~GetLine() {
-        /* clean up our read-ready callback */
+        // clean up our read-ready callback
         GlobalIoEventHandler::unregister_reader_callbacks(STDIN_FILENO);
     }
 	PollResult<void> poll(Waker&& waker) override {
 		if (can_read) {
-		    /* invalidate our read state */
+		    // invalidate our read state
 		    can_read = false;
-		    /* read */
+		    //read
 		    int res = read(STDIN_FILENO, reading_buffer, 24);
             switch (res) {
                 case -1: {
@@ -100,7 +100,7 @@ private:
     std::string buffer;
     char reading_buffer[24];
 };
-
+*/
 using ioruntime::IoEventHandler;
 
 int main() {
@@ -111,7 +111,7 @@ int main() {
 	auto io_event = BoxPtr<IoEventHandler>::make();
 	runtime.register_io_handler(std::move(io_event));
 	GlobalRuntime::set_runtime(&runtime);
-	GlobalRuntime::spawn(BoxPtr<GetLine>::make());
+	//GlobalRuntime::spawn(BoxPtr<GetLine>::make());
 	runtime.naive_run();
 	return 0;
 }

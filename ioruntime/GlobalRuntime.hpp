@@ -5,12 +5,12 @@
 #ifndef WEBSERV_GLOBALRUNTIME_HPP
 #define WEBSERV_GLOBALRUNTIME_HPP
 
-#include "../boxed/RcPtr.hpp"
+#include "../boxed/BoxPtr.hpp"
 #include "../futures/futures.hpp"
 #include "../mutex/mutex.hpp"
 #include "ioruntime.hpp"
 
-using boxed::RcPtr;
+using boxed::BoxPtr;
 using futures::IFuture;
 using mutex::Mutex;
 using mutex::MutexGuard;
@@ -26,7 +26,7 @@ public:
     ~GlobalRuntime() = delete;
     static MutexGuard<Runtime*> get();
     static void set_runtime(Runtime* new_runtime);
-    static void spawn(RcPtr<IFuture<void>>&& fut);
+    static void spawn(BoxPtr<IFuture<void>>&& fut);
 
 private:
     static Mutex<Runtime*> runtime;

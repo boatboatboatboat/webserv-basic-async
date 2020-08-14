@@ -5,12 +5,18 @@
 #ifndef WEBSERV_POOLEDEXECUTOR_HPP
 #define WEBSERV_POOLEDEXECUTOR_HPP
 
-#include "../mutex/mutex.hpp"
+#include "../ioruntime/IExecutor.hpp"
 #include "ioruntime.hpp"
+#include "../futures/futures.hpp"
+#include "../mutex/mutex.hpp"
 #include <pthread.h>
 #include <queue>
 
-using TaskQueue = std::queue<BoxPtr<IFuture<void>>>;
+using boxed::RcPtr;
+using mutex::Mutex;
+
+namespace futures { class Task; } using futures::Task; // forward declaration
+using TaskQueue = std::queue<RcPtr<Task>>;
 
 struct WorkerMessage {
     int id;
@@ -18,17 +24,18 @@ struct WorkerMessage {
 };
 
 namespace ioruntime {
-class PooledExecutor : public IExecutor {
+    // classes
+class PooledExecutor : public IExecutor { // C++ bug
 public:
     PooledExecutor() = delete;
     PooledExecutor(int worker_count);
     ~PooledExecutor();
-    void spawn(BoxPtr<IFuture<void>>&& future) override;
+    void spawn(RcPtr<Task>&& task) override;
     bool step() override;
 
 private:
     [[noreturn]] static void* worker_thread_function(WorkerMessage* message);
-    static bool steal_task(WorkerMessage* message, BoxPtr<IFuture<void>>& task);
+    static bool steal_task(WorkerMessage* message, RcPtr<Task>& task);
     std::vector<pthread_t> workers;
     std::vector<WorkerMessage> messages;
     std::vector<Mutex<TaskQueue>> task_queues;

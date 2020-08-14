@@ -3,6 +3,9 @@
 //
 
 #include "PooledExecutor.hpp"
+#include "../futures/futures.hpp"
+
+using futures::Task;
 
 namespace ioruntime {
 
@@ -46,7 +49,7 @@ PooledExecutor::~PooledExecutor()
 {
 }
 
-void PooledExecutor::spawn(BoxPtr<IFuture<void>>&& future)
+void PooledExecutor::spawn(RcPtr<Task>&& future)
 {
     int head = 0;
 
@@ -74,36 +77,48 @@ PooledExecutor::worker_thread_function(WorkerMessage* message)
 {
     for (;;) {
         auto& my_queue_mutex = message->queues->at(message->id);
-        BoxPtr<IFuture<void>> task(nullptr);
-        bool task_found;
 
         // check if we have a task on our own queue
         {
             auto my_queue = my_queue_mutex.lock();
-            task_found = !my_queue->empty();
-            if (task_found) {
-                task = std::move(my_queue->back());
+            if (!my_queue->empty()) {
+                auto task = my_queue->back();
+                BoxPtr<IFuture<void>> future_slot;
+                if (task->consume(future_slot)) {
+                    auto waker = task->derive_waker();
+                    auto result = future_slot->poll(std::move(waker));
+
+                    if (result.is_pending()) {
+                        task->deconsume(std::move(future_slot));
+                    }
+                }
                 my_queue->pop();
+
+                continue;
             }
         }
 
-        // if no task is found - try to steal a task
-        if (!task_found) {
-            task_found = steal_task(message, task);
-        }
+        {
+            auto task = RcPtr<Task>::null();
+            if (steal_task(message, task)) {
+                BoxPtr<IFuture<void>> future_slot(nullptr);
 
-        // check if any tasks were found
-        if (task_found) {
-            Waker waker(std::move(task));
-            auto result = waker.get_future().poll(std::move(waker));
-            if (result.is_ready())
-                std::cout << "Task ran to completion" << std::endl;
-            else
-                std::cout << "Task is pending" << std::endl;
+                if (task->consume(future_slot)) {
+                    auto waker = task->derive_waker();
+                    auto result = future_slot->poll(std::move(waker));
+
+                    if (result.is_pending()) {
+                        std::cout << "The task is pending" << std::endl;
+                        task->deconsume(std::move(future_slot));
+                    } else {
+                        std::cout << "The task was ran to completion" << std::endl;
+                    }
+                }
+            }
         }
     }
 }
-bool PooledExecutor::steal_task(WorkerMessage* message, BoxPtr<IFuture<void>>& task)
+bool PooledExecutor::steal_task(WorkerMessage* message, RcPtr<Task>& task)
 {
     int other_id = 0;
     for (auto& other_queue_mutex : *message->queues) {

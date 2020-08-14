@@ -9,6 +9,7 @@
 #include "IStream.hpp"
 #include "PollResult.hpp"
 #include "StreamPollResult.hpp"
+#include "Task.hpp"
 #include "Waker.hpp"
 
 #endif // WEBSERV_FUTURES_HPP

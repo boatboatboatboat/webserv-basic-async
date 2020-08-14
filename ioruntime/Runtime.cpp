@@ -2,7 +2,7 @@
 // Created by boat on 11-07-20.
 //
 
-#include "Runtime.hpp"
+
 #include "ioruntime.hpp"
 #include <iostream>
 
@@ -34,6 +34,7 @@ Runtime::Runtime()
 
 void Runtime::spawn(BoxPtr<IFuture<void>>&& future)
 {
-    executor->spawn(std::move(future));
+    auto task = RcPtr<Task>::make(std::move(future), executor.get());
+    executor->spawn(std::move(task));
 }
 } // namespace ioruntime

@@ -5,20 +5,27 @@
 #ifndef WEBSERV_THREADLESSEXECUTOR_HPP
 #define WEBSERV_THREADLESSEXECUTOR_HPP
 
+#include "../futures/futures.hpp"
 #include "ioruntime.hpp"
 #include <vector>
 
+namespace futures { class Task; } using futures::Task; // forward declaration
+
+
 namespace ioruntime {
+    // forward declarations
+class IExecutor;
+    // classes
 class ThreadlessExecutor : public IExecutor {
 public:
     ThreadlessExecutor();
     ~ThreadlessExecutor() = default;
-    void spawn(BoxPtr<IFuture<void>>&& future) override;
+    void spawn(RcPtr<Task>&& task) override;
     bool step() override;
 
 private:
     int tasks_until_completion = 0;
-    std::vector<BoxPtr<IFuture<void>>> tasks;
+    std::vector<RcPtr<Task>> tasks;
 };
 } // namespace ioruntime
 

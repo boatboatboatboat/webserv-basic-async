@@ -7,8 +7,6 @@
 
 #include "../boxed/BoxPtr.hpp"
 #include "../futures/futures.hpp"
-#include "IEventHandler.hpp"
-#include "IExecutor.hpp"
 #include "ioruntime.hpp"
 #include <vector>
 
@@ -18,6 +16,7 @@ using futures::IFuture;
 namespace ioruntime {
 
 class Runtime {
+    class IExecutor;
     friend class RuntimeBuilder;
 
 public:

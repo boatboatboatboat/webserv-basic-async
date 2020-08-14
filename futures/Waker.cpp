@@ -11,15 +11,15 @@ using ioruntime::GlobalRuntime;
 namespace futures {
 void Waker::operator()()
 {
-    GlobalRuntime::spawn(std::move(fut));
+    task->get_sender()->spawn(RcPtr(task));
 }
 
-IFuture<void>& Waker::get_future() { return *fut; }
+RcPtr<Task>& Waker::get_task() { return task; }
 
-Waker::Waker(RcPtr<IFuture<void>>&& future) { *fut = std::move(*future); }
+Waker::Waker(RcPtr<Task>&& future) { *task = std::move(*future); }
 
-Waker::Waker(const Waker& other)
+Waker::Waker(Waker& other)
 {
-    fut = other.fut;
+    task = other.task;
 }
 } // namespace futures

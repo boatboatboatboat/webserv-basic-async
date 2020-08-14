@@ -31,7 +31,12 @@ public:
         return RcPtr<T>(std::move(T(std::forward<Args>(args)...)));
     }
 
-    RcPtr(const RcPtr<T>& other)
+    static RcPtr<T> null()
+    {
+        return RcPtr<T>(0, 0);
+    }
+
+    RcPtr(RcPtr<T>& other)
     {
         auto& refs = other.control->refs.lock().get();
 
@@ -39,12 +44,22 @@ public:
         this->control = other.control;
     }
 
-    RcPtr& operator=(const RcPtr<T>& other)
+    RcPtr& operator=(RcPtr<T>& other)
     {
         auto& refs = other.control->refs.lock().get();
 
         refs += 1;
         this->control = other.control;
+        return *this;
+    }
+
+    RcPtr& operator=(RcPtr<T>&& other)
+    {
+        auto& refs = other.control->refs.lock().get();
+
+        refs += 1;
+        this->control = other.control;
+        other.control = nullptr;
         return *this;
     }
 
@@ -64,6 +79,7 @@ public:
     }
 
 private:
+    explicit RcPtr(int a, int b);
     class RcPtrControlBlock {
     public:
         explicit RcPtrControlBlock(Mutex<unsigned long> mutex)
@@ -77,6 +93,14 @@ private:
 
     RcPtrControlBlock* control;
 };
+
+template <typename T>
+RcPtr<T>::RcPtr(int a, int b)
+{
+    (void)a;
+    (void)b;
+    this->control = nullptr;
+}
 } // namespace boxed
 
 #endif // WEBSERV_RCPTR_HPP

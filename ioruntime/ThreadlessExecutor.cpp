@@ -3,13 +3,16 @@
 //
 
 #include "ThreadlessExecutor.hpp"
+#include "../futures/futures.hpp"
 #include <iostream>
 
+using futures::Task;
+
 namespace ioruntime {
-void ThreadlessExecutor::spawn(BoxPtr<IFuture<void>>&& future)
+void ThreadlessExecutor::spawn(RcPtr<Task>&& task)
 {
     tasks_until_completion += 1;
-    tasks.push_back(std::move(future));
+    tasks.push_back(std::move(task));
 }
 
 ThreadlessExecutor::ThreadlessExecutor()
@@ -20,10 +23,16 @@ ThreadlessExecutor::ThreadlessExecutor()
 bool ThreadlessExecutor::step()
 {
     while (!tasks.empty()) {
-        Waker waker(std::move(tasks.back()));
-        auto result = waker.get_future().poll(std::move(waker));
-        if (result.is_ready())
-            tasks_until_completion -= 1;
+        auto task = tasks.back();
+        BoxPtr<IFuture<void>> future_slot(nullptr);
+        if (task->consume(future_slot)) {
+            auto waker = task->derive_waker();
+            auto result = future_slot->poll(std::move(waker));
+
+            if (result.is_pending()) {
+                task->deconsume(std::move(future_slot));
+            }
+        }
         tasks.pop_back();
     }
     return (tasks_until_completion > 0);
