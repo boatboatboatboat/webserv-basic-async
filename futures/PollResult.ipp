@@ -3,6 +3,7 @@
 //
 
 #include "futures.hpp"
+#include <iostream>
 
 namespace futures {
 
@@ -19,10 +20,10 @@ PollResult<T> PollResult<T>::ready(T&& result)
 }
 
 template <typename T>
-PollResult<T>::PollResult(PollResult::Status status, T result)
+PollResult<T>::PollResult(PollResult::Status status, T&& result)
 {
     _status = status;
-    _result = result;
+    _result = std::forward(result);
 }
 
 template <typename T>

@@ -20,7 +20,7 @@ public:
 private:
     enum Status { Pending,
         Ready };
-    PollResult(Status status, T inner);
+    PollResult(Status status, T&& inner);
     explicit PollResult(Status status);
     Status _status;
     T _result;

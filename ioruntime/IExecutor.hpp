@@ -6,7 +6,6 @@
 #define WEBSERV_IEXECUTOR_HPP
 
 #include "../boxed/RcPtr.hpp"
-#include "../futures/futures.hpp"
 
 using boxed::RcPtr;
 

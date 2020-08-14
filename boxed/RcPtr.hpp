@@ -15,14 +15,22 @@ class RcPtr {
 public:
     RcPtr()
     {
-        this->control = new RcPtrControlBlock(Mutex<unsigned long>(1));
-        this->control->inner = T();
+        this->refs_mutex = new Mutex<unsigned long>(1);
+    	this->inner = new (std::nothrow) T();
+    	if (this->inner == nullptr) {
+    		delete this->refs_mutex;
+    		throw std::bad_alloc();
+    	}
     }
 
     explicit RcPtr(T&& other)
     {
-        this->control = new RcPtrControlBlock(Mutex<unsigned long>(1));
-        this->control->inner = std::move(other);
+		this->refs_mutex = new Mutex<unsigned long>(1);
+		this->inner = new (std::nothrow) T(std::move(other));
+		if (this->inner == nullptr) {
+			delete this->refs_mutex;
+			throw std::bad_alloc();
+		}
     }
 
     template <typename... Args>
@@ -31,67 +39,81 @@ public:
         return RcPtr<T>(std::move(T(std::forward<Args>(args)...)));
     }
 
-    static RcPtr<T> null()
+    static RcPtr<T> uninitialized()
     {
         return RcPtr<T>(0, 0);
     }
 
     RcPtr(RcPtr<T>& other)
     {
-        auto& refs = other.control->refs.lock().get();
-
-        refs += 1;
-        this->control = other.control;
+		{
+			auto &refs = other.refs_mutex->lock().get();
+			refs += 1;
+		}
+        this->refs_mutex = other.refs_mutex;
+        this->inner = other.inner;
     }
 
     RcPtr& operator=(RcPtr<T>& other)
     {
-        auto& refs = other.control->refs.lock().get();
-
-        refs += 1;
+		{
+			auto &refs = other.refs_mutex->lock().get();
+			refs += 1;
+		}
+		this->refs_mutex = other.refs_mutex;
         this->control = other.control;
         return *this;
     }
 
     RcPtr& operator=(RcPtr<T>&& other)
     {
-        auto& refs = other.control->refs.lock().get();
-
-        refs += 1;
-        this->control = other.control;
-        other.control = nullptr;
+		{
+			auto &refs = other.refs_mutex->lock().get();
+			refs += 1;
+		}
+		this->refs_mutex = other.refs_mutex;
+        this->inner = other.inner;
+        other.inner = nullptr;
+        other.refs_mutex = nullptr;
         return *this;
     }
 
-    T& operator*() { return control->inner; }
+    RcPtr(RcPtr<T>&& other)
+    {
+		{
+			auto &refs = other.refs_mutex->lock().get();
+			refs += 1;
+		}
+		this->refs_mutex = other.refs_mutex;
+        this->inner = other.inner;
+        other.inner = nullptr;
+        other.refs_mutex = nullptr;
+    }
 
-    T* operator->() { return &control->inner; }
+    T& operator*() { return *this->inner; }
 
-    T* get() { return &control->inner; }
+    T* operator->() { return this->inner; }
+
+    T* get() { return this->inner; }
 
     ~RcPtr()
     {
-        auto& refs = this->control->refs.lock().get();
+		{
+			auto &refs = this->refs_mutex->lock().get();
 
-        refs -= 1;
-        if (refs == 0)
-            delete control;
+			refs -= 1;
+			if (refs == 0)
+				delete this->inner;
+		}
+		// we delete it after the guard has been dropped
+		// otherwise the guard will try to change a stale mutex
+		delete refs_mutex;
     }
 
 private:
     explicit RcPtr(int a, int b);
-    class RcPtrControlBlock {
-    public:
-        explicit RcPtrControlBlock(Mutex<unsigned long> mutex)
-            : refs(std::move(mutex))
-        {
-        }
-
-        T inner;
-        Mutex<unsigned long> refs;
-    };
-
-    RcPtrControlBlock* control;
+    T* inner;
+    Mutex<unsigned long>* refs_mutex;
 };
 
 template <typename T>
@@ -99,7 +121,8 @@ RcPtr<T>::RcPtr(int a, int b)
 {
     (void)a;
     (void)b;
-    this->control = nullptr;
+    this->inner = nullptr;
+    this->refs_mutex = nullptr;
 }
 } // namespace boxed
 

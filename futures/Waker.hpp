@@ -5,7 +5,6 @@
 #ifndef WEBSERV_WAKER_HPP
 #define WEBSERV_WAKER_HPP
 
-#include "../ioruntime/IExecutor.hpp"
 #include "../boxed/RcPtr.hpp"
 #include "../func/Functor.hpp"
 #include "futures.hpp"
@@ -27,6 +26,7 @@ public:
     Waker(RcPtr<Task>&& future);
     void operator()() override;
     RcPtr<Task>& get_task();
+	BoxFunctor boxed();
 
 private:
     RcPtr<Task> task;

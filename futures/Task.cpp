@@ -24,10 +24,10 @@ void Task::deconsume(BoxPtr<IFuture<void>>&& out)
     guard->future = std::move(out);
 }
 
-Task::Task(BoxPtr<IFuture<void>>&& future, IExecutor* origin)
+Task::Task(BoxPtr<IFuture<void>>&& future, IExecutor* origin):
+	inner_task(std::move(Mutex<InnerTask>::make(std::move(future)))),
+	task_sender(origin)
 {
-    inner_task = Mutex(InnerTask(std::move(future)));
-    task_sender = origin;
 }
 
 IExecutor* Task::get_sender()

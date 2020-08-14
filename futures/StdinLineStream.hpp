@@ -28,7 +28,7 @@ class StdinLineStream : public IStream<std::string> {
 public:
     StdinLineStream()
     {
-        RcPtr<Functor> ptr = RcPtr<Functor>(std::move(SetReadyFunctor(&can_read)));
+        //RcPtr<Functor> ptr = RcPtr<Functor>(std::move(SetReadyFunctor(&can_read)));
     }
     ~StdinLineStream()
     {

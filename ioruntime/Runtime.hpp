@@ -16,7 +16,6 @@ using futures::IFuture;
 namespace ioruntime {
 
 class Runtime {
-    class IExecutor;
     friend class RuntimeBuilder;
 
 public:

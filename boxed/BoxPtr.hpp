@@ -23,6 +23,7 @@ public:
     T* get();
     void leak();
     const T* get() const;
+
     template <typename... Args>
     static BoxPtr<T> make(Args&&... args);
 

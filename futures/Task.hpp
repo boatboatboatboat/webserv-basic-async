@@ -5,19 +5,17 @@
 #ifndef WEBSERV_TASK_HPP
 #define WEBSERV_TASK_HPP
 
+#include "../ioruntime/IExecutor.hpp"
 #include "../boxed/BoxPtr.hpp"
 #include "../futures/futures.hpp"
-#include "../ioruntime/ioruntime.hpp"
 #include "../mutex/mutex.hpp"
 
 using boxed::BoxPtr;
 using futures::Waker;
 using mutex::Mutex;
+using ioruntime::IExecutor;
 
 namespace futures {
-// forward declarations
-class IExecutor;
-
 class Task {
 public:
     Task() = delete;
@@ -30,6 +28,12 @@ public:
 private:
     class InnerTask {
     public:
+    	InnerTask() = delete;
+    	// the default move ctor is fine
+    	// considering future is a BoxPtr.
+    	InnerTask(InnerTask&&) = default;
+    	InnerTask& operator=(InnerTask&&) = default;
+    	~InnerTask() = default;
         InnerTask(BoxPtr<IFuture<void>>&& p_future);
         BoxPtr<IFuture<void>> future;
         bool stale;

@@ -22,17 +22,17 @@ namespace ioruntime {
 class IoEventHandler : public IEventHandler {
     struct CallbackInfo {
         bool once;
-        BoxFunctor bf;
+		BoxFunctor bf;
     };
 
 public:
     IoEventHandler();
-    void register_reader_callback(int fd, BoxFunctor&& x);
-    void register_writer_callback(int fd, BoxFunctor&& x);
-    void register_special_callback(int fd, BoxFunctor&& x);
-    void register_reader_callback_once(int fd, BoxFunctor&& x);
-    void register_writer_callback_once(int fd, BoxFunctor&& x);
-    void register_special_callback_once(int fd, BoxFunctor&& x);
+    void register_reader_callback(int fd, BoxFunctor &&x);
+    void register_writer_callback(int fd, BoxFunctor &&x);
+    void register_special_callback(int fd, BoxFunctor &&x);
+    void register_reader_callback_once(int fd, BoxFunctor &&x);
+    void register_writer_callback_once(int fd, BoxFunctor &&x);
+    void register_special_callback_once(int fd, BoxFunctor &&x);
     void unregister_reader_callbacks(int fd);
     void unregister_writer_callbacks(int fd);
     void unregister_special_callbacks(int fd);
@@ -40,7 +40,7 @@ public:
 
 private:
     static void fire_listeners_for(int fd, fd_set& selected, Mutex<std::multimap<int, CallbackInfo>>& listeners);
-    void register_callback(int fd, BoxFunctor&& x, Mutex<std::multimap<int, CallbackInfo>>& listeners, Mutex<fd_set>& set, bool once);
+    void register_callback(int fd, BoxFunctor &&x, Mutex<std::multimap<int, CallbackInfo>>& listeners, Mutex<fd_set>& set, bool once);
 
     Mutex<fd_set> read_fds = Mutex(fd_set {});
     Mutex<fd_set> write_fds = Mutex(fd_set {});

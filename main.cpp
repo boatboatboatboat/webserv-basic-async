@@ -21,6 +21,7 @@ private:
 	bool can_read;
 	bool can_write;
 };
+ */
 
 class GetLine: public IFuture<void> {
     class SetReadyFunctor: public Functor {
@@ -31,15 +32,6 @@ class GetLine: public IFuture<void> {
         }
     private:
         bool* cread;
-    };
-    class WakerWrapper: public Functor {
-    public:
-        WakerWrapper(Waker&& w): w(std::move(w)) {}
-        void operator()() override {
-            w();
-        }
-    private:
-        Waker w;
     };
 public:
     GetLine() {
@@ -85,13 +77,13 @@ public:
                         buffer += reading_buffer[i];
                     }
                     // Register 'once' -> after execution, discard the waker.
-                    GlobalIoEventHandler::register_reader_callback_once(STDIN_FILENO, BoxPtr<Functor>(new WakerWrapper(std::move(waker))));
+                    GlobalIoEventHandler::register_reader_callback_once(STDIN_FILENO, waker.boxed());
                     return PollResult<void>::pending();
                 } break;
             }
 		} else {
 		    // Register 'once' -> after execution, discard the waker.
-            GlobalIoEventHandler::register_reader_callback_once(STDIN_FILENO, BoxPtr<Functor>(new WakerWrapper(std::move(waker))));
+            GlobalIoEventHandler::register_reader_callback_once(STDIN_FILENO, waker.boxed());
             return PollResult<void>::pending();
 		}
 	}
@@ -100,7 +92,7 @@ private:
     std::string buffer;
     char reading_buffer[24];
 };
-*/
+
 using ioruntime::IoEventHandler;
 
 int main() {
@@ -111,7 +103,7 @@ int main() {
 	auto io_event = BoxPtr<IoEventHandler>::make();
 	runtime.register_io_handler(std::move(io_event));
 	GlobalRuntime::set_runtime(&runtime);
-	//GlobalRuntime::spawn(BoxPtr<GetLine>::make());
+	GlobalRuntime::spawn(BoxPtr<GetLine>::make());
 	runtime.naive_run();
 	return 0;
 }

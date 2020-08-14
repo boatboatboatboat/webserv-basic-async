@@ -99,7 +99,7 @@ PooledExecutor::worker_thread_function(WorkerMessage* message)
         }
 
         {
-            auto task = RcPtr<Task>::null();
+            auto task = RcPtr<Task>::uninitialized();
             if (steal_task(message, task)) {
                 BoxPtr<IFuture<void>> future_slot(nullptr);
 

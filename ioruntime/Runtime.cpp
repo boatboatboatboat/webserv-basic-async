@@ -3,8 +3,11 @@
 //
 
 
-#include "ioruntime.hpp"
+#include "IExecutor.hpp"
+#include "Runtime.hpp"
 #include <iostream>
+
+using ioruntime::IExecutor;
 
 namespace ioruntime {
 void Runtime::register_handler(BoxPtr<IEventHandler>&& handler)

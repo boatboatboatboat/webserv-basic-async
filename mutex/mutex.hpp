@@ -54,10 +54,13 @@ public:
 
     Mutex(const Mutex&) = delete;
     Mutex& operator=(Mutex const&) = delete;
-    Mutex(Mutex&&) = default;
+    Mutex(Mutex&& other);
     Mutex& operator=(Mutex&&) = default;
 
-    explicit Mutex(T inner);
+    explicit Mutex(T&& inner);
+
+    template<typename... Args>
+    static Mutex<T> make(Args&&... args);
 
     ~Mutex();
 
