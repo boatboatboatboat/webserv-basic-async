@@ -5,17 +5,20 @@
 #ifndef WEBSERV_POOLEDEXECUTOR_HPP
 #define WEBSERV_POOLEDEXECUTOR_HPP
 
-#include "../ioruntime/IExecutor.hpp"
-#include "ioruntime.hpp"
 #include "../futures/futures.hpp"
+#include "../ioruntime/IExecutor.hpp"
 #include "../mutex/mutex.hpp"
+#include "ioruntime.hpp"
 #include <pthread.h>
 #include <queue>
 
 using boxed::RcPtr;
 using mutex::Mutex;
 
-namespace futures { class Task; } using futures::Task; // forward declaration
+namespace futures {
+class Task;
+}
+using futures::Task; // forward declaration
 using TaskQueue = std::queue<RcPtr<Task>>;
 
 struct WorkerMessage {
@@ -24,7 +27,7 @@ struct WorkerMessage {
 };
 
 namespace ioruntime {
-    // classes
+// classes
 class PooledExecutor : public IExecutor { // C++ bug
 public:
     PooledExecutor() = delete;

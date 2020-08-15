@@ -24,9 +24,9 @@ void Task::deconsume(BoxPtr<IFuture<void>>&& out)
     guard->future = std::move(out);
 }
 
-Task::Task(BoxPtr<IFuture<void>>&& future, IExecutor* origin):
-	inner_task(std::move(Mutex<InnerTask>::make(std::move(future)))),
-	task_sender(origin)
+Task::Task(BoxPtr<IFuture<void>>&& future, IExecutor* origin)
+    : inner_task(std::move(Mutex<InnerTask>::make(std::move(future))))
+    , task_sender(origin)
 {
 }
 
@@ -38,6 +38,12 @@ IExecutor* Task::get_sender()
 Waker Task::derive_waker()
 {
     return Waker(RcPtr(std::move(*this)));
+}
+bool
+Task::is_stale()
+{
+	auto x = inner_task.lock();
+	return x->stale;
 }
 
 Task::InnerTask::InnerTask(BoxPtr<IFuture<void>>&& p_future)

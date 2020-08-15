@@ -22,7 +22,7 @@ public:
 };
 
 template <typename T>
-IFuture<T>::~IFuture() { }
+IFuture<T>::~IFuture() {}
 } // namespace futures
 
 #endif // WEBSERV_IFUTURE_HPP

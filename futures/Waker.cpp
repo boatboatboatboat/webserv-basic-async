@@ -17,12 +17,18 @@ void Waker::operator()()
 
 RcPtr<Task>& Waker::get_task() { return task; }
 
-Waker::Waker(RcPtr<Task>&& future): task(std::move(*future)) {}
+Waker::Waker(RcPtr<Task>&& future)
+    : task(std::move(future))
+{
+}
 
-Waker::Waker(Waker& other): task(other.task) {}
+Waker::Waker(Waker& other)
+    : task(other.task)
+{
+}
 BoxFunctor
 Waker::boxed()
 {
-	return BoxPtr<Waker>(new Waker(*this));
+    return BoxPtr<Waker>(new Waker(*this));
 }
 } // namespace futures

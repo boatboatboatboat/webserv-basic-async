@@ -62,7 +62,6 @@ public:
                     return PollResult<void>::ready();
                 } break;
                 case 0: {
-                    // EOF
                     std::cout << buffer << std::endl;
                     return PollResult<void>::ready();
                 } break;
@@ -77,6 +76,7 @@ public:
                         buffer += reading_buffer[i];
                     }
                     // Register 'once' -> after execution, discard the waker.
+                    std::cout << "Reregistered in p" << std::endl;
                     GlobalIoEventHandler::register_reader_callback_once(STDIN_FILENO, waker.boxed());
                     return PollResult<void>::pending();
                 } break;

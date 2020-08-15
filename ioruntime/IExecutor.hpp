@@ -10,8 +10,9 @@
 using boxed::RcPtr;
 
 namespace futures {
-    class Task;
-} using futures::Task;
+class Task;
+}
+using futures::Task;
 
 namespace ioruntime {
 // classes

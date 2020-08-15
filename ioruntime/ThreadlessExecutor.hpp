@@ -5,18 +5,21 @@
 #ifndef WEBSERV_THREADLESSEXECUTOR_HPP
 #define WEBSERV_THREADLESSEXECUTOR_HPP
 
-#include "../futures/futures.hpp"
 #include "../boxed/boxed.hpp"
+#include "../futures/futures.hpp"
 #include "IExecutor.hpp"
 #include "ioruntime.hpp"
 #include <vector>
 
 using boxed::RcPtr;
 
-namespace futures { class Task; } using futures::Task; // forward declaration
+namespace futures {
+class Task;
+}
+using futures::Task; // forward declaration
 
 namespace ioruntime {
-    // forward declarations
+// forward declarations
 //class IExecutor;
 // classes
 class ThreadlessExecutor : public IExecutor {

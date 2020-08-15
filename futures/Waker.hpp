@@ -26,7 +26,7 @@ public:
     Waker(RcPtr<Task>&& future);
     void operator()() override;
     RcPtr<Task>& get_task();
-	BoxFunctor boxed();
+    BoxFunctor boxed();
 
 private:
     RcPtr<Task> task;

@@ -59,7 +59,7 @@ public:
 
     explicit Mutex(T&& inner);
 
-    template<typename... Args>
+    template <typename... Args>
     static Mutex<T> make(Args&&... args);
 
     ~Mutex();

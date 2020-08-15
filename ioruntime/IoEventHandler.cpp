@@ -56,17 +56,17 @@ void IoEventHandler::reactor_step()
     }
 }
 
-void IoEventHandler::register_reader_callback(int fd, BoxFunctor &&x)
+void IoEventHandler::register_reader_callback(int fd, BoxFunctor&& x)
 {
     register_callback(fd, std::move(x), read_listeners, read_fds, false);
 }
 
-void IoEventHandler::register_writer_callback(int fd, BoxFunctor &&x)
+void IoEventHandler::register_writer_callback(int fd, BoxFunctor&& x)
 {
     register_callback(fd, std::move(x), write_listeners, write_fds, false);
 }
 
-void IoEventHandler::register_special_callback(int fd, BoxFunctor &&x)
+void IoEventHandler::register_special_callback(int fd, BoxFunctor&& x)
 {
     register_callback(fd, std::move(x), special_listeners, special_fds, false);
 }
@@ -89,17 +89,17 @@ void IoEventHandler::unregister_special_callbacks(int fd)
     listeners->erase(fd);
 }
 
-void IoEventHandler::register_reader_callback_once(int fd, BoxFunctor &&x)
+void IoEventHandler::register_reader_callback_once(int fd, BoxFunctor&& x)
 {
     register_callback(fd, std::move(x), read_listeners, read_fds, true);
 }
 
-void IoEventHandler::register_writer_callback_once(int fd, BoxFunctor &&x)
+void IoEventHandler::register_writer_callback_once(int fd, BoxFunctor&& x)
 {
     register_callback(fd, std::move(x), write_listeners, write_fds, true);
 }
 
-void IoEventHandler::register_special_callback_once(int fd, BoxFunctor &&x)
+void IoEventHandler::register_special_callback_once(int fd, BoxFunctor&& x)
 {
     register_callback(fd, std::move(x), special_listeners, special_fds, true);
 }
@@ -112,7 +112,7 @@ void IoEventHandler::fire_listeners_for(int fd, fd_set& selected,
         auto range = listeners->equal_range(fd);
         auto it = range.first;
         while (it != range.second) {
-			(*it->second.bf)();
+            (*it->second.bf)();
             if (it->second.once)
                 it = listeners->erase(it);
             else
@@ -122,10 +122,10 @@ void IoEventHandler::fire_listeners_for(int fd, fd_set& selected,
 }
 
 void IoEventHandler::register_callback(int fd,
-									   BoxFunctor &&x,
-									   Mutex<std::multimap<int, CallbackInfo>>& listeners,
-									   Mutex<fd_set>& set,
-									   bool once)
+    BoxFunctor&& x,
+    Mutex<std::multimap<int, CallbackInfo>>& listeners,
+    Mutex<fd_set>& set,
+    bool once)
 {
     {
         auto max = maxfds.lock();
