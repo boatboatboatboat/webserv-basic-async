@@ -27,6 +27,6 @@ private:
 };
 }
 
-#include "StreamPollResult.hpp"
+#include "StreamPollResult.ipp"
 
 #endif //WEBSERV_FUTURES_STREAMPOLLRESULT_HPP

@@ -27,6 +27,7 @@ public:
     ThreadlessExecutor();
     ~ThreadlessExecutor() = default;
     void spawn(RcPtr<Task>&& task) override;
+    void respawn(RcPtr<Task>&& task) override;
     bool step() override;
 
 private:

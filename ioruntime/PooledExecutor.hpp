@@ -24,6 +24,7 @@ using TaskQueue = std::queue<RcPtr<Task>>;
 struct WorkerMessage {
     int id;
     std::vector<Mutex<TaskQueue>>* queues;
+    Mutex<int>* tasks_running_mutex;
 };
 
 namespace ioruntime {
@@ -34,6 +35,7 @@ public:
     PooledExecutor(int worker_count);
     ~PooledExecutor();
     void spawn(RcPtr<Task>&& task) override;
+    void respawn(RcPtr<Task>&& future) override;
     bool step() override;
 
 private:
@@ -42,7 +44,8 @@ private:
     std::vector<pthread_t> workers;
     std::vector<WorkerMessage> messages;
     std::vector<Mutex<TaskQueue>> task_queues;
-    Mutex<int> spawn_head;
+    Mutex<int> spawn_head_mutex;
+    Mutex<int> tasks_running_mutex;
 };
 }
 

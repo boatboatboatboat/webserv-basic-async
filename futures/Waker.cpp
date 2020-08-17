@@ -12,7 +12,7 @@ using ioruntime::IExecutor;
 namespace futures {
 void Waker::operator()()
 {
-    task->get_sender()->spawn(RcPtr(task));
+    task->get_sender()->respawn(RcPtr(task));
 }
 
 RcPtr<Task>& Waker::get_task() { return task; }

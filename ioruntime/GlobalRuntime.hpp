@@ -24,14 +24,18 @@ class GlobalRuntime {
 public:
     GlobalRuntime() = delete;
     ~GlobalRuntime() = delete;
-    static MutexGuard<Runtime*> get();
+    static Mutex<Runtime*>* get();
     static void set_runtime(Runtime* new_runtime);
     static void spawn(BoxPtr<IFuture<void>>&& fut);
 
 private:
+    template <typename T>
+    static void spawn_r(T&& fut); // deprecated :-)
     static Mutex<Runtime*> runtime;
 };
 
 } // namespace ioruntime
+
+#include "GlobalRuntime.ipp"
 
 #endif // WEBSERV_GLOBALRUNTIME_HPP

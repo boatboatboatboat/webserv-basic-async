@@ -21,6 +21,8 @@ public:
     virtual ~IStream() = 0;
     virtual StreamPollResult<T> poll_next(Waker&& waker) = 0;
 };
+template <typename T>
+IStream<T>::~IStream() { }
 }
 
 #endif //WEBSERV_FUTURES_ISTREAM_HPP

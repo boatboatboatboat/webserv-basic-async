@@ -76,4 +76,10 @@ void BoxPtr<T>::leak()
 {
     inner = nullptr;
 }
+
+template <typename T>
+BoxPtr<T>::BoxPtr(T&& in)
+{
+    inner = new T(std::forward<T>(in));
+}
 }

@@ -9,22 +9,20 @@ Mutex<Runtime*> GlobalRuntime::runtime(nullptr);
 
 void GlobalRuntime::set_runtime(ioruntime::Runtime* new_runtime)
 {
-    *runtime.lock() = new_runtime;
+    auto guard = runtime.lock();
+    *guard = new_runtime;
 }
 
-MutexGuard<Runtime*> GlobalRuntime::get()
+Mutex<Runtime*>* GlobalRuntime::get()
 {
-    auto guard = runtime.lock();
-    if (*guard == nullptr) {
-        // TODO: make exception
-        throw "Runtime has not been set";
-    }
-    return guard;
+    return &runtime;
 }
 
 void GlobalRuntime::spawn(BoxPtr<IFuture<void>>&& fut)
 {
-    auto guard = GlobalRuntime::get();
-    (*guard)->spawn(std::move(fut));
+    auto mut = GlobalRuntime::get();
+    auto lock = mut->lock();
+    (*lock)->spawn(std::move(fut));
 }
+
 } // namespace ioruntime

@@ -31,7 +31,7 @@ template <typename T>
 StreamPollResult<T>
 StreamPollResult<T>::ready(T&& result)
 {
-    return StreamPollResult<T>(StreamPollResult::Ready);
+    return StreamPollResult<T>(StreamPollResult::Ready, result);
 }
 
 template <typename T>
@@ -45,8 +45,9 @@ StreamPollResult<T>::finished()
 {
     return StreamPollResult<T>(StreamPollResult::Finished);
 }
+
 template <typename T>
-StreamPollResult::Status
+typename StreamPollResult<T>::Status
 StreamPollResult<T>::get_status() const
 {
     return _status;

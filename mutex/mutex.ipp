@@ -2,8 +2,16 @@
 // Created by boat on 6/27/20.
 //
 
+#include "../util/util.hpp"
 #include "mutex.hpp"
 #include <iostream>
+#include <strings.h>
+
+// TODO: bad header
+#include <sstream>
+#include <sys/types.h>
+#include <syscall.h>
+#include <zconf.h>
 
 // Typed mutexguard
 
@@ -13,14 +21,59 @@ template <typename T>
 MutexGuard<T>::MutexGuard(Mutex<T>& mutex)
     : mutex(mutex)
 {
-    pthread_mutex_lock(&mutex.get_inner_mutex());
+    int res = pthread_mutex_lock(&mutex.get_inner_mutex());
+    if (res) {
+        std::stringstream fuck;
+        fuck << "Mutex lock failure " << strerror(errno);
+        DBGPRINT(fuck.str());
+    }
+#ifdef DEBUG
+    pthread_mutex_lock(&mutex.locked_already_mutex);
+    mutex.locked_already = gettid();
+    pthread_mutex_unlock(&mutex.locked_already_mutex);
+#endif
 }
 
 template <typename T>
 MutexGuard<T>::~MutexGuard()
 {
+#ifdef DEBUG
+    pthread_mutex_lock(&mutex.locked_already_mutex);
+#endif
     pthread_mutex_unlock(&mutex.get_inner_mutex());
+#ifdef DEBUG
+    mutex.locked_already = 0;
+    mutex.filename = "(null)";
+    mutex.line = 0;
+    mutex.funcname = "(null)";
+    pthread_mutex_unlock(&mutex.locked_already_mutex);
+#endif
 }
+
+#ifdef DEBUG
+template <typename T>
+MutexGuard<T>::MutexGuard(Mutex<T>& mutex, const char* fin, int line, const char* fun)
+    : mutex(mutex)
+{
+    std::stringstream fuck;
+    pid_t tid = syscall(SYS_gettid);
+    fuck << "LockAcq: " << &mutex.get_inner_mutex() << " from " << tid;
+    //        DBGPRINT(fuck.str());
+
+    int res = pthread_mutex_lock(&mutex.get_inner_mutex());
+    if (res) {
+        std::stringstream fuck;
+        fuck << "Mutex lock failure " << strerror(errno);
+        DBGPRINT(fuck.str());
+    }
+    pthread_mutex_lock(&mutex.locked_already_mutex);
+    mutex.locked_already = gettid();
+    mutex.filename = fin;
+    mutex.line = line;
+    mutex.funcname = fun;
+    pthread_mutex_unlock(&mutex.locked_already_mutex);
+}
+#endif
 
 template <typename T>
 T& MutexGuard<T>::get()
@@ -43,7 +96,20 @@ T* MutexGuard<T>::operator->()
 template <typename T>
 Mutex<T>::Mutex()
 {
+#ifdef DEBUG
+
+    pthread_mutex_init(&this->locked_already_mutex, NULL);
+
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_NORMAL);
     int result = pthread_mutex_init(&this->inner_mutex, NULL);
+
+#else
+
+    int result = pthread_mutex_init(&this->inner_mutex, NULL);
+
+#endif
 
     if (result) {
         // TODO: better mutex errors
@@ -57,7 +123,19 @@ template <typename T>
 Mutex<T>::Mutex(T&& inner)
     : inner_type(std::move(inner))
 {
+#ifdef DEBUG
+    pthread_mutex_init(&this->locked_already_mutex, NULL);
+
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK);
     int result = pthread_mutex_init(&this->inner_mutex, NULL);
+
+#else
+
+    int result = pthread_mutex_init(&this->inner_mutex, NULL);
+
+#endif
 
     if (result) {
         // we have to recover from the initializer move.
@@ -78,12 +156,25 @@ Mutex<T>::~Mutex()
          * or still having a lock to the mutex,
          * which we can avoid by just using the mutex guards.
          */
-    pthread_mutex_destroy(&this->inner_mutex);
+    int err;
+    if ((err = pthread_mutex_destroy(&this->inner_mutex))) {
+        std::stringstream errmsg;
+
+        errmsg << "Mutex destruction failed: " << strerror(err);
+        DBGPRINT(errmsg.str());
+    }
 }
 
 template <typename T>
 MutexGuard<T> Mutex<T>::lock()
 {
+    pthread_mutex_lock(&this->locked_already_mutex);
+    if (locked_already == gettid()) {
+        std::stringstream me;
+        me << ("!!!WARNING!!! Double lock by ") << gettid();
+        DBGPRINT(me.str())
+    }
+    pthread_mutex_unlock(&this->locked_already_mutex);
     return MutexGuard<T>(*this);
 };
 
@@ -118,5 +209,21 @@ Mutex<T>::Mutex(Mutex&& other)
     // TODO: use libft bzero
     bzero(&other.inner_mutex, sizeof(pthread_mutex_t));
 }
+
+#ifdef DEBUG
+template <typename T>
+MutexGuard<T> Mutex<T>::dbglock(const char* fin, int _line, const char* fun)
+{
+    pthread_mutex_lock(&this->locked_already_mutex);
+    if (locked_already == gettid()) {
+        std::stringstream me;
+        me << ("!Double lock by ") << gettid() << " " << fin << ":" << _line << " firstman: "
+           << filename << ":" << line;
+        DBGPRINT(me.str());
+    }
+    pthread_mutex_unlock(&this->locked_already_mutex);
+    return MutexGuard<T>(*this, fin, _line, fun);
+}
+#endif
 
 }

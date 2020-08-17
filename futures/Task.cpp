@@ -8,11 +8,19 @@ namespace futures {
 bool Task::consume(BoxPtr<IFuture<void>>& out)
 {
     auto guard = inner_task.lock();
-    if (guard->stale) {
+    if (guard->in_use) {
+        return false;
+    }
+    if (guard->stale || guard->in_use) {
         return false;
     } else {
         out = std::move(guard->future);
+        // the future is stale for whatever reason
+        if (out.get() == nullptr) {
+            return false;
+        }
         guard->stale = true;
+        guard->in_use = true;
     }
     return true;
 }
@@ -22,6 +30,13 @@ void Task::deconsume(BoxPtr<IFuture<void>>&& out)
     auto guard = inner_task.lock();
     guard->stale = false;
     guard->future = std::move(out);
+    guard->in_use = false;
+}
+
+void Task::abandon()
+{
+    auto guard = inner_task.lock();
+    guard->in_use = false;
 }
 
 Task::Task(BoxPtr<IFuture<void>>&& future, IExecutor* origin)
@@ -39,16 +54,22 @@ Waker Task::derive_waker()
 {
     return Waker(RcPtr(std::move(*this)));
 }
-bool
-Task::is_stale()
+bool Task::is_stale()
 {
-	auto x = inner_task.lock();
-	return x->stale;
+    auto x = inner_task.lock();
+    return x->stale;
+}
+
+bool Task::in_use()
+{
+    auto x = inner_task.lock();
+    return x->in_use;
 }
 
 Task::InnerTask::InnerTask(BoxPtr<IFuture<void>>&& p_future)
 {
     future = std::move(p_future);
     stale = false;
+    in_use = false;
 }
 }

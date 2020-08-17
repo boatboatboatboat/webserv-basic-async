@@ -14,6 +14,7 @@ class BoxPtr {
 
 public:
     BoxPtr();
+    BoxPtr(T&& x);
     BoxPtr(BoxPtr&) = delete;
     BoxPtr& operator=(BoxPtr&) = delete;
 

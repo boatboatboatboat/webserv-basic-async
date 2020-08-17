@@ -15,6 +15,11 @@ void ThreadlessExecutor::spawn(RcPtr<Task>&& task)
     tasks.push_back(std::move(task));
 }
 
+void ThreadlessExecutor::respawn(RcPtr<Task>&& task)
+{
+    tasks.push_back(std::move(task));
+}
+
 ThreadlessExecutor::ThreadlessExecutor()
 {
     std::cout << "Threadless executor created" << std::endl;
@@ -25,16 +30,17 @@ bool ThreadlessExecutor::step()
     while (!tasks.empty()) {
         auto task = tasks.back();
         BoxPtr<IFuture<void>> future_slot(nullptr);
-		//auto wtask = RcPtr(task);//->derive_waker(); // derive from stale task!
-		auto waker = Waker(RcPtr(task));
-		if (task->consume(future_slot)) { // stale task
-			auto result = future_slot->poll(std::move(waker));
+        // create new waker by cloning the RcPtr
+        auto waker = Waker(RcPtr(task));
+        if (task->consume(future_slot)) { // stale task
+            auto result = future_slot->poll(std::move(waker));
             if (result.is_pending()) {
-                std::cout << "The future is pending" << std::endl;
                 task->deconsume(std::move(future_slot)); // unstale task
+            } else {
+                tasks_until_completion -= 1;
             }
         } else {
-        	std::cout << "Failed to consume because the task is stale" << std::endl;
+            DBGPRINT("Task is stale");
         }
         tasks.pop_back();
     }

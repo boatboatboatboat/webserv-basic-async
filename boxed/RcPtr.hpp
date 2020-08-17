@@ -47,8 +47,8 @@ public:
     RcPtr(RcPtr<T>& other)
     {
         {
-            auto& refs = other.refs_mutex->lock().get();
-            refs += 1;
+            auto refs = other.refs_mutex->lock();
+            *refs += 1;
         }
         this->refs_mutex = other.refs_mutex;
         this->inner = other.inner;
@@ -57,8 +57,8 @@ public:
     RcPtr& operator=(RcPtr<T>& other)
     {
         {
-            auto& refs = other.refs_mutex->lock().get();
-            refs += 1;
+            auto refs = other.refs_mutex->lock();
+            *refs += 1;
         }
         this->refs_mutex = other.refs_mutex;
         this->control = other.control;
@@ -67,10 +67,6 @@ public:
 
     RcPtr& operator=(RcPtr<T>&& other)
     {
-        {
-            auto& refs = other.refs_mutex->lock().get();
-            refs += 1;
-        }
         this->refs_mutex = other.refs_mutex;
         this->inner = other.inner;
         other.inner = nullptr;
@@ -80,10 +76,6 @@ public:
 
     RcPtr(RcPtr<T>&& other)
     {
-        {
-            auto& refs = other.refs_mutex->lock().get();
-            refs += 1;
-        }
         this->refs_mutex = other.refs_mutex;
         this->inner = other.inner;
         other.inner = nullptr;
@@ -103,10 +95,10 @@ public:
             return;
 
         {
-            auto& refs = this->refs_mutex->lock().get();
+            auto refs = this->refs_mutex->lock();
 
-            refs -= 1;
-            if (refs == 0) {
+            *refs -= 1;
+            if (*refs == 0) {
                 delete this->inner;
             } else {
                 return;

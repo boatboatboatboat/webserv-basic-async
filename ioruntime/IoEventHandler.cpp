@@ -36,7 +36,8 @@ void IoEventHandler::reactor_step()
     }
 
     struct timeval tv {
-        0
+        .tv_sec = 1,
+        .tv_usec = 0
     };
 
     int max;
@@ -108,15 +109,43 @@ void IoEventHandler::fire_listeners_for(int fd, fd_set& selected,
     Mutex<std::multimap<int, CallbackInfo>>& listeners_mutex)
 {
     if (FD_ISSET(fd, &selected)) {
-        auto listeners = listeners_mutex.lock();
-        auto range = listeners->equal_range(fd);
-        auto it = range.first;
-        while (it != range.second) {
-            (*it->second.bf)();
-            if (it->second.once)
+        // the IoEventHandler already has exclusive access over the
+        // execution of the BoxFunctors, but not over the listeners.
+        //
+        // The CallbackInfo's should be moved out of the map so it
+        // can let go of the listener_mutex lock, and then execute,
+        // and then return the CallbackInfo's that weren't set to
+        // run only once.
+        std::multimap<int, CallbackInfo> cbinfos;
+        {
+            auto listeners = listeners_mutex.lock();
+            auto range = listeners->equal_range(fd);
+            auto it = range.first;
+            while (it != range.second) {
+                cbinfos.insert(std::move(*it));
+                it->second.bf.leak(); // TODO: make this not a hack
                 it = listeners->erase(it);
-            else
-                ++it;
+            }
+        }
+        // Execute the moved-out CallbackInfo's,
+        // and remove the once-flagged ones.
+        {
+            auto it = cbinfos.begin();
+            while (it != cbinfos.end()) {
+                (*it->second.bf)();
+                if (it->second.once) {
+                    it = cbinfos.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+        }
+        // Move the CallbackInfo's back into the listeners.
+        {
+            auto listeners = listeners_mutex.lock();
+            for (auto&& cbinfo : cbinfos) {
+                listeners->insert(std::move(cbinfo));
+            }
         }
     }
 }

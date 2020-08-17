@@ -7,6 +7,11 @@
 
 #include <pthread.h>
 
+//TODO: bad header
+#include <sys/types.h>
+#include <syscall.h>
+#include <zconf.h>
+
 namespace mutex {
 
 template <typename T>
@@ -16,7 +21,12 @@ template <typename T>
 class MutexGuard {
 public:
     MutexGuard() = delete;
+    MutexGuard(MutexGuard&&) = delete;
+    MutexGuard(MutexGuard&) = delete;
 
+#ifdef DEBUG
+    explicit MutexGuard(Mutex<T>& mutex, const char* fin, int line, const char* fun);
+#endif
     explicit MutexGuard(Mutex<T>& mutex);
 
     ~MutexGuard();
@@ -38,7 +48,6 @@ public:
     MutexGuard() = delete;
 
     explicit MutexGuard(Mutex<void>& mutex);
-
     ~MutexGuard();
 
 private:
@@ -66,6 +75,10 @@ public:
 
     MutexGuard<T> lock();
 
+#ifdef DEBUG
+    MutexGuard<T> dbglock(const char* fin, int line, const char* fun);
+#endif
+
 private:
     pthread_mutex_t& get_inner_mutex();
 
@@ -73,6 +86,14 @@ private:
 
     pthread_mutex_t inner_mutex;
     T inner_type;
+#ifdef DEBUG
+    bool dbg_moved_out = false;
+    pthread_mutex_t locked_already_mutex;
+    pid_t locked_already = 0;
+    const char* filename = "(null)";
+    int line = 0;
+    const char* funcname = "(null)";
+#endif
 };
 
 // TODO: implement void mutex

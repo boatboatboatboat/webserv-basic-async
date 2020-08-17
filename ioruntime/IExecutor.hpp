@@ -20,6 +20,7 @@ class IExecutor {
 public:
     virtual ~IExecutor() = 0;
     virtual void spawn(RcPtr<Task>&& task) = 0;
+    virtual void respawn(RcPtr<Task>&& task) = 0;
     virtual bool step() = 0;
 };
 

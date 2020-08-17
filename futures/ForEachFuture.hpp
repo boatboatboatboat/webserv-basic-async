@@ -17,6 +17,7 @@ template <typename St, typename Fp>
 class ForEachFuture : public IFuture<void> {
 public:
     explicit ForEachFuture(St&& stream, void (*function)(Fp&));
+    ~ForEachFuture() { DBGPRINT("FEF completed"); }
     PollResult<void> poll(Waker&& waker) override;
 
 private:
@@ -26,9 +27,9 @@ private:
 
 template <typename St, typename Fp>
 ForEachFuture<St, Fp>::ForEachFuture(St&& stream, void (*function)(Fp&))
+    : _stream(std::move(stream))
+    , _function(function)
 {
-    _stream = std::move(stream);
-    _function = function;
 }
 
 template <typename St, typename Fp>
@@ -45,7 +46,7 @@ ForEachFuture<St, Fp>::poll(Waker&& waker)
         _function(result.get());
         return PollResult<void>::pending();
     } break;
-    case StreamPollResult<Fp>::Completed: {
+    case StreamPollResult<Fp>::Finished: {
         return PollResult<void>::ready();
     } break;
     }

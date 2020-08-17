@@ -22,9 +22,11 @@ public:
     Task(BoxPtr<IFuture<void>>&& future, IExecutor* origin);
     bool consume(BoxPtr<IFuture<void>>& out);
     void deconsume(BoxPtr<IFuture<void>>&& out);
+    void abandon();
     Waker derive_waker();
     IExecutor* get_sender();
     bool is_stale();
+    bool in_use();
 
 private:
     class InnerTask {
@@ -38,6 +40,7 @@ private:
         InnerTask(BoxPtr<IFuture<void>>&& p_future);
         BoxPtr<IFuture<void>> future;
         bool stale;
+        bool in_use;
     };
 
     Mutex<InnerTask> inner_task;
