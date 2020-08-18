@@ -52,6 +52,7 @@ BoxPtr<T>& BoxPtr<T>::operator=(BoxPtr<U>&& other)
 {
     if (static_cast<const void*>(other.get()) == static_cast<const void*>(inner))
         return *this;
+    delete inner;
     inner = other.get();
     other.leak();
     return *this;

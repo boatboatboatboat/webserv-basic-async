@@ -17,7 +17,7 @@ template <typename St, typename Fp>
 class ForEachFuture : public IFuture<void> {
 public:
     explicit ForEachFuture(St&& stream, void (*function)(Fp&));
-    ~ForEachFuture() { DBGPRINT("FEF completed"); }
+    ~ForEachFuture() override { DBGPRINT("FEF completed"); }
     PollResult<void> poll(Waker&& waker) override;
 
 private:

@@ -7,19 +7,19 @@
 namespace ioruntime {
 IoEventHandler* GlobalIoEventHandler::event_handler = nullptr;
 
-void GlobalIoEventHandler::register_reader_callback(int fd, BoxFunctor&& x)
+void GlobalIoEventHandler::register_reader_callback(int fd, BoxFunctor&& x, bool once, int unique)
 {
-    event_handler->register_reader_callback(fd, std::move(x));
+    event_handler->register_reader_callback(fd, std::move(x), once, unique);
 }
 
-void GlobalIoEventHandler::register_writer_callback(int fd, BoxFunctor&& x)
+void GlobalIoEventHandler::register_writer_callback(int fd, BoxFunctor&& x, bool once, int unique)
 {
-    event_handler->register_writer_callback(fd, std::move(x));
+    event_handler->register_writer_callback(fd, std::move(x), once, unique);
 }
 
-void GlobalIoEventHandler::register_special_callback(int fd, BoxFunctor&& x)
+void GlobalIoEventHandler::register_special_callback(int fd, BoxFunctor&& x, bool once, int unique)
 {
-    event_handler->register_special_callback(fd, std::move(x));
+    event_handler->register_special_callback(fd, std::move(x), once, unique);
 }
 
 void GlobalIoEventHandler::unregister_reader_callbacks(int fd)
@@ -40,20 +40,5 @@ void GlobalIoEventHandler::unregister_special_callbacks(int fd)
 void GlobalIoEventHandler::set(IoEventHandler* handler)
 {
     event_handler = handler;
-}
-
-void GlobalIoEventHandler::register_reader_callback_once(int fd, BoxFunctor&& x)
-{
-    event_handler->register_reader_callback_once(fd, std::move(x));
-}
-
-void GlobalIoEventHandler::register_writer_callback_once(int fd, BoxFunctor&& x)
-{
-    event_handler->register_writer_callback_once(fd, std::move(x));
-}
-
-void GlobalIoEventHandler::register_special_callback_once(int fd, BoxFunctor&& x)
-{
-    event_handler->register_special_callback_once(fd, std::move(x));
 }
 }

@@ -9,7 +9,6 @@
 
 //TODO: bad header
 #include <sys/types.h>
-#include <syscall.h>
 #include <zconf.h>
 
 namespace mutex {
@@ -75,7 +74,7 @@ public:
 
     MutexGuard<T> lock();
 
-#ifdef DEBUG
+#ifdef DEBUG_MUTEX
     MutexGuard<T> dbglock(const char* fin, int line, const char* fun);
 #endif
 
@@ -86,7 +85,7 @@ private:
 
     pthread_mutex_t inner_mutex;
     T inner_type;
-#ifdef DEBUG
+#ifdef DEBUG_MUTEX
     bool dbg_moved_out = false;
     pthread_mutex_t locked_already_mutex;
     pid_t locked_already = 0;

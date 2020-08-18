@@ -33,12 +33,12 @@ private:
 class GetLine: public IFuture<void> {
     class SetReadyFunctor: public Functor {
     public:
-        SetReadyFunctor(bool* cr_source): cread(cr_source) {}
+        SetReadyFunctor(bool* cr_source): ready_mutex(cr_source) {}
         void operator()() override {
-            *cread = true;
+            *ready_mutex = true;
         }
     private:
-        bool* cread;
+        bool* ready_mutex;
     };
 public:
     GetLine() {

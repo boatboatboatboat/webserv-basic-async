@@ -10,7 +10,6 @@
 // TODO: bad header
 #include <sstream>
 #include <sys/types.h>
-#include <syscall.h>
 #include <zconf.h>
 
 // Typed mutexguard
@@ -24,10 +23,10 @@ MutexGuard<T>::MutexGuard(Mutex<T>& mutex)
     int res = pthread_mutex_lock(&mutex.get_inner_mutex());
     if (res) {
         std::stringstream fuck;
-        fuck << "Mutex lock failure " << strerror(errno);
+        fuck << "Mutex[" << &mutex.get_inner_mutex() << "] lock failed " << strerror(errno);
         DBGPRINT(fuck.str());
     }
-#ifdef DEBUG
+#ifdef DEBUG_MUTEX
     pthread_mutex_lock(&mutex.locked_already_mutex);
     mutex.locked_already = gettid();
     pthread_mutex_unlock(&mutex.locked_already_mutex);
@@ -37,11 +36,16 @@ MutexGuard<T>::MutexGuard(Mutex<T>& mutex)
 template <typename T>
 MutexGuard<T>::~MutexGuard()
 {
-#ifdef DEBUG
+#ifdef DEBUG_MUTEX
     pthread_mutex_lock(&mutex.locked_already_mutex);
 #endif
-    pthread_mutex_unlock(&mutex.get_inner_mutex());
-#ifdef DEBUG
+    int res = pthread_mutex_unlock(&mutex.get_inner_mutex());
+    if (res) {
+        std::stringstream fuck;
+        fuck << "Mutex[" << &mutex.get_inner_mutex() << "] unlock failed " << strerror(errno);
+        DBGPRINT(fuck.str());
+    }
+#ifdef DEBUG_MUTEX
     mutex.locked_already = 0;
     mutex.filename = "(null)";
     mutex.line = 0;
@@ -50,7 +54,7 @@ MutexGuard<T>::~MutexGuard()
 #endif
 }
 
-#ifdef DEBUG
+#ifdef DEBUG_MUTEX
 template <typename T>
 MutexGuard<T>::MutexGuard(Mutex<T>& mutex, const char* fin, int line, const char* fun)
     : mutex(mutex)
@@ -96,7 +100,7 @@ T* MutexGuard<T>::operator->()
 template <typename T>
 Mutex<T>::Mutex()
 {
-#ifdef DEBUG
+#ifdef DEBUG_MUTEX
 
     pthread_mutex_init(&this->locked_already_mutex, NULL);
 
@@ -123,7 +127,7 @@ template <typename T>
 Mutex<T>::Mutex(T&& inner)
     : inner_type(std::move(inner))
 {
-#ifdef DEBUG
+#ifdef DEBUG_MUTEX
     pthread_mutex_init(&this->locked_already_mutex, NULL);
 
     pthread_mutexattr_t attr;
@@ -156,18 +160,26 @@ Mutex<T>::~Mutex()
          * or still having a lock to the mutex,
          * which we can avoid by just using the mutex guards.
          */
-    int err;
-    if ((err = pthread_mutex_destroy(&this->inner_mutex))) {
+    int err = pthread_mutex_destroy(&this->inner_mutex);
+#ifdef DEBUG_MUTEX
+    if (err) {
         std::stringstream errmsg;
 
-        errmsg << "Mutex destruction failed: " << strerror(err);
+        errmsg << "Mutex[" << &this->inner_mutex << "] destruction failed: " << strerror(err);
+        DBGPRINT(errmsg.str());
+    } else {
+        std::stringstream errmsg;
+
+        errmsg << "Mutex[" << &this->inner_mutex << "] destruction SUCCESS";
         DBGPRINT(errmsg.str());
     }
+#endif
 }
 
 template <typename T>
 MutexGuard<T> Mutex<T>::lock()
 {
+#ifdef DEBUG_MUTEX
     pthread_mutex_lock(&this->locked_already_mutex);
     if (locked_already == gettid()) {
         std::stringstream me;
@@ -175,6 +187,7 @@ MutexGuard<T> Mutex<T>::lock()
         DBGPRINT(me.str())
     }
     pthread_mutex_unlock(&this->locked_already_mutex);
+#endif
     return MutexGuard<T>(*this);
 };
 
@@ -210,7 +223,7 @@ Mutex<T>::Mutex(Mutex&& other)
     bzero(&other.inner_mutex, sizeof(pthread_mutex_t));
 }
 
-#ifdef DEBUG
+#ifdef DEBUG_MUTEX
 template <typename T>
 MutexGuard<T> Mutex<T>::dbglock(const char* fin, int _line, const char* fun)
 {

@@ -11,9 +11,10 @@ namespace ioruntime {
 template <typename T>
 void GlobalRuntime::spawn_r(T&& fut)
 {
-    auto mut = GlobalRuntime::get();
+    /*    auto mut = GlobalRuntime::get();
     auto lock = mut->lock();
     (*lock)->spawn(BoxPtr<T>(std::forward<T>(fut)));
+*/
 }
 }
 

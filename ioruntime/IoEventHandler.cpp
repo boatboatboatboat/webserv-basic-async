@@ -57,19 +57,19 @@ void IoEventHandler::reactor_step()
     }
 }
 
-void IoEventHandler::register_reader_callback(int fd, BoxFunctor&& x)
+void IoEventHandler::register_reader_callback(int fd, BoxFunctor&& x, bool once, int unique)
 {
-    register_callback(fd, std::move(x), read_listeners, read_fds, false);
+    register_callback(fd, std::move(x), read_listeners, read_fds, once, unique);
 }
 
-void IoEventHandler::register_writer_callback(int fd, BoxFunctor&& x)
+void IoEventHandler::register_writer_callback(int fd, BoxFunctor&& x, bool once, int unique)
 {
-    register_callback(fd, std::move(x), write_listeners, write_fds, false);
+    register_callback(fd, std::move(x), write_listeners, write_fds, once, unique);
 }
 
-void IoEventHandler::register_special_callback(int fd, BoxFunctor&& x)
+void IoEventHandler::register_special_callback(int fd, BoxFunctor&& x, bool once, int unique)
 {
-    register_callback(fd, std::move(x), special_listeners, special_fds, false);
+    register_callback(fd, std::move(x), special_listeners, special_fds, once, unique);
 }
 
 void IoEventHandler::unregister_reader_callbacks(int fd)
@@ -90,23 +90,8 @@ void IoEventHandler::unregister_special_callbacks(int fd)
     listeners->erase(fd);
 }
 
-void IoEventHandler::register_reader_callback_once(int fd, BoxFunctor&& x)
-{
-    register_callback(fd, std::move(x), read_listeners, read_fds, true);
-}
-
-void IoEventHandler::register_writer_callback_once(int fd, BoxFunctor&& x)
-{
-    register_callback(fd, std::move(x), write_listeners, write_fds, true);
-}
-
-void IoEventHandler::register_special_callback_once(int fd, BoxFunctor&& x)
-{
-    register_callback(fd, std::move(x), special_listeners, special_fds, true);
-}
-
 void IoEventHandler::fire_listeners_for(int fd, fd_set& selected,
-    Mutex<std::multimap<int, CallbackInfo>>& listeners_mutex)
+    Mutex<Listeners>& listeners_mutex)
 {
     if (FD_ISSET(fd, &selected)) {
         // the IoEventHandler already has exclusive access over the
@@ -132,6 +117,10 @@ void IoEventHandler::fire_listeners_for(int fd, fd_set& selected,
         {
             auto it = cbinfos.begin();
             while (it != cbinfos.end()) {
+                std::stringstream x;
+                x << "firing " << fd << "[" << it->second.once << ", " << it->second.unique << "]";
+                //            	DBGPRINT(x.str());
+                //
                 (*it->second.bf)();
                 if (it->second.once) {
                     it = cbinfos.erase(it);
@@ -152,9 +141,10 @@ void IoEventHandler::fire_listeners_for(int fd, fd_set& selected,
 
 void IoEventHandler::register_callback(int fd,
     BoxFunctor&& x,
-    Mutex<std::multimap<int, CallbackInfo>>& listeners,
+    Mutex<Listeners>& listeners,
     Mutex<fd_set>& set,
-    bool once)
+    bool once,
+    int unique)
 {
     {
         auto max = maxfds.lock();
@@ -165,8 +155,22 @@ void IoEventHandler::register_callback(int fd,
         auto fds = set.lock();
         FD_SET(fd, &*fds);
     }
-    auto guard = listeners.lock();
-    guard->insert(std::pair<int, CallbackInfo>(fd, CallbackInfo { .once = once, .bf = std::move(x) }));
+    auto listeners_locked = listeners.lock();
+    if (unique != 0) {
+        // a unique key was passed, find & replace
+        auto range = listeners_locked->equal_range(fd);
+        auto it = range.first;
+        while (it != range.second) {
+            if (it->second.unique == unique) {
+                it->second.bf = std::move(x);
+                // there's only one unique - no need to continue
+                return;
+            }
+            ++it;
+        }
+    }
+    listeners_locked->insert(std::pair<int, CallbackInfo>(fd,
+        CallbackInfo { .once = once, .bf = std::move(x), .unique = unique }));
 }
 
 } // namespace ioruntime

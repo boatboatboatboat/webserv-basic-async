@@ -20,34 +20,32 @@ using mutex::Mutex;
 
 namespace ioruntime {
 class IoEventHandler : public IEventHandler {
-    struct CallbackInfo {
-        bool once;
-        BoxFunctor bf;
-    };
-
 public:
     IoEventHandler();
-    void register_reader_callback(int fd, BoxFunctor&& x);
-    void register_writer_callback(int fd, BoxFunctor&& x);
-    void register_special_callback(int fd, BoxFunctor&& x);
-    void register_reader_callback_once(int fd, BoxFunctor&& x);
-    void register_writer_callback_once(int fd, BoxFunctor&& x);
-    void register_special_callback_once(int fd, BoxFunctor&& x);
+    void register_reader_callback(int fd, BoxFunctor&& x, bool once, int unique);
+    void register_writer_callback(int fd, BoxFunctor&& x, bool once, int unique);
+    void register_special_callback(int fd, BoxFunctor&& x, bool once, int unique);
     void unregister_reader_callbacks(int fd);
     void unregister_writer_callbacks(int fd);
     void unregister_special_callbacks(int fd);
     void reactor_step() override;
 
 private:
-    static void fire_listeners_for(int fd, fd_set& selected, Mutex<std::multimap<int, CallbackInfo>>& listeners);
-    void register_callback(int fd, BoxFunctor&& x, Mutex<std::multimap<int, CallbackInfo>>& listeners, Mutex<fd_set>& set, bool once);
+    struct CallbackInfo {
+        bool once;
+        BoxFunctor bf;
+        int unique;
+    };
+    typedef std::multimap<int, CallbackInfo> Listeners;
+    static void fire_listeners_for(int fd, fd_set& selected, Mutex<Listeners>& listeners);
+    void register_callback(int fd, BoxFunctor&& x, Mutex<Listeners>& listeners, Mutex<fd_set>& set, bool once, int unique);
 
     Mutex<fd_set> read_fds = Mutex(fd_set {});
     Mutex<fd_set> write_fds = Mutex(fd_set {});
     Mutex<fd_set> special_fds = Mutex(fd_set {});
-    Mutex<std::multimap<int, CallbackInfo>> read_listeners = Mutex(std::multimap<int, CallbackInfo>());
-    Mutex<std::multimap<int, CallbackInfo>> write_listeners = Mutex(std::multimap<int, CallbackInfo>());
-    Mutex<std::multimap<int, CallbackInfo>> special_listeners = Mutex(std::multimap<int, CallbackInfo>());
+    Mutex<Listeners> read_listeners = Mutex(Listeners());
+    Mutex<Listeners> write_listeners = Mutex(Listeners());
+    Mutex<Listeners> special_listeners = Mutex(Listeners());
     Mutex<int> maxfds = Mutex(0);
 };
 } // namespace ioruntime

@@ -96,7 +96,10 @@ void PooledExecutor::respawn(RcPtr<Task>&& future)
 
 bool PooledExecutor::step()
 {
-    return true;
+    auto tasks_running = tasks_running_mutex.lock();
+
+    // fixme: worker threads can outlive the executor
+    return *tasks_running > 0;
 }
 
 [[noreturn]] void*
@@ -135,28 +138,29 @@ PooledExecutor::worker_thread_function(WorkerMessage* message)
                     // Therefore we should re-add it.
 
                     //task->get_sender()->respawn(std::move(task));
-                    //DBGPRINT("Task in use - respawning");
+                    DBGPRINT("Task in use - skipping");
                 } else {
                     // the in use state is invalid at this point
                     // consume will instantly deconsume it
 
                     if (task->consume(future_slot)) {
-                        //                        DBGPRINT("task poll");
+                        DBGPRINT("task poll");
                         auto result = future_slot->poll(std::move(waker));
-                        //                        DBGPRINT("task poll done");
+                        DBGPRINT("task poll done");
 
                         if (result.is_pending()) {
                             task->deconsume(std::move(future_slot));
-                            //                            DBGPRINT("task deconsumed");
+                            DBGPRINT("task deconsumed");
                         } else {
-                            //                          DBGPRINT("task rc down");
+                            DBGPRINT("task rc down");
                             auto tasks_running = message->tasks_running_mutex->lock();
 
                             *tasks_running -= 1;
                             task->abandon();
                         }
                     } else {
-                        //                        DBGPRINT("Task marked stale - deconsuming");
+                        DBGPRINT("Task marked stale - deconsuming");
+                        //fixme: if in use, it will override the inner task
                         task->deconsume(std::move(future_slot));
                     }
                 }
