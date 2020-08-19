@@ -18,17 +18,6 @@ using mutex::Mutex;
 namespace futures {
 class Task {
 public:
-    Task() = delete;
-    Task(BoxPtr<IFuture<void>>&& future, IExecutor* origin);
-    bool consume(BoxPtr<IFuture<void>>& out);
-    void deconsume(BoxPtr<IFuture<void>>&& out);
-    void abandon();
-    Waker derive_waker();
-    IExecutor* get_sender();
-    bool is_stale();
-    bool in_use();
-
-private:
     class InnerTask {
     public:
         InnerTask() = delete;
@@ -39,10 +28,23 @@ private:
         ~InnerTask() = default;
         InnerTask(BoxPtr<IFuture<void>>&& p_future);
         BoxPtr<IFuture<void>> future;
-        bool stale;
-        bool in_use;
+        bool stale = false;
+        bool in_use = false;
     };
 
+    Task() = delete;
+    Task(BoxPtr<IFuture<void>>&& future, IExecutor* origin);
+    bool consume(BoxPtr<IFuture<void>>& out);
+    void deconsume(BoxPtr<IFuture<void>>&& out);
+    void abandon();
+    Waker derive_waker();
+    IExecutor* get_sender();
+    Mutex<futures::Task::InnerTask>& get_inner_task();
+    bool is_stale();
+
+    bool in_use();
+
+private:
     Mutex<InnerTask> inner_task;
     IExecutor* task_sender;
 };

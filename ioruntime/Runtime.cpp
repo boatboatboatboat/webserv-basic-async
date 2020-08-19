@@ -27,6 +27,7 @@ void Runtime::naive_run()
             handler->reactor_step();
         }
     } while (executor->step());
+    DBGPRINT("Naive run completed");
 }
 
 Runtime::Runtime()

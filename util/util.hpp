@@ -9,7 +9,7 @@
 
 void dbg_puts(std::string const& printme);
 
-#ifdef __LINUX__
+#ifdef __linux__
 
 // gettid() only works on linux
 

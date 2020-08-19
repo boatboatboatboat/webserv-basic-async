@@ -8,12 +8,9 @@ namespace futures {
 bool Task::consume(BoxPtr<IFuture<void>>& out)
 {
     auto guard = inner_task.lock();
-    if (guard->in_use) {
+    if (guard->in_use)
         return false;
-    }
-    if (guard->stale || guard->in_use) {
-        return false;
-    } else {
+    if (!guard->stale) {
         out = std::move(guard->future);
         // the future is stale for whatever reason
         if (out.get() == nullptr) {
@@ -64,6 +61,11 @@ bool Task::in_use()
 {
     auto x = inner_task.lock();
     return x->in_use;
+}
+
+Mutex<Task::InnerTask>& Task::get_inner_task()
+{
+    return this->inner_task;
 }
 
 Task::InnerTask::InnerTask(BoxPtr<IFuture<void>>&& p_future)

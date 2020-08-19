@@ -108,86 +108,48 @@ PooledExecutor::worker_thread_function(WorkerMessage* message)
     for (;;) {
         auto& my_queue_mutex = message->queues->at(message->id);
 
-        // check if we have a task on our own queue
+        // A future poll can take a lock on one of the queues by waker,
+        // causing a double lock.
+        // The task should be moved out of the queue and then polled.
+        auto task = RcPtr<Task>::uninitialized();
+        bool task_found;
         {
-            // A future poll can take a lock on one of the queues by waker,
-            // causing a double lock.
-            // The task should be moved out of the queue and then polled.
-            auto task = RcPtr<Task>::uninitialized();
-            bool task_found;
-            {
-                auto my_queue = my_queue_mutex.lock();
-                task_found = !my_queue->empty();
-                if (task_found) {
-                    task = std::move(my_queue->front());
-                    my_queue->pop();
-                }
-            }
-
-            if (!task_found) {
-                task_found = steal_task(message, task);
-            }
-
+            auto my_queue = my_queue_mutex.lock();
+            task_found = !my_queue->empty();
             if (task_found) {
-                BoxPtr<IFuture<void>> future_slot(nullptr);
-                auto waker = Waker(RcPtr(task));
-
-                if (task->in_use()) {
-                    // The task is already in use, it should be skipped.
-                    // However it can be the task spawned by the in-use task.
-                    // Therefore we should re-add it.
-
-                    //task->get_sender()->respawn(std::move(task));
-                    DBGPRINT("Task in use - skipping");
-                } else {
-                    // the in use state is invalid at this point
-                    // consume will instantly deconsume it
-
-                    if (task->consume(future_slot)) {
-                        DBGPRINT("task poll");
-                        auto result = future_slot->poll(std::move(waker));
-                        DBGPRINT("task poll done");
-
-                        if (result.is_pending()) {
-                            task->deconsume(std::move(future_slot));
-                            DBGPRINT("task deconsumed");
-                        } else {
-                            DBGPRINT("task rc down");
-                            auto tasks_running = message->tasks_running_mutex->lock();
-
-                            *tasks_running -= 1;
-                            task->abandon();
-                        }
-                    } else {
-                        DBGPRINT("Task marked stale - deconsuming");
-                        //fixme: if in use, it will override the inner task
-                        task->deconsume(std::move(future_slot));
-                    }
-                }
+                task = std::move(my_queue->front());
+                my_queue->pop();
             }
         }
 
-        {
-            auto task = RcPtr<Task>::uninitialized();
-            if (steal_task(message, task)) {
-                BoxPtr<IFuture<void>> future_slot(nullptr);
-                auto waker = Waker(RcPtr(task));
+        if (!task_found) {
+            // If no task was found
+            task_found = steal_task(message, task);
+        }
 
-                if (task->consume(future_slot)) {
-                    auto result = future_slot->poll(std::move(waker));
+        if (task_found) {
+            BoxPtr<IFuture<void>> future_slot(nullptr);
+            auto waker = Waker(RcPtr(task));
 
-                    if (result.is_pending()) {
-                        task->deconsume(std::move(future_slot));
-                    } else {
-                        auto tasks_running = message->tasks_running_mutex->lock();
+            auto inner_task = task->get_inner_task().lock();
 
-                        *tasks_running -= 1;
-                    }
+            if (!inner_task->stale) {
+                future_slot = std::move(inner_task->future);
+                auto result = future_slot->poll(std::move(waker));
+
+                if (result.is_ready()) {
+                    inner_task->stale = true;
+                    auto tasks_running = message->tasks_running_mutex->lock();
+
+                    *tasks_running -= 1;
+                } else {
+                    inner_task->future = std::move(future_slot);
                 }
             }
         }
     }
 }
+
 bool PooledExecutor::steal_task(WorkerMessage* message, RcPtr<Task>& task)
 {
     int other_id = 0;

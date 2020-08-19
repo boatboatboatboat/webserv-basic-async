@@ -25,7 +25,7 @@ class FileDescriptor {
             : ready_mutex(std::move(cr_source))
         {
         }
-        ~SetReadyFunctor() {}
+        ~SetReadyFunctor() { }
         void operator()() override
         {
             auto cread_guard = ready_mutex->lock();
@@ -125,13 +125,11 @@ public:
 
     ~FdLineStream() override
     {
-        DBGPRINT("FLS Dtor");
     }
 
     StreamPollResult<std::string> poll_next(Waker&& waker) override
     {
         if (completed) {
-            DBGPRINT("FLS completed");
             return StreamPollResult<std::string>::finished();
         }
         GlobalIoEventHandler::register_reader_callback(fd.get_descriptor(), waker.boxed(), true, 1);
