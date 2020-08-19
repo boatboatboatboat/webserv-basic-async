@@ -53,7 +53,7 @@ PooledExecutor::~PooledExecutor()
 
 void PooledExecutor::spawn(RcPtr<Task>&& future)
 {
-    int head = 0;
+    size_t head = 0;
 
     {
         auto spawn_head = spawn_head_mutex.lock();
@@ -132,8 +132,10 @@ PooledExecutor::worker_thread_function(WorkerMessage* message)
             auto waker = Waker(RcPtr(task));
 
             auto inner_task = task->get_inner_task().lock();
+            DBGPRINT("locked a task");
 
             if (!inner_task->stale) {
+                DBGPRINT("task valid");
                 future_slot = std::move(inner_task->future);
                 auto result = future_slot->poll(std::move(waker));
 

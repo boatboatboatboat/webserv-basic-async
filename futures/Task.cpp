@@ -37,7 +37,7 @@ void Task::abandon()
 }
 
 Task::Task(BoxPtr<IFuture<void>>&& future, IExecutor* origin)
-    : inner_task(std::move(Mutex<InnerTask>::make(std::move(future))))
+    : inner_task(Mutex<InnerTask>::make(std::move(future)))
     , task_sender(origin)
 {
 }

@@ -22,9 +22,10 @@ MutexGuard<T>::MutexGuard(Mutex<T>& mutex)
 {
     int res = pthread_mutex_lock(&mutex.get_inner_mutex());
     if (res) {
-        std::stringstream fuck;
-        fuck << "Mutex[" << &mutex.get_inner_mutex() << "] lock failed " << strerror(errno);
-        DBGPRINT(fuck.str());
+        std::stringstream errmsg;
+
+        errmsg << "MutexGuard: Failed to lock mutex: " << strerror(errno);
+        throw std::runtime_error(errmsg.str());
     }
 #ifdef DEBUG_MUTEX
     pthread_mutex_lock(&mutex.locked_already_mutex);
@@ -41,9 +42,10 @@ MutexGuard<T>::~MutexGuard()
 #endif
     int res = pthread_mutex_unlock(&mutex.get_inner_mutex());
     if (res) {
-        std::stringstream fuck;
-        fuck << "Mutex[" << &mutex.get_inner_mutex() << "] unlock failed " << strerror(errno);
-        DBGPRINT(fuck.str());
+        std::stringstream errmsg;
+
+        errmsg << "MutexGuard: Failed to unlock mutex: " << strerror(errno);
+        DBGPRINT(errmsg.str());
     }
 #ifdef DEBUG_MUTEX
     mutex.locked_already = 0;
@@ -161,6 +163,7 @@ Mutex<T>::~Mutex()
          * which we can avoid by just using the mutex guards.
          */
     int err = pthread_mutex_destroy(&this->inner_mutex);
+    (void)err;
 #ifdef DEBUG_MUTEX
     if (err) {
         std::stringstream errmsg;

@@ -25,7 +25,7 @@ class FileDescriptor {
             : ready_mutex(std::move(cr_source))
         {
         }
-        ~SetReadyFunctor() { }
+        ~SetReadyFunctor() {}
         void operator()() override
         {
             auto cread_guard = ready_mutex->lock();
@@ -48,13 +48,13 @@ public:
         descriptor = fd;
         BoxFunctor read_cb = BoxFunctor(new SetReadyFunctor(RcPtr(ready_to_read)));
         BoxFunctor write_cb = BoxFunctor(new SetReadyFunctor(RcPtr(ready_to_write)));
-        GlobalIoEventHandler::register_reader_callback(descriptor, std::move(read_cb), true, 0);
-        GlobalIoEventHandler::register_reader_callback(descriptor, std::move(write_cb), true, 0);
+        GlobalIoEventHandler::register_reader_callback(descriptor, std::move(read_cb), true, 2);
+        GlobalIoEventHandler::register_writer_callback(descriptor, std::move(write_cb), true, 2);
     }
     FileDescriptor(FileDescriptor&& other)
-        : ready_to_read(std::move(other.ready_to_read))
+        : descriptor(other.descriptor)
+        , ready_to_read(std::move(other.ready_to_read))
         , ready_to_write(std::move(other.ready_to_write))
-        , descriptor(other.descriptor)
     {
         other.descriptor = -1;
     }
@@ -65,15 +65,21 @@ public:
             GlobalIoEventHandler::unregister_writer_callbacks(descriptor);
         }
     }
-    bool read_from(char* buffer, size_t size, size_t& read_result)
+    bool read_from(char* buffer, size_t size, ssize_t& read_result)
     {
         auto ready_guard = ready_to_read->lock();
         if (!*ready_guard) {
             return false;
         }
+        //DBGPRINT("Performing read");
+        // fixme: READ RESULT IS SIZE_T!!!!
         read_result = read(descriptor, buffer, size);
+        std::stringstream res;
+
+        res << "READ RES & P: " << std::to_string(read_result);
+        DBGPRINT(res.str());
         BoxFunctor read_cb = BoxFunctor(new SetReadyFunctor(RcPtr(ready_to_read)));
-        GlobalIoEventHandler::register_reader_callback(descriptor, std::move(read_cb), true, 0);
+        GlobalIoEventHandler::register_reader_callback(descriptor, std::move(read_cb), true, 2);
         *ready_guard = false;
         return true;
     }
@@ -125,6 +131,8 @@ public:
 
     ~FdLineStream() override
     {
+        if (fd.get_descriptor() >= 0)
+            DBGPRINT("FLS completion");
     }
 
     StreamPollResult<std::string> poll_next(Waker&& waker) override
@@ -152,13 +160,11 @@ public:
                 // which means that they can return EOF even when in select.
                 //
                 // We also check for stdin having reached EOF.
-                if (c == EOF || (fd.get_descriptor() == STDIN_FILENO && std::cin.eof())) {
-                    DBGPRINT("eof reached1");
+                if (c == EOF) { // || (fd.get_descriptor() == STDIN_FILENO && std::cin.eof())) {
                     // If there's nothing in the buffer, stop the stream immediately.
                     // Otherwise, set an internal completion flag and re-run,
                     // so we can return the contents of the buffer.
                     if (head == 0) {
-                        DBGPRINT("eof reached");
                         return StreamPollResult<std::string>::finished();
                     } else {
                         completed = true;
@@ -195,7 +201,7 @@ private:
     GncResult get_next_character(char& c)
     {
         if (head == 0) {
-            size_t result;
+            ssize_t result;
 
             if (fd.read_from(rbuffer, sizeof(rbuffer), result)) {
                 if (result < 0) {

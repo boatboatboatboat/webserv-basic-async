@@ -44,7 +44,7 @@ private:
     std::vector<pthread_t> workers;
     std::vector<WorkerMessage> messages;
     std::vector<Mutex<TaskQueue>> task_queues;
-    Mutex<int> spawn_head_mutex;
+    Mutex<size_t> spawn_head_mutex;
     Mutex<int> tasks_running_mutex;
 };
 }

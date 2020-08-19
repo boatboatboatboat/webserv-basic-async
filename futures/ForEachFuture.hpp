@@ -17,7 +17,8 @@ template <typename St, typename Fp>
 class ForEachFuture : public IFuture<void> {
 public:
     explicit ForEachFuture(St&& stream, void (*function)(Fp&));
-    ~ForEachFuture() override { }
+    ForEachFuture(ForEachFuture&& other);
+    ~ForEachFuture() override {}
     PollResult<void> poll(Waker&& waker) override;
 
 private:
@@ -51,6 +52,12 @@ ForEachFuture<St, Fp>::poll(Waker&& waker)
     } break;
     }
     return PollResult<void>::pending();
+}
+template <typename St, typename Fp>
+ForEachFuture<St, Fp>::ForEachFuture(ForEachFuture&& other)
+    : _stream(std::move(other._stream))
+    , _function(other._function)
+{
 }
 }
 

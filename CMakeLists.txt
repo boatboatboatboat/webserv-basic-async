@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 project(webserv)
 
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -lpthread -fsanitize=thread -g3")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread -g3 -Wall -Wextra -Werror -Wno-unknown-pragmas")
 
 add_compile_definitions(DEBUG)
 

@@ -18,7 +18,7 @@ Mutex<Runtime*>* GlobalRuntime::get()
     return &runtime;
 }
 
-void GlobalRuntime::spawn(BoxPtr<IFuture<void>>&& fut)
+void GlobalRuntime::spawn_boxed(BoxPtr<IFuture<void>>&& fut)
 {
     auto mut = GlobalRuntime::get();
     auto lock = mut->lock();

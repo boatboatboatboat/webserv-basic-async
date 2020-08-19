@@ -26,11 +26,12 @@ public:
     ~GlobalRuntime() = delete;
     static Mutex<Runtime*>* get();
     static void set_runtime(Runtime* new_runtime);
-    static void spawn(BoxPtr<IFuture<void>>&& fut);
+    static void spawn_boxed(BoxPtr<IFuture<void>>&& fut);
+
+    template <typename T>
+    static void spawn(T&& fut);
 
 private:
-    template <typename T>
-    static void spawn_r(T&& fut); // deprecated :-)
     static Mutex<Runtime*> runtime;
 };
 
