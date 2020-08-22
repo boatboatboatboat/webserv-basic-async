@@ -51,9 +51,6 @@ TcpListener::TcpListener(in_port_t port)
     // register reader callback so the listener can get polled
     BoxFunctor cb = BoxFunctor(new SetReadyFunctor(RcPtr(connection_ready)));
     GlobalIoEventHandler::register_reader_callback(descriptor, std::move(cb), false);
-
-    // debug: print fd and port
-    DBGPRINT("TCP server listening on " << addr << " bound to fd " << descriptor);
 }
 
 StreamPollResult<TcpStream> TcpListener::poll_next(Waker&& waker)

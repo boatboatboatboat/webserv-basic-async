@@ -106,6 +106,9 @@ bool PooledExecutor::step()
 PooledExecutor::worker_thread_function(WorkerMessage* message)
 {
     for (;;) {
+        // usleep(0) hints the cpu to halt
+        usleep(0);
+
         auto& my_queue_mutex = message->queues->at(message->id);
 
         // A future poll can take a lock on one of the queues by waker,

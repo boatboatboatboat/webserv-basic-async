@@ -25,7 +25,7 @@ private:
     public:
         HttpConnectionFuture() = delete;
         ~HttpConnectionFuture() override;
-        HttpConnectionFuture(HttpConnectionFuture&& other);
+        HttpConnectionFuture(HttpConnectionFuture&& other) noexcept;
         explicit HttpConnectionFuture(TcpStream&& stream);
         PollResult<void> poll(Waker&& waker) override;
 
@@ -44,7 +44,7 @@ private:
 
 public:
     HttpServer() = delete;
-    explicit HttpServer(uint16_t port);
+    explicit HttpServer(uint16_t port, RH fn);
     PollResult<void> poll(Waker&& waker) override;
     static void handle_connection(TcpStream& stream);
 

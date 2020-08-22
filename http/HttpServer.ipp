@@ -10,9 +10,15 @@ using ioruntime::GlobalRuntime;
 namespace http {
 
 template <typename RH>
-HttpServer<RH>::HttpServer(uint16_t port)
+HttpServer<RH>::HttpServer(uint16_t port, RH fn)
     : listener(TcpListener(port).for_each<TcpListener>(handle_connection))
 {
+    // If we don't pass RH as a parameter,
+    // we would have to write HttpServer<decltype(SOME_LAMBDA)>(PORT)
+    // instead of HttpServer(PORT, SOME_LAMBDA)
+    // We only need the type of RH to set the handler function,
+    // not the value
+    (void)fn;
 }
 
 template <typename RH>
@@ -60,12 +66,10 @@ HttpServer<RH>::HttpConnectionFuture::HttpConnectionFuture(TcpStream&& pstream)
 }
 
 template <typename RH>
-HttpServer<RH>::HttpConnectionFuture::~HttpConnectionFuture()
-{
-}
+HttpServer<RH>::HttpConnectionFuture::~HttpConnectionFuture() = default;
 
 template <typename RH>
-HttpServer<RH>::HttpConnectionFuture::HttpConnectionFuture(HttpServer::HttpConnectionFuture&& other)
+HttpServer<RH>::HttpConnectionFuture::HttpConnectionFuture(HttpServer::HttpConnectionFuture&& other) noexcept
     : state(other.state)
     , req(std::move(other.req))
     , res(std::move(other.res))

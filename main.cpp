@@ -8,10 +8,10 @@
 #include "http/HttpRequest.hpp"
 #include "http/HttpResponse.hpp"
 #include "http/HttpServer.hpp"
+#include "http/StringBody.hpp"
 #include "ioruntime/FdLineStream.hpp"
 #include "ioruntime/SocketAddr.hpp"
 #include "ioruntime/TcpListener.hpp"
-#include "http/StringBody.hpp"
 #include "utils/utils.hpp"
 
 using futures::FdLineStream;
@@ -32,44 +32,52 @@ using ioruntime::TcpListener;
 
 int core()
 {
-    auto runtime = RuntimeBuilder()
-                       .with_workers(8)
-                       //.without_workers()
-                       .build();
+    try {
+        auto runtime = RuntimeBuilder()
+                           //.with_workers(12)
+                           .without_workers()
+                           .build();
+        auto io_event = BoxPtr<IoEventHandler>::make();
+        runtime.register_io_handler(std::move(io_event));
+        GlobalRuntime::set_runtime(&runtime);
+        GlobalRuntime::spawn(
+            FdLineStream(STDIN_FILENO)
+                .for_each<FdLineStream>([](std::string& str) {
+                    (void)str;
+                    DBGPRINT("stdin line: " << str);
+                }));
+        GlobalRuntime::spawn(HttpServer(1234, [](http::HttpRequest& req) {
+            (void)req;
+            auto response = HttpResponseBuilder()
+                .status(HttpResponse::HTTP_STATUS_OK)
+                .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf-8")
+                .build();
+            return response;
+        }));
+        GlobalRuntime::spawn(HttpServer(1235, [](http::HttpRequest& req) {
+            std::stringstream out;
 
-    auto io_event = BoxPtr<IoEventHandler>::make();
-    runtime.register_io_handler(std::move(io_event));
-    GlobalRuntime::set_runtime(&runtime);
-    //    GlobalRuntime::spawn(
-    //        HttpServer(8080)
-    //            .serve([](HttpRequest& request) {
-    //                auto response = HttpResponseBuilder();
-    //                // ... do something with request and response
-    //                return response;
-    //            }));
-    GlobalRuntime::spawn(
-        FdLineStream(STDIN_FILENO)
-            .for_each<FdLineStream>([](std::string& str) {
-                (void)str;
-                DBGPRINT("stdin line: " << str);
-            }));
-    auto request_handler = [](http::HttpRequest& req) {
-        DBGPRINT(req.getMethod() << " " << req.getPath());
-        std::stringstream out;
-
-        out << "<h1>path: " << req.getPath() << "</h1>";
-
-        auto response = HttpResponseBuilder()
-                            .status(HttpResponse::HTTP_STATUS_OK, "OK")
-                            .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf-8")
-                            .body(BoxPtr<StringBody>::make(out.str()))
-                            .build();
-        return response;
-    };
-    GlobalRuntime::spawn(HttpServer<decltype(request_handler)>(6969));
-    GlobalRuntime::spawn(HttpServer<decltype(request_handler)>(1234));
-    (void)request_handler;
-    runtime.naive_run();
+            out << "<h1>path: " << req.getPath() << "</h1>" << std::endl;
+            auto response = HttpResponseBuilder()
+                .status(HttpResponse::HTTP_STATUS_OK)
+                .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf-8")
+                .body(BoxPtr<StringBody>::make(out.str()))
+                .build();
+            return response;
+        }));
+        GlobalRuntime::spawn(HttpServer(1236, [](http::HttpRequest& req) {
+            (void)req;
+            auto response = HttpResponseBuilder()
+                .status(HttpResponse::HTTP_STATUS_OK)
+                .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf-8")
+                .body(BoxPtr<FileDescriptor>::make(open("test2.txt", O_RDONLY)))
+                .build();
+            return response;
+        }));
+        runtime.naive_run();
+    } catch (std::exception& e) {
+        std::cerr << "Failed to load runtime: " << e.what() << std::endl;
+    }
     return 0;
 }
 

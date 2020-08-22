@@ -39,8 +39,6 @@ bool ThreadlessExecutor::step()
             } else {
                 tasks_until_completion -= 1;
             }
-        } else {
-            DBGPRINT("Task is stale");
         }
         tasks.pop();
     }

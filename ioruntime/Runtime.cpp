@@ -31,13 +31,9 @@ void Runtime::naive_run()
         // it basically hints the cpu to not spin like crazy
         usleep(0);
     } while (executor->step());
-    DBGPRINT("Naive run completed");
 }
 
-Runtime::Runtime()
-{
-    DBGPRINT("Runtime created");
-}
+Runtime::Runtime() = default;
 
 void Runtime::spawn(BoxPtr<IFuture<void>>&& future)
 {

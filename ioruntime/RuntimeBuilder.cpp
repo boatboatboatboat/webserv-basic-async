@@ -14,7 +14,7 @@ RuntimeBuilder& RuntimeBuilder::with_workers(int d)
     pooled = true;
     if (d <= 0) {
         // TODO: make exception
-        throw "worker count is zero or less";
+        throw std::runtime_error("worker count is zero or less");
     }
     worker_count = d;
     return *this;
