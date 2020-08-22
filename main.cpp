@@ -1,10 +1,13 @@
 #include "ioruntime/ioruntime.hpp"
 #include <fcntl.h>
 #include <iostream>
+#include <netinet/in.h>
 
 #include "futures/FdLineStream.hpp"
 #include "futures/ForEachFuture.hpp"
-#include "util/util.hpp"
+#include "ioruntime/SocketAddr.hpp"
+#include "ioruntime/TcpListener.hpp"
+#include "utils/utils.hpp"
 
 using futures::FdLineStream;
 using futures::ForEachFuture;
@@ -12,16 +15,16 @@ using futures::IFuture;
 using futures::PollResult;
 using ioruntime::GlobalIoEventHandler;
 using ioruntime::GlobalRuntime;
+using ioruntime::IoEventHandler;
 using ioruntime::Runtime;
 using ioruntime::RuntimeBuilder;
-
-using ioruntime::IoEventHandler;
+using ioruntime::TcpListener;
 
 int core()
 {
     auto runtime = RuntimeBuilder()
-                       .with_workers(6)
-                       //.without_workers()
+                       //.with_workers(6)
+                       .without_workers()
                        .build();
 
     auto file = open("test.txt", O_RDONLY);
@@ -29,24 +32,50 @@ int core()
     auto io_event = BoxPtr<IoEventHandler>::make();
     runtime.register_io_handler(std::move(io_event));
     GlobalRuntime::set_runtime(&runtime);
-    GlobalRuntime::spawn(ForEachFuture<FdLineStream, std::string>(
-        FdLineStream(STDIN_FILENO), [](std::string& x) {
-            std::string y("stdin line: ");
-            y.append(x);
-            DBGPRINT(y);
-        }));
-    GlobalRuntime::spawn(ForEachFuture<FdLineStream, std::string>(
-        FdLineStream(file), [](std::string& x) {
-            std::string y("file line: ");
-            y.append(x);
-            DBGPRINT(y);
-        }));
-    GlobalRuntime::spawn(ForEachFuture<FdLineStream, std::string>(
-        FdLineStream(file2), [](std::string& x) {
-            std::string y("file2 line: ");
-            y.append(x);
-            DBGPRINT(y);
-        }));
+    //    GlobalRuntime::spawn(
+    //        HttpServer(8080)
+    //            .serve([](HttpRequest& request) {
+    //                auto response = HttpResponseBuilder();
+    //                // ... do something with request and response
+    //                return response;
+    //            }));
+    GlobalRuntime::spawn(
+        FdLineStream(STDIN_FILENO)
+            .for_each<FdLineStream>([](std::string& str) {
+                std::stringstream dbgmsg;
+                dbgmsg << "stdin line: " << str;
+                DBGPRINT(dbgmsg.str());
+            }));
+    GlobalRuntime::spawn(
+        FdLineStream(file)
+            .for_each<FdLineStream>([](std::string& str) {
+                std::stringstream dbgmsg;
+                dbgmsg << "file line: " << str;
+                DBGPRINT(dbgmsg.str());
+            }));
+    GlobalRuntime::spawn(
+        FdLineStream(file2)
+            .for_each<FdLineStream>([](std::string& str) {
+                std::stringstream dbgmsg;
+                dbgmsg << "file2 line: " << str;
+                DBGPRINT(dbgmsg.str());
+            }));
+    GlobalRuntime::spawn(
+        TcpListener(1234)
+            .for_each<TcpListener>([](ioruntime::TcpStream& stream) {
+                std::stringstream dbgstr;
+                dbgstr
+                    << "TCP connection accepted from "
+                    << stream.get_addr();
+                DBGPRINT(dbgstr.str());
+                GlobalRuntime::spawn(
+                    std::move(stream).respond([](auto& str) {
+                        DBGPRINT(str);
+                        return str;
+                    }));
+            }));
+    (void)file;
+    (void)file2;
     runtime.naive_run();
     return 0;
 }

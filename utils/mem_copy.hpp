@@ -8,7 +8,7 @@
 #include <cstddef>
 #include <cstring>
 
-namespace util {
+namespace utils {
 template <typename T>
 void mem_copy(T& destination, T& source)
 {
@@ -16,6 +16,6 @@ void mem_copy(T& destination, T& source)
         return;
     memcpy(&destination, &source, sizeof(T));
 }
-} // namespace util
+} // namespace utils
 
 #endif // WEBSERV_MEM_COPY_HPP

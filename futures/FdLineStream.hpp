@@ -6,133 +6,43 @@
 #define WEBSERV_FUTURES_STDINLINESTREAM_HPP
 
 #include "../boxed/RcPtr.hpp"
+#include "../futures/IStreamExt.hpp"
+#include "../ioruntime/FileDescriptor.hpp"
 #include "../ioruntime/GlobalIoEventHandler.hpp"
-#include "../util/mem_copy.hpp"
-#include "../util/util.hpp"
+#include "../utils/utils.hpp"
 #include "futures.hpp"
 #include <fcntl.h>
 #include <string>
 
 using boxed::RcPtr;
+using ioruntime::FileDescriptor;
 using ioruntime::GlobalIoEventHandler;
 
 namespace futures {
 
-class FileDescriptor {
-    class SetReadyFunctor : public Functor {
-    public:
-        SetReadyFunctor(RcPtr<Mutex<bool>>&& cr_source)
-            : ready_mutex(std::move(cr_source))
-        {
-        }
-        ~SetReadyFunctor() {}
-        void operator()() override
-        {
-            auto cread_guard = ready_mutex->lock();
-            *cread_guard = true;
-        }
-
-    private:
-        RcPtr<Mutex<bool>> ready_mutex;
-    };
-
-public:
-    FileDescriptor() = delete;
-    explicit FileDescriptor(int fd)
-    {
-        if (fd < 0)
-            throw std::runtime_error("FileDescriptor: ctor: bad file descriptor passed");
-        int nonblocking_error = fcntl(fd, F_SETFL, O_NONBLOCK);
-        if (nonblocking_error)
-            throw std::runtime_error("FileDescriptor: ctor: failed to set fd as nonblocking");
-        descriptor = fd;
-        BoxFunctor read_cb = BoxFunctor(new SetReadyFunctor(RcPtr(ready_to_read)));
-        BoxFunctor write_cb = BoxFunctor(new SetReadyFunctor(RcPtr(ready_to_write)));
-        GlobalIoEventHandler::register_reader_callback(descriptor, std::move(read_cb), true, 2);
-        GlobalIoEventHandler::register_writer_callback(descriptor, std::move(write_cb), true, 2);
-    }
-    FileDescriptor(FileDescriptor&& other)
-        : descriptor(other.descriptor)
-        , ready_to_read(std::move(other.ready_to_read))
-        , ready_to_write(std::move(other.ready_to_write))
-    {
-        other.descriptor = -1;
-    }
-    ~FileDescriptor()
-    {
-        if (descriptor >= 0) {
-            GlobalIoEventHandler::unregister_reader_callbacks(descriptor);
-            GlobalIoEventHandler::unregister_writer_callbacks(descriptor);
-        }
-    }
-    bool read_from(char* buffer, size_t size, ssize_t& read_result)
-    {
-        auto ready_guard = ready_to_read->lock();
-        if (!*ready_guard) {
-            return false;
-        }
-        //DBGPRINT("Performing read");
-        // fixme: READ RESULT IS SIZE_T!!!!
-        read_result = read(descriptor, buffer, size);
-        std::stringstream res;
-
-        res << "READ RES & P: " << std::to_string(read_result);
-        DBGPRINT(res.str());
-        BoxFunctor read_cb = BoxFunctor(new SetReadyFunctor(RcPtr(ready_to_read)));
-        GlobalIoEventHandler::register_reader_callback(descriptor, std::move(read_cb), true, 2);
-        *ready_guard = false;
-        return true;
-    }
-
-    bool write_to(char* buffer, size_t size, size_t& write_result)
-    {
-        auto ready_guard = ready_to_write->lock();
-        if (!*ready_guard) {
-            return false;
-        }
-        write_result = read(descriptor, buffer, size);
-        BoxFunctor write_cb = BoxFunctor(new SetReadyFunctor(RcPtr(ready_to_write)));
-        GlobalIoEventHandler::register_reader_callback(descriptor, std::move(write_cb), true, 0);
-        *ready_guard = false;
-        return true;
-    }
-
-    int get_descriptor() const
-    {
-        return descriptor;
-    }
-
-private:
-    int descriptor;
-    RcPtr<Mutex<bool>> ready_to_read = RcPtr(Mutex(false));
-    RcPtr<Mutex<bool>> ready_to_write = RcPtr(Mutex(false));
-};
-
-class FdLineStream : public IStream<std::string> {
+class FdLineStream : public IStreamExt<std::string> {
 
 public:
     FdLineStream() = delete;
     explicit FdLineStream(int fd)
-        : buffer("")
-        , fd(fd)
+        : fd(fd)
     {
     }
 
-    FdLineStream(FdLineStream&& other)
+    FdLineStream(FdLineStream&& other) noexcept
         : buffer(std::move(other.buffer))
         , rbuffer("")
         , head(other.head)
         , max(other.head)
         , fd(std::move(other.fd))
     {
-        DBGPRINT("FLS Moved");
-        util::mem_copy(rbuffer, other.rbuffer);
+        utils::mem_copy(rbuffer, other.rbuffer);
     }
 
     ~FdLineStream() override
     {
         if (fd.get_descriptor() >= 0)
-            DBGPRINT("FLS completion");
+            ;
     }
 
     StreamPollResult<std::string> poll_next(Waker&& waker) override
@@ -140,12 +50,11 @@ public:
         if (completed) {
             return StreamPollResult<std::string>::finished();
         }
-        GlobalIoEventHandler::register_reader_callback(fd.get_descriptor(), waker.boxed(), true, 1);
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "EndlessLoop"
         for (;;) {
             char c;
-            GncResult res = get_next_character(c);
+            GncResult res = get_next_character(c, Waker(waker));
             switch (res) {
             case Error: { // An error has occurred
                 // TODO: error handling
@@ -197,13 +106,13 @@ private:
         NotReady
     };
 
-    // fixme: the result of this method should probably be an enum
-    GncResult get_next_character(char& c)
+    GncResult get_next_character(char& c, Waker&& waker)
     {
         if (head == 0) {
-            ssize_t result;
+            auto poll_result = fd.poll_read(rbuffer, sizeof(rbuffer), std::move(waker));
 
-            if (fd.read_from(rbuffer, sizeof(rbuffer), result)) {
+            if (poll_result.is_ready()) {
+                auto result = poll_result.get();
                 if (result < 0) {
                     // fixme: Errno is checked after a read, non-compliant to subject
                     std::stringstream x;
@@ -225,7 +134,7 @@ private:
 
     bool completed = false;
     std::string buffer;
-    char rbuffer[64];
+    char rbuffer[64] {};
     int head = 0;
     int max = 0;
     FileDescriptor fd;

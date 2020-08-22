@@ -16,14 +16,15 @@ PollResult<T> PollResult<T>::pending()
 template <typename T>
 PollResult<T> PollResult<T>::ready(T&& result)
 {
-    return PollResult<T>(PollResult::Ready, result);
+    return PollResult<T>(PollResult::Ready, std::move(result));
 }
 
 template <typename T>
-PollResult<T>::PollResult(PollResult::Status status, T&& result)
+PollResult<T>::PollResult(PollResult::Status status, T&& result):
+    _status(status),
+    _result(std::forward<T>(result))
+
 {
-    _status = status;
-    _result = std::forward(result);
 }
 
 template <typename T>
@@ -45,7 +46,7 @@ bool PollResult<T>::is_pending() const
 }
 
 template <typename T>
-T&& PollResult<T>::get() &&
+T PollResult<T>::get()
 {
     return _result;
 }

@@ -4,7 +4,7 @@
 
 #include "PooledExecutor.hpp"
 #include "../futures/futures.hpp"
-#include "../util/util.hpp"
+#include "../utils/utils.hpp"
 
 using futures::Task;
 
@@ -132,10 +132,8 @@ PooledExecutor::worker_thread_function(WorkerMessage* message)
             auto waker = Waker(RcPtr(task));
 
             auto inner_task = task->get_inner_task().lock();
-            DBGPRINT("locked a task");
 
             if (!inner_task->stale) {
-                DBGPRINT("task valid");
                 future_slot = std::move(inner_task->future);
                 auto result = future_slot->poll(std::move(waker));
 

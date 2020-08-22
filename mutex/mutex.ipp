@@ -2,7 +2,7 @@
 // Created by boat on 6/27/20.
 //
 
-#include "../util/util.hpp"
+#include "../utils/utils.hpp"
 #include "mutex.hpp"
 #include <iostream>
 #include <strings.h>

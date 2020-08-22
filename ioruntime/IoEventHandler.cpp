@@ -3,8 +3,9 @@
 //
 
 #include "IoEventHandler.hpp"
-#include "../util/mem_copy.hpp"
+#include "../utils/utils.hpp"
 #include "GlobalIoEventHandler.hpp"
+#include <sys/select.h>
 
 namespace ioruntime {
 IoEventHandler::IoEventHandler()
@@ -24,19 +25,19 @@ void IoEventHandler::reactor_step()
 
     {
         auto fds = read_fds.lock();
-        util::mem_copy(read_selected, *fds);
+        utils::mem_copy(read_selected, *fds);
     }
     {
         auto fds = write_fds.lock();
-        util::mem_copy(write_selected, *fds);
+        utils::mem_copy(write_selected, *fds);
     }
     {
         auto fds = special_fds.lock();
-        util::mem_copy(special_selected, *fds);
+        utils::mem_copy(special_selected, *fds);
     }
 
     struct timeval tv {
-        .tv_sec = 1,
+        .tv_sec = 0,
         .tv_usec = 0
     };
 
@@ -54,6 +55,10 @@ void IoEventHandler::reactor_step()
             fire_listeners_for(fd, write_selected, write_listeners);
             fire_listeners_for(fd, special_selected, special_listeners);
         }
+    } else if (selected < 0) {
+        std::stringstream errmsg;
+        errmsg << "Select failed: " << strerror(errno);
+        //DBGPRINT(errmsg.str());
     }
 }
 
@@ -74,18 +79,32 @@ void IoEventHandler::register_special_callback(int fd, BoxFunctor&& x, bool once
 
 void IoEventHandler::unregister_reader_callbacks(int fd)
 {
-    auto listeners = read_listeners.lock();
-    listeners->erase(fd);
+    {
+        auto fds = read_fds.lock();
+        FD_CLR(fd, &*fds);
+    }
+    {
+        auto listeners = read_listeners.lock();
+        listeners->erase(fd);
+    }
 }
 
 void IoEventHandler::unregister_writer_callbacks(int fd)
 {
+    {
+        auto fds = write_fds.lock();
+        FD_CLR(fd, &*fds);
+    }
     auto listeners = write_listeners.lock();
     listeners->erase(fd);
 }
 
 void IoEventHandler::unregister_special_callbacks(int fd)
 {
+    {
+        auto fds = special_fds.lock();
+        FD_CLR(fd, &*fds);
+    }
     auto listeners = special_listeners.lock();
     listeners->erase(fd);
 }

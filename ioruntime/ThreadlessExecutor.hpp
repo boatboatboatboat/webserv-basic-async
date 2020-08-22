@@ -9,7 +9,7 @@
 #include "../futures/futures.hpp"
 #include "IExecutor.hpp"
 #include "ioruntime.hpp"
-#include <vector>
+#include <queue>
 
 using boxed::RcPtr;
 
@@ -32,7 +32,7 @@ public:
 
 private:
     int tasks_until_completion = 0;
-    std::vector<RcPtr<Task>> tasks;
+    std::queue<RcPtr<Task>> tasks;
 };
 } // namespace ioruntime
 

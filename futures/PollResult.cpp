@@ -21,4 +21,5 @@ PollResult<void>::PollResult(Status status)
     : _status(status)
 {
 }
+
 } // namespace futures

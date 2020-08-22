@@ -12,12 +12,12 @@ namespace ioruntime {
 void ThreadlessExecutor::spawn(RcPtr<Task>&& task)
 {
     tasks_until_completion += 1;
-    tasks.push_back(std::move(task));
+    tasks.push(std::move(task));
 }
 
 void ThreadlessExecutor::respawn(RcPtr<Task>&& task)
 {
-    tasks.push_back(std::move(task));
+    tasks.push(std::move(task));
 }
 
 ThreadlessExecutor::ThreadlessExecutor()
@@ -28,7 +28,7 @@ ThreadlessExecutor::ThreadlessExecutor()
 bool ThreadlessExecutor::step()
 {
     while (!tasks.empty()) {
-        auto task = tasks.back();
+        auto task = tasks.front();
         BoxPtr<IFuture<void>> future_slot(nullptr);
         // create new waker by cloning the RcPtr
         auto waker = Waker(RcPtr(task));
@@ -42,7 +42,7 @@ bool ThreadlessExecutor::step()
         } else {
             DBGPRINT("Task is stale");
         }
-        tasks.pop_back();
+        tasks.pop();
     }
     return (tasks_until_completion > 0);
 }

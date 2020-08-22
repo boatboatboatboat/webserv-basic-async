@@ -15,7 +15,7 @@ public:
     static PollResult<T> ready(T&& result);
     bool is_ready() const;
     bool is_pending() const;
-    T&& get() &&;
+    T get();
 
 private:
     enum Status { Pending,

@@ -15,11 +15,11 @@ class IoEventHandler;
 
 class GlobalIoEventHandler {
 public:
-    static void register_reader_callback(int fd, BoxFunctor&& x, bool once, int unique);
+    static void register_reader_callback(int fd, BoxFunctor&& x, bool once, int unique = 0);
 
-    static void register_writer_callback(int fd, BoxFunctor&& x, bool once, int unique);
+    static void register_writer_callback(int fd, BoxFunctor&& x, bool once, int unique = 0);
 
-    static void register_special_callback(int fd, BoxFunctor&& x, bool once, int unique);
+    static void register_special_callback(int fd, BoxFunctor&& x, bool once, int unique = 0);
 
     static void unregister_reader_callbacks(int fd);
 
