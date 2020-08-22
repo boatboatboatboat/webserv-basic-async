@@ -10,10 +10,11 @@
 
 namespace futures {
 template <typename T>
-StreamPollResult<T>::StreamPollResult(StreamPollResult::Status status, T&& inner):
-    _status(status),
-    _result(std::move(inner))
-{}
+StreamPollResult<T>::StreamPollResult(StreamPollResult::Status status, T&& inner)
+    : _status(status)
+    , _result(std::move(inner))
+{
+}
 
 template <typename T>
 StreamPollResult<T>::StreamPollResult(StreamPollResult::Status status)

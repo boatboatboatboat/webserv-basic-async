@@ -10,7 +10,7 @@ PollResult<void> ioruntime::TcpStreamResponseFuture::poll(Waker&& waker)
 {
     switch (state) {
     case Reading: {
-        auto poll_result = socket.poll_read(buffer, BUFFER_SIZE, Waker(waker));
+        auto poll_result = socket.poll_read(buffer, sizeof(buffer), Waker(waker));
 
         if (poll_result.is_ready()) {
             auto result = poll_result.get();
@@ -56,18 +56,21 @@ PollResult<void> ioruntime::TcpStreamResponseFuture::poll(Waker&& waker)
         }
         return PollResult<void>::pending();
     } break;
+    default: {
+        throw std::runtime_error("TcpStreamResponseFuture: poll: unreachable state");
+    } break;
     }
 }
 
-TcpStream::TcpStream(int fd, SocketAddr address):
-    socket(fd),
-    address(address)
+TcpStream::TcpStream(int fd, SocketAddr address)
+    : socket(fd)
+    , address(address)
 {
 }
 
-TcpStream::TcpStream():
-    socket(Socket::uninitialized()),
-    address({})
+TcpStream::TcpStream()
+    : socket(Socket::uninitialized())
+    , address({})
 {
 }
 
@@ -76,10 +79,17 @@ TcpStream TcpStream::uninitialized()
     return TcpStream();
 }
 
-TcpStreamResponseFuture::TcpStreamResponseFuture(TcpStream&& stream, std::string (*responder)(std::string&)):
-    responder(responder),
-    socket(std::move(stream.socket))
-{}
+TcpStream::TcpStream(TcpStream&& other) noexcept:
+    socket(std::move(other.socket)),
+    address(other.address)
+{
+}
+
+TcpStreamResponseFuture::TcpStreamResponseFuture(TcpStream&& stream, std::string (*responder)(std::string&))
+    : responder(responder)
+    , socket(std::move(stream.socket))
+{
+}
 
 TcpStreamResponseFuture TcpStream::respond(std::string (*fp)(std::string&)) &&
 {
@@ -89,6 +99,11 @@ TcpStreamResponseFuture TcpStream::respond(std::string (*fp)(std::string&)) &&
 SocketAddr const& TcpStream::get_addr() const
 {
     return address;
+}
+
+Socket& TcpStream::get_socket()
+{
+    return socket;
 }
 
 }

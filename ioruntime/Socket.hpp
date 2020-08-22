@@ -9,14 +9,15 @@
 
 namespace ioruntime {
 
-class Socket: public FileDescriptor {
+class Socket : public FileDescriptor {
 public:
     explicit Socket(int fd);
     static Socket uninitialized();
     Socket(Socket&& other) noexcept;
-    ~Socket() = default;
+    ~Socket() override = default;
     ssize_t read(char* buffer, size_t size) override;
     ssize_t write(const char* buffer, size_t size) override;
+
 private:
     Socket();
 };

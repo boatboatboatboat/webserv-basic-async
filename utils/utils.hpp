@@ -9,23 +9,20 @@
 
 void dbg_puts(std::string const& printme);
 
+#ifdef DEBUG
+
 #ifdef __linux__
 
 // gettid() only works on linux
 
-#define DBGPRINT(x)                      \
-    do {                                 \
-        std::string __x(__func__);       \
-        __x += (" ");                    \
-        __x.append(__FILE__);            \
-        __x.append(":");                 \
-        __x += std::to_string(__LINE__); \
-        __x.append(" ");                 \
-        __x += std::to_string(gettid()); \
-        __x.append(" ");                 \
-        __x.append(x);                   \
-        __x.append("\n");                \
-        dbg_puts(__x);                   \
+#define DBGPRINT(x)                                           \
+    do {                                                      \
+        std::stringstream __out__;                            \
+        __out__                                               \
+            << __func__ << " " << __FILE__ << ":" << __LINE__ \
+            << " " << std::to_string(gettid())                \
+            << " " << x << "\n";                              \
+        dbg_puts(__out__.str());                              \
     } while (0)
 
 #endif
@@ -47,6 +44,12 @@ void dbg_puts(std::string const& printme);
 
 #endif
 
+#else
+
+#define DBGPRINT(x)
+
+#endif
+
 // FIXME: illegal header
 #include <sstream>
 #include <vector>
@@ -57,7 +60,8 @@ namespace utils {
  * @param str the string to trim.
  * @return the trimmed string.
  */
-inline std::string trim(const std::string & str) {
+inline std::string trim(const std::string& str)
+{
     auto first = str.find_first_not_of(' ');
 
     if (std::string::npos == first)
@@ -73,7 +77,8 @@ inline std::string trim(const std::string & str) {
  * @param value a reference to the string to lowercase.
  * @return the lowercase string.
  */
-inline std::string toLower(std::string & value) {
+inline std::string toLower(std::string& value)
+{
     std::transform(value.begin(), value.end(), value.begin(), ::tolower);
     return value;
 }
@@ -84,7 +89,8 @@ inline std::string toLower(std::string & value) {
  * @param delimiter the delimiter to split on.
  * @return the delimited string in a vector.
  */
-inline std::vector<std::string> split(const std::string & source, char delimiter) {
+inline std::vector<std::string> split(const std::string& source, char delimiter)
+{
     std::vector<std::string> strings;
     std::istringstream iss(source);
     std::string s;

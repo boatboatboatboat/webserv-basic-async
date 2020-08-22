@@ -7,10 +7,10 @@
 
 #include "../boxed/RcPtr.hpp"
 #include "../futures/IStreamExt.hpp"
-#include "../ioruntime/FileDescriptor.hpp"
-#include "../ioruntime/GlobalIoEventHandler.hpp"
+#include "../futures/futures.hpp"
 #include "../utils/utils.hpp"
-#include "futures.hpp"
+#include "FileDescriptor.hpp"
+#include "GlobalIoEventHandler.hpp"
 #include <fcntl.h>
 #include <string>
 
@@ -41,8 +41,7 @@ public:
 
     ~FdLineStream() override
     {
-        if (fd.get_descriptor() >= 0)
-            ;
+        if (fd.get_descriptor() >= 0) { }
     }
 
     StreamPollResult<std::string> poll_next(Waker&& waker) override
@@ -69,7 +68,7 @@ public:
                 // which means that they can return EOF even when in select.
                 //
                 // We also check for stdin having reached EOF.
-                if (c == EOF) { // || (fd.get_descriptor() == STDIN_FILENO && std::cin.eof())) {
+                if (c == EOF || (fd.get_descriptor() == STDIN_FILENO && std::cin.eof())) {
                     // If there's nothing in the buffer, stop the stream immediately.
                     // Otherwise, set an internal completion flag and re-run,
                     // so we can return the contents of the buffer.
@@ -114,10 +113,9 @@ private:
             if (poll_result.is_ready()) {
                 auto result = poll_result.get();
                 if (result < 0) {
-                    // fixme: Errno is checked after a read, non-compliant to subject
-                    std::stringstream x;
-                    x << "Read error: " << strerror(errno);
-                    DBGPRINT(x.str());
+#ifdef DEBUG
+                    DBGPRINT("Read error" << strerror(errno));
+#endif
                     return (Error);
                 }
                 max = result;

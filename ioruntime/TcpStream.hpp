@@ -27,23 +27,26 @@ private:
         Reading,
         Writing
     };
-    static const int BUFFER_SIZE = 64;
     size_t written = 0;
     State state = Reading;
-    char buffer[BUFFER_SIZE] {};
+    char buffer[64] {};
     std::string message;
     std::string (*responder)(std::string& str);
     Socket socket;
 };
+
 
 class TcpStream {
     friend class TcpStreamResponseFuture;
 
 public:
     explicit TcpStream(int fd, SocketAddr address);
+    TcpStream(TcpStream&& other) noexcept ;
+    ~TcpStream() = default;
     TcpStreamResponseFuture respond(std::string (*fp)(std::string& str)) &&;
 
     [[nodiscard]] SocketAddr const& get_addr() const;
+    Socket& get_socket();
     static TcpStream uninitialized();
 
 private:

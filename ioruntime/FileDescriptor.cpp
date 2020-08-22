@@ -118,10 +118,10 @@ ssize_t FileDescriptor::write(const char* buffer, size_t size)
     return ::write(descriptor, buffer, size);
 }
 
-FileDescriptor::FileDescriptor():
-    descriptor(-1),
-    ready_to_read(RcPtr<Mutex<bool>>::uninitialized()),
-    ready_to_write(RcPtr<Mutex<bool>>::uninitialized())
+FileDescriptor::FileDescriptor()
+    : descriptor(-1)
+    , ready_to_read(RcPtr<Mutex<bool>>::uninitialized())
+    , ready_to_write(RcPtr<Mutex<bool>>::uninitialized())
 {
 }
 

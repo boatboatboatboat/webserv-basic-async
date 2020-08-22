@@ -36,7 +36,7 @@ void Runtime::naive_run()
 
 Runtime::Runtime()
 {
-    std::cout << "Runtime created" << std::endl;
+    DBGPRINT("Runtime created");
 }
 
 void Runtime::spawn(BoxPtr<IFuture<void>>&& future)

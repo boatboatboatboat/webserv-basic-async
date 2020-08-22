@@ -18,7 +18,7 @@ class ForEachFuture : public IFuture<void> {
 public:
     explicit ForEachFuture(St&& stream, void (*function)(Fp&));
     ForEachFuture(ForEachFuture&& other);
-    ~ForEachFuture() override {}
+    ~ForEachFuture() override { }
     PollResult<void> poll(Waker&& waker) override;
 
 private:

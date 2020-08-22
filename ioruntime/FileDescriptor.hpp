@@ -14,13 +14,14 @@ using boxed::RcPtr;
 
 namespace ioruntime {
 
-class FileDescriptor: public IAsyncRead, public IAsyncWrite {
+class FileDescriptor : public IAsyncRead, public IAsyncWrite {
 protected:
     class SetReadyFunctor : public Functor {
     public:
         explicit SetReadyFunctor(RcPtr<Mutex<bool>>&& cr_source);
         ~SetReadyFunctor() override = default;
         void operator()() override;
+
     private:
         RcPtr<Mutex<bool>> ready_mutex;
     };
@@ -36,10 +37,12 @@ public:
     PollResult<ssize_t> poll_write(const char* buffer, size_t size, Waker&& waker) override;
     int close() &&;
     [[nodiscard]] int get_descriptor() const;
+
 protected:
     int descriptor;
     RcPtr<Mutex<bool>> ready_to_read = RcPtr(Mutex(false));
     RcPtr<Mutex<bool>> ready_to_write = RcPtr(Mutex(false));
+
 private:
     FileDescriptor();
 };

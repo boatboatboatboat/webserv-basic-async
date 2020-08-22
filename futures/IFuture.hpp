@@ -5,8 +5,6 @@
 #ifndef WEBSERV_IFUTURE_HPP
 #define WEBSERV_IFUTURE_HPP
 
-#include "futures.hpp"
-
 namespace futures {
 // Forward declarations
 class Waker;

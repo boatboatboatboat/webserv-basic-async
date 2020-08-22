@@ -17,7 +17,6 @@ public:
     ForEachFuture<St, T> for_each(void (*function)(T& f));
 };
 
-
 }
 
 #include "IStreamExt.ipp"

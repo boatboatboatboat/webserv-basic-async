@@ -3,16 +3,26 @@
 #include <iostream>
 #include <netinet/in.h>
 
-#include "futures/FdLineStream.hpp"
 #include "futures/ForEachFuture.hpp"
+#include "http/HttpParser.hpp"
+#include "http/HttpRequest.hpp"
+#include "http/HttpResponse.hpp"
+#include "http/HttpServer.hpp"
+#include "ioruntime/FdLineStream.hpp"
 #include "ioruntime/SocketAddr.hpp"
 #include "ioruntime/TcpListener.hpp"
+#include "http/StringBody.hpp"
 #include "utils/utils.hpp"
 
 using futures::FdLineStream;
 using futures::ForEachFuture;
 using futures::IFuture;
 using futures::PollResult;
+using http::HttpRequest;
+using http::HttpResponse;
+using http::HttpResponseBuilder;
+using http::HttpServer;
+using http::StringBody;
 using ioruntime::GlobalIoEventHandler;
 using ioruntime::GlobalRuntime;
 using ioruntime::IoEventHandler;
@@ -23,12 +33,10 @@ using ioruntime::TcpListener;
 int core()
 {
     auto runtime = RuntimeBuilder()
-                       //.with_workers(6)
-                       .without_workers()
+                       .with_workers(8)
+                       //.without_workers()
                        .build();
 
-    auto file = open("test.txt", O_RDONLY);
-    auto file2 = open("test2.txt", O_RDONLY);
     auto io_event = BoxPtr<IoEventHandler>::make();
     runtime.register_io_handler(std::move(io_event));
     GlobalRuntime::set_runtime(&runtime);
@@ -42,40 +50,25 @@ int core()
     GlobalRuntime::spawn(
         FdLineStream(STDIN_FILENO)
             .for_each<FdLineStream>([](std::string& str) {
-                std::stringstream dbgmsg;
-                dbgmsg << "stdin line: " << str;
-                DBGPRINT(dbgmsg.str());
+                (void)str;
+                DBGPRINT("stdin line: " << str);
             }));
-    GlobalRuntime::spawn(
-        FdLineStream(file)
-            .for_each<FdLineStream>([](std::string& str) {
-                std::stringstream dbgmsg;
-                dbgmsg << "file line: " << str;
-                DBGPRINT(dbgmsg.str());
-            }));
-    GlobalRuntime::spawn(
-        FdLineStream(file2)
-            .for_each<FdLineStream>([](std::string& str) {
-                std::stringstream dbgmsg;
-                dbgmsg << "file2 line: " << str;
-                DBGPRINT(dbgmsg.str());
-            }));
-    GlobalRuntime::spawn(
-        TcpListener(1234)
-            .for_each<TcpListener>([](ioruntime::TcpStream& stream) {
-                std::stringstream dbgstr;
-                dbgstr
-                    << "TCP connection accepted from "
-                    << stream.get_addr();
-                DBGPRINT(dbgstr.str());
-                GlobalRuntime::spawn(
-                    std::move(stream).respond([](auto& str) {
-                        DBGPRINT(str);
-                        return str;
-                    }));
-            }));
-    (void)file;
-    (void)file2;
+    auto request_handler = [](http::HttpRequest& req) {
+        DBGPRINT(req.getMethod() << " " << req.getPath());
+        std::stringstream out;
+
+        out << "<h1>path: " << req.getPath() << "</h1>";
+
+        auto response = HttpResponseBuilder()
+                            .status(HttpResponse::HTTP_STATUS_OK, "OK")
+                            .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf-8")
+                            .body(BoxPtr<StringBody>::make(out.str()))
+                            .build();
+        return response;
+    };
+    GlobalRuntime::spawn(HttpServer<decltype(request_handler)>(6969));
+    GlobalRuntime::spawn(HttpServer<decltype(request_handler)>(1234));
+    (void)request_handler;
     runtime.naive_run();
     return 0;
 }

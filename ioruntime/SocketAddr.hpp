@@ -18,6 +18,7 @@ public:
     [[nodiscard]] uint32_t get_ip() const;
     [[nodiscard]] in_port_t get_real_port() const;
     [[nodiscard]] uint16_t get_port() const;
+
 private:
     sockaddr_in addr;
 };
@@ -25,6 +26,5 @@ private:
 }
 
 std::ostream& operator<<(std::ostream& os, const ioruntime::SocketAddr& sa);
-
 
 #endif //WEBSERV_IORUNTIME_SOCKETADDR_HPP

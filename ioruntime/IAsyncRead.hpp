@@ -5,8 +5,8 @@
 #ifndef WEBSERV_IORUNTIME_IASYNCREAD_HPP
 #define WEBSERV_IORUNTIME_IASYNCREAD_HPP
 
-#include <algorithm>
 #include "../futures/PollResult.hpp"
+#include <algorithm>
 
 using futures::PollResult;
 
@@ -15,6 +15,7 @@ namespace ioruntime {
 class IAsyncRead {
 public:
     virtual PollResult<ssize_t> poll_read(char* buffer, size_t size, Waker&& waker) = 0;
+    virtual ~IAsyncRead() = 0;
 };
 
 }

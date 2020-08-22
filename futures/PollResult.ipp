@@ -20,9 +20,9 @@ PollResult<T> PollResult<T>::ready(T&& result)
 }
 
 template <typename T>
-PollResult<T>::PollResult(PollResult::Status status, T&& result):
-    _status(status),
-    _result(std::forward<T>(result))
+PollResult<T>::PollResult(PollResult::Status status, T&& result)
+    : _status(status)
+    , _result(std::forward<T>(result))
 
 {
 }

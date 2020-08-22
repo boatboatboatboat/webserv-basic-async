@@ -27,8 +27,8 @@ Socket::Socket(Socket&& other) noexcept
 {
 }
 
-Socket::Socket():
-    FileDescriptor(FileDescriptor::uninitialized())
+Socket::Socket()
+    : FileDescriptor(FileDescriptor::uninitialized())
 {
 }
 

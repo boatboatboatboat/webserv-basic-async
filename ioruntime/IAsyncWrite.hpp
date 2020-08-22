@@ -5,8 +5,8 @@
 #ifndef WEBSERV_IORUNTIME_IASYNCWRITE_HPP
 #define WEBSERV_IORUNTIME_IASYNCWRITE_HPP
 
-#include <algorithm>
 #include "../futures/PollResult.hpp"
+#include <algorithm>
 
 using futures::PollResult;
 

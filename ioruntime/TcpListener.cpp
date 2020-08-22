@@ -20,6 +20,7 @@ void TcpListener::SetReadyFunctor::operator()()
 }
 
 TcpListener::TcpListener(in_port_t port)
+    : addr({})
 {
     sockaddr_in new_address {};
 
@@ -36,8 +37,8 @@ TcpListener::TcpListener(in_port_t port)
     new_address.sin_addr.s_addr = INADDR_ANY;
     // PORT is specified by server configuration
     new_address.sin_port = htons(port);
-    for (char & i : new_address.sin_zero)
-        i = 0;
+    // FIXME: use libft bzero
+    bzero(new_address.sin_zero, sizeof(new_address.sin_zero));
     // bind descriptor to address
     if (bind(descriptor, reinterpret_cast<sockaddr*>(&new_address), sizeof(new_address)) < 0)
         throw std::runtime_error(strerror(errno));
@@ -45,14 +46,14 @@ TcpListener::TcpListener(in_port_t port)
     if (listen(descriptor, SOMAXCONN) < 0)
         throw std::runtime_error(strerror(errno));
 
+    addr = SocketAddr(new_address);
+
     // register reader callback so the listener can get polled
     BoxFunctor cb = BoxFunctor(new SetReadyFunctor(RcPtr(connection_ready)));
     GlobalIoEventHandler::register_reader_callback(descriptor, std::move(cb), false);
 
     // debug: print fd and port
-    std::stringstream out;
-    out << "Opened a server socket on FD " << descriptor << " which is listening on Port " << port;
-    DBGPRINT(out.str());
+    DBGPRINT("TCP server listening on " << addr << " bound to fd " << descriptor);
 }
 
 StreamPollResult<TcpStream> TcpListener::poll_next(Waker&& waker)
@@ -64,10 +65,11 @@ StreamPollResult<TcpStream> TcpListener::poll_next(Waker&& waker)
         int client;
         sockaddr client_address {};
         auto* client_address_in = reinterpret_cast<sockaddr_in*>(&client_address);
-        unsigned int client_address_length;
+        unsigned int client_address_length = sizeof(client_address);
 
-        if ((client = accept(descriptor, &client_address, &client_address_length)) < 0)
+        if ((client = accept(descriptor, &client_address, &client_address_length)) < 0) {
             throw std::runtime_error(strerror(errno));
+        }
 
         *is_ready = false;
         GlobalIoEventHandler::register_reader_callback(descriptor, waker.boxed(), false, 1);
@@ -76,6 +78,11 @@ StreamPollResult<TcpStream> TcpListener::poll_next(Waker&& waker)
         GlobalIoEventHandler::register_reader_callback(descriptor, waker.boxed(), false, 1);
         return StreamPollResult<TcpStream>::pending(TcpStream::uninitialized());
     }
+}
+
+SocketAddr const& TcpListener::get_addr() const
+{
+    return addr;
 }
 
 }
