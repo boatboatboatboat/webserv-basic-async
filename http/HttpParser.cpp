@@ -170,6 +170,4 @@ void HttpParser::parseStatusLine(std::string& line)
     this->reason = toStringToken(it, line, lineTerminator);
 }
 
-
-
 }

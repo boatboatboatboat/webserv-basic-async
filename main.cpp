@@ -44,7 +44,7 @@ int core()
             FdLineStream(STDIN_FILENO)
                 .for_each<FdLineStream>([](std::string& str) {
                     (void)str;
-                    DBGPRINT("stdin line: " << str);
+                    INFOPRINT("stdin line: " << str);
                 }));
         GlobalRuntime::spawn(HttpServer(1234, [](http::HttpRequest& req) {
             (void)req;

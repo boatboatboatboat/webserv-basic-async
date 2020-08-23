@@ -11,7 +11,7 @@
 
 namespace http {
 struct HttpStatus {
-    int code;
+    unsigned int code;
     const char* message;
 };
 

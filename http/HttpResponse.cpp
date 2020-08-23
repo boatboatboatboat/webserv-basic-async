@@ -1,5 +1,6 @@
 #include "HttpResponse.hpp"
 #include "../ioruntime/Socket.hpp"
+#include "DefaultPageBody.hpp"
 #include "HttpRequest.hpp"
 #include "StringBody.hpp"
 
@@ -150,10 +151,8 @@ HttpResponse::HttpResponse(std::map<std::string, std::string>&& response_headers
     , response_body(std::move(response_body))
 {
     if (this->response_body.get() == nullptr) {
-        std::stringstream emsg;
-
-        emsg << "<h1 style=\"text-align:center;\">" << this->response_status.code << " " << this->response_status.message << "</h1><hr><p style=\"text-align:center;\">webserv</p>";
-        this->response_body = BoxPtr<StringBody>::make(emsg.str());
+        // fixme: response_body is BoxPtr which is allocated, memory alloc error can't recover properly
+        this->response_body = BoxPtr<DefaultPageBody>::make(status);
     }
 }
 

@@ -16,20 +16,14 @@ PooledExecutor::PooledExecutor(int worker_count)
 {
     // create queues
     for (int idx = 0; idx < worker_count; idx += 1) {
-        auto queue = TaskQueue();
-        auto mutexed_queue = Mutex(std::move(queue));
-
-        task_queues.push_back(std::move(mutexed_queue));
+        task_queues.emplace_back(TaskQueue());
     }
 
     // create messages
     for (int idx = 0; idx < worker_count; idx += 1) {
-        WorkerMessage message;
-
-        message.id = idx;
-        message.queues = &task_queues;
-        message.tasks_running_mutex = &tasks_running_mutex;
-        messages.push_back(message);
+        messages.push_back({ .id = idx,
+            .queues = &task_queues,
+            .tasks_running_mutex = &tasks_running_mutex });
     }
 
     for (int idx = 0; idx < worker_count; idx += 1) {
@@ -42,18 +36,16 @@ PooledExecutor::PooledExecutor(int worker_count)
                 &messages[idx])
             != 0) {
             // todo: make better exception
-            throw "FUCK TTHREADS";
+            throw std::runtime_error("PooledExecutor: failed to create workers");
         }
     }
 }
 
-PooledExecutor::~PooledExecutor()
-{
-}
+PooledExecutor::~PooledExecutor() = default;
 
 void PooledExecutor::spawn(RcPtr<Task>&& future)
 {
-    size_t head = 0;
+    size_t head;
 
     {
         auto spawn_head = spawn_head_mutex.lock();
@@ -130,6 +122,7 @@ PooledExecutor::worker_thread_function(WorkerMessage* message)
             task_found = steal_task(message, task);
         }
 
+        // TODO: clean up task stale (currently there's a different system for Threadless and Pooled)
         if (task_found) {
             BoxPtr<IFuture<void>> future_slot(nullptr);
             auto waker = Waker(RcPtr(task));
@@ -138,15 +131,19 @@ PooledExecutor::worker_thread_function(WorkerMessage* message)
 
             if (!inner_task->stale) {
                 future_slot = std::move(inner_task->future);
-                auto result = future_slot->poll(std::move(waker));
+                try {
+                    auto result = future_slot->poll(std::move(waker));
 
-                if (result.is_ready()) {
-                    inner_task->stale = true;
-                    auto tasks_running = message->tasks_running_mutex->lock();
+                    if (result.is_ready()) {
+                        inner_task->stale = true;
+                        auto tasks_running = message->tasks_running_mutex->lock();
 
-                    *tasks_running -= 1;
-                } else {
-                    inner_task->future = std::move(future_slot);
+                        *tasks_running -= 1;
+                    } else {
+                        inner_task->future = std::move(future_slot);
+                    }
+                } catch (std::exception& e) {
+
                 }
             }
         }

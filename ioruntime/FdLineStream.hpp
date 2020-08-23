@@ -41,7 +41,9 @@ public:
 
     ~FdLineStream() override
     {
-        if (fd.get_descriptor() >= 0) { }
+        if (fd.get_descriptor() >= 0) {
+            TRACEPRINT("FLS destruction");
+        }
     }
 
     StreamPollResult<std::string> poll_next(Waker&& waker) override

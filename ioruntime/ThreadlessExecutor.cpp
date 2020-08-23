@@ -22,7 +22,7 @@ void ThreadlessExecutor::respawn(RcPtr<Task>&& task)
 
 ThreadlessExecutor::ThreadlessExecutor()
 {
-    std::cout << "Threadless executor created" << std::endl;
+    TRACEPRINT("Threadless executor created");
 }
 
 bool ThreadlessExecutor::step()

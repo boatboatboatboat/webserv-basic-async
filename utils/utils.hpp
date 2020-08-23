@@ -9,44 +9,70 @@
 
 void dbg_puts(std::string const& printme);
 
-#ifdef DEBUG
-
+#ifdef SAFEPRINT_LINE_INFO
 #ifdef __linux__
 
-// gettid() only works on linux
-
-#define DBGPRINT(x)                                           \
-    do {                                                      \
-        std::stringstream __out__;                            \
-        __out__                                               \
-            << __func__ << " " << __FILE__ << ":" << __LINE__ \
-            << " " << std::to_string(gettid())                \
-            << " " << x << "\n";                              \
-        dbg_puts(__out__.str());                              \
-    } while (0)
-
-#endif
-
-#ifdef __APPLE__
-
-#define DBGPRINT(x)                      \
-    do {                                 \
-        std::string __x(__func__);       \
-        __x += (" ");                    \
-        __x.append(__FILE__);            \
-        __x.append(":");                 \
-        __x += std::to_string(__LINE__); \
-        __x.append(" ");                 \
-        __x.append(x);                   \
-        __x.append("\n");                \
-        dbg_puts(__x);                   \
-    } while (0)
-
+#define LINE_INFO      __func__ << " " << __FILE__ << ":" << __LINE__ \
+                                << " " << std::to_string(gettid())    \
+                                << " "
+#elif __APPLE__
+#define LINE_INFO(x) x __func__ << " " << __FILE__ << ":" << __LINE__ \
+                                << " "
 #endif
 
 #else
 
+#define LINE_INFO(x)
+
+#endif
+
+#define SAFEPRINT(x)                         \
+    do {                                     \
+        try {                                \
+            std::stringstream __out__;       \
+            __out__ << LINE_INFO << x << "\n"; \
+            dbg_puts(__out__.str());         \
+        } catch (...) {                      \
+        }                                    \
+    } while (0)
+
+#ifdef DEBUG
+
+#define DBGPRINT(x) SAFEPRINT("\033[32mdebug\033[0m: " << x)
+
+#else
+
 #define DBGPRINT(x)
+
+#endif
+
+#ifdef TRACE
+
+#define TRACEPRINT(x) SAFEPRINT("\033[35mtrace\033[0m: " << x)
+
+#else
+
+#define TRACEPRINT(x)
+
+#endif
+
+#ifdef INFO
+
+#define INFOPRINT(x) SAFEPRINT("\033[36minfo\033[0m: " << x)
+
+#else
+
+#define INFOPRINT(x)
+
+#endif
+
+#ifdef WARN
+
+#define WARNPRINT(x) SAFEPRINT("\033[33mwarn\033[0m: " << x)
+
+#elseif
+
+#define WARNPRINT(x)
 
 #endif
 
