@@ -16,13 +16,15 @@ void dbg_puts(std::string const& printme);
                                 << " " << std::to_string(gettid())    \
                                 << " "
 #elif __APPLE__
-#define LINE_INFO(x) x __func__ << " " << __FILE__ << ":" << __LINE__ \
+
+#define LINE_INFO  __func__ << " " << __FILE__ << ":" << __LINE__ \
                                 << " "
+
 #endif
 
 #else
 
-#define LINE_INFO(x)
+#define LINE_INFO
 
 #endif
 
@@ -36,7 +38,7 @@ void dbg_puts(std::string const& printme);
         }                                    \
     } while (0)
 
-#ifdef DEBUG
+#if LOG_DEBUG || LOG_TRACE
 
 #define DBGPRINT(x) SAFEPRINT("\033[32mdebug\033[0m: " << x)
 
@@ -46,7 +48,7 @@ void dbg_puts(std::string const& printme);
 
 #endif
 
-#ifdef TRACE
+#if LOG_TRACE
 
 #define TRACEPRINT(x) SAFEPRINT("\033[35mtrace\033[0m: " << x)
 
@@ -56,7 +58,7 @@ void dbg_puts(std::string const& printme);
 
 #endif
 
-#ifdef INFO
+#if LOG_INFO || LOG_DEBUG || LOG_TRACE
 
 #define INFOPRINT(x) SAFEPRINT("\033[36minfo\033[0m: " << x)
 
@@ -66,13 +68,23 @@ void dbg_puts(std::string const& printme);
 
 #endif
 
-#ifdef WARN
+#if LOG_WARN || LOG_INFO || LOG_DEBUG || LOG_TRACE
 
 #define WARNPRINT(x) SAFEPRINT("\033[33mwarn\033[0m: " << x)
 
-#elseif
+#else
 
 #define WARNPRINT(x)
+
+#endif
+
+#if LOG_ERROR || LOG_WARN || LOG_INFO || LOG_DEBUG || LOG_TRACE
+
+#define ERRORPRINT(x) SAFEPRINT("\033[31merror\033[0m: " << x)
+
+#else
+
+#define ERRORPRINT(x)
 
 #endif
 

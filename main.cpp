@@ -8,6 +8,7 @@
 #include "http/HttpRequest.hpp"
 #include "http/HttpResponse.hpp"
 #include "http/HttpServer.hpp"
+#include "http/InfiniteBody.hpp"
 #include "http/StringBody.hpp"
 #include "ioruntime/FdLineStream.hpp"
 #include "ioruntime/SocketAddr.hpp"
@@ -30,12 +31,17 @@ using ioruntime::Runtime;
 using ioruntime::RuntimeBuilder;
 using ioruntime::TcpListener;
 
+
 int core()
 {
+    signal(SIGPIPE, [](int signal) {
+        (void)signal;
+        WARNPRINT("Signal broken pipe " << signal);
+    });
     try {
         auto runtime = RuntimeBuilder()
-                           //.with_workers(12)
-                           .without_workers()
+                           .with_workers(12)
+                           //.without_workers()
                            .build();
         auto io_event = BoxPtr<IoEventHandler>::make();
         runtime.register_io_handler(std::move(io_event));
@@ -48,8 +54,8 @@ int core()
                 }));
         GlobalRuntime::spawn(HttpServer(1234, [](http::HttpRequest& req) {
             (void)req;
+            INFOPRINT("connection inc");
             auto response = HttpResponseBuilder()
-                .status(HttpResponse::HTTP_STATUS_OK)
                 .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf-8")
                 .build();
             return response;
@@ -71,6 +77,20 @@ int core()
                 .status(HttpResponse::HTTP_STATUS_OK)
                 .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf-8")
                 .body(BoxPtr<FileDescriptor>::make(open("test2.txt", O_RDONLY)))
+                .build();
+            return response;
+        }));
+        GlobalRuntime::spawn(HttpServer(1237, [](http::HttpRequest& req) {
+            (void)req;
+            throw std::runtime_error("Handler error test");
+            return HttpResponseBuilder().build();
+        }));
+        GlobalRuntime::spawn(HttpServer(1238, [](http::HttpRequest& req) {
+            (void)req;
+            auto response = HttpResponseBuilder()
+                .status(HttpResponse::HTTP_STATUS_OK)
+                .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf-8")
+                .body(BoxPtr<InfiniteBody>::make())
                 .build();
             return response;
         }));

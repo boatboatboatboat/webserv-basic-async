@@ -141,7 +141,7 @@ HttpResponse::~HttpResponse() = default;
 
 HttpResponse::HttpResponse()
     : response_headers()
-    , response_status(HttpResponse::HTTP_STATUS_INTERNAL_SERVER_ERROR)
+    , response_status(HttpResponse::HTTP_STATUS_REQUEST_IM_A_TEAPOT)
     , response_body(nullptr)
 {
 }
@@ -164,7 +164,7 @@ PollResult<void> HttpResponse::poll_respond(ioruntime::Socket& socket, Waker&& w
             // fixme: use real http version
             std::stringstream oss;
             oss
-                << " HTTP/1.1" //<< this->request->getVersion()
+                << "HTTP/1.1" //<< this->request->getVersion()
                 << " " << std::to_string(this->response_status.code) << " " << this->response_status.message << lineTerminator;
             current = oss.str();
         }
@@ -212,8 +212,12 @@ PollResult<void> HttpResponse::poll_respond(ioruntime::Socket& socket, Waker&& w
         if (poll_result.is_ready()) {
             auto result = poll_result.get();
 
-            if (result < 0)
+            if (result < 0) {
+#ifdef DEBUG
+                ERRORPRINT("HttpResponse (future): " << strerror(errno));
+#endif
                 throw std::runtime_error("HttpResponse: poll_respond: header write returned error");
+            }
 
             written += result;
 
@@ -231,12 +235,16 @@ PollResult<void> HttpResponse::poll_respond(ioruntime::Socket& socket, Waker&& w
             return PollResult<void>::ready();
         }
         if (current.empty()) {
-            char buffer[256];
+            char buffer[1024];
             auto body_poll_result = response_body->poll_read(buffer, sizeof(buffer), Waker(waker));
             if (body_poll_result.is_ready()) {
                 auto body_result = body_poll_result.get();
-                if (body_result < 0)
+                if (body_result < 0) {
                     throw std::runtime_error("HttpResponse: poll_respond: body read returned error");
+#ifdef DEBUG
+                    ERRORPRINT("HttpResponse (future): " << strerror(errno));
+#endif
+                }
                 else if (body_result == 0) {
                     // Body read has reached EOF
                     // finish the future
@@ -256,9 +264,12 @@ PollResult<void> HttpResponse::poll_respond(ioruntime::Socket& socket, Waker&& w
         if (poll_result.is_ready()) {
             auto result = poll_result.get();
 
-            if (result < 0)
+            if (result < 0) {
+#ifdef DEBUG
+                ERRORPRINT("HttpResponse (future): " << strerror(errno));
+#endif
                 throw std::runtime_error("HttpResponse: poll_respond: body write returned error");
-
+            }
             written += result;
 
             if (written == (ssize_t)current.length()) {
@@ -322,7 +333,7 @@ HttpResponse HttpResponseBuilder::build()
 }
 
 HttpResponseBuilder::HttpResponseBuilder():
-    response_status(HttpResponse::HTTP_STATUS_SERVICE_UNAVAILABLE),
+    response_status(HttpResponse::HTTP_STATUS_REQUEST_IM_A_TEAPOT),
     response_body(nullptr)
 {
 

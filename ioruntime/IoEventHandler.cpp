@@ -36,8 +36,9 @@ void IoEventHandler::reactor_step()
         utils::mem_copy(special_selected, *fds);
     }
 
+    // TODO: timeout event handler should have some influence over the select timeout
     struct timeval tv {
-        .tv_sec = 0,
+        .tv_sec = 10,
         .tv_usec = 0
     };
 

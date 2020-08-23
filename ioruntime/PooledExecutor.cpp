@@ -124,14 +124,17 @@ PooledExecutor::worker_thread_function(WorkerMessage* message)
 
         // TODO: clean up task stale (currently there's a different system for Threadless and Pooled)
         if (task_found) {
-            BoxPtr<IFuture<void>> future_slot(nullptr);
-            auto waker = Waker(RcPtr(task));
+            try {
+                BoxPtr<IFuture<void>> future_slot(nullptr);
+                auto waker = Waker(RcPtr(task));
 
-            auto inner_task = task->get_inner_task().lock();
+                auto inner_task = task->get_inner_task().lock();
 
-            if (!inner_task->stale) {
-                future_slot = std::move(inner_task->future);
-                try {
+                if (!inner_task->stale) {
+                    future_slot = std::move(inner_task->future);
+                    if (future_slot.get() == nullptr) {
+                        throw std::runtime_error("Tried to poll null future");
+                    }
                     auto result = future_slot->poll(std::move(waker));
 
                     if (result.is_ready()) {
@@ -142,9 +145,11 @@ PooledExecutor::worker_thread_function(WorkerMessage* message)
                     } else {
                         inner_task->future = std::move(future_slot);
                     }
-                } catch (std::exception& e) {
-
                 }
+            } catch (std::exception& e) {
+                WARNPRINT("Poll failed: " << e.what());
+                // TODO: tasks leak on error causing infinite null future calls
+                throw std::runtime_error("Poll failed - exiting to prevent spin");
             }
         }
     }

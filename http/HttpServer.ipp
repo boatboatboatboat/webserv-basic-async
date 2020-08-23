@@ -3,6 +3,7 @@
 //
 
 #include "../ioruntime/GlobalRuntime.hpp"
+#include "HttpResponse.hpp"
 #include "HttpServer.hpp"
 
 using ioruntime::GlobalRuntime;
@@ -38,17 +39,40 @@ PollResult<void> HttpServer<RH>::HttpConnectionFuture::poll(Waker&& waker)
 {
     switch (state) {
     case Listen: {
-        auto poll_result = parser.poll(Waker(waker));
-        if (poll_result.is_ready()) {
-            req = poll_result.get();
+        try {
+            auto poll_result = parser.poll(Waker(waker));
+            if (poll_result.is_ready()) {
+                req = poll_result.get();
+                state = Respond;
+                try {
+                    res = std::move(handler(req));
+                } catch (std::exception& e) {
+                    WARNPRINT("request handler error: " << e.what());
+                    res = HttpResponseBuilder()
+                        .status(HttpResponse::HTTP_STATUS_INTERNAL_SERVER_ERROR)
+                        .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf8")
+                        .build();
+                }
+                return poll(std::move(waker));
+            }
+        } catch (std::exception& e) {
+            WARNPRINT("request parser error: " << e.what());
             state = Respond;
-            res = std::move(handler(req));
+            res = HttpResponseBuilder()
+                .status(HttpResponse::HTTP_STATUS_INTERNAL_SERVER_ERROR)
+                .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf8")
+                .build();
             return poll(std::move(waker));
         }
         return PollResult<void>::pending();
     } break;
     case Respond: {
-        return res.poll_respond(stream.get_socket(), std::move(waker));
+        try {
+            return res.poll_respond(stream.get_socket(), std::move(waker));
+        } catch (std::exception& e) {
+            WARNPRINT("response error: " << e.what());
+            return PollResult<void>::ready();
+        }
     } break;
     default: {
         throw std::runtime_error("HttpServer::HttpConnectionFuture: poll: unreachable state");
