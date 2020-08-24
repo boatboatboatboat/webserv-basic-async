@@ -84,7 +84,17 @@ private:
     T& get_inner_type();
 
     pthread_mutex_t inner_mutex;
+#ifdef DEBUG_MUTEX_CANARY
+public:
+    volatile uint64_t TOP_CANARY = 0x0123456789ABCDEF;
+private:
+#endif
     T inner_type;
+#ifdef DEBUG_MUTEX_CANARY
+public:
+    volatile uint64_t BOT_CANARY = 0xFEDCBA9876543210;
+private:
+#endif
 #ifdef DEBUG_MUTEX
     bool dbg_moved_out = false;
     pthread_mutex_t locked_already_mutex;

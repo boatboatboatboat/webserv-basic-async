@@ -21,16 +21,28 @@ void FileDescriptor::SetReadyFunctor::operator()()
 
 FileDescriptor::FileDescriptor(int fd)
 {
-    if (fd < 0)
-        throw std::runtime_error("FileDescriptor: ctor: bad file descriptor passed");
-    int nonblocking_error = fcntl(fd, F_SETFL, O_NONBLOCK);
-    if (nonblocking_error)
-        throw std::runtime_error("FileDescriptor: ctor: failed to set fd as nonblocking");
-    descriptor = fd;
-    BoxFunctor read_cb = BoxFunctor(new SetReadyFunctor(RcPtr(ready_to_read)));
-    BoxFunctor write_cb = BoxFunctor(new SetReadyFunctor(RcPtr(ready_to_write)));
-    GlobalIoEventHandler::register_reader_callback(descriptor, std::move(read_cb), true);
-    GlobalIoEventHandler::register_writer_callback(descriptor, std::move(write_cb), true);
+    try {
+        if (fd < 0)
+            throw std::runtime_error("FileDescriptor: ctor: bad file descriptor passed");
+        int nonblocking_error = fcntl(fd, F_SETFL, O_NONBLOCK);
+        if (nonblocking_error) {
+            throw std::runtime_error("FileDescriptor: ctor: failed to set fd as nonblocking");
+        }
+        descriptor = fd;
+        BoxFunctor read_cb = BoxFunctor(new SetReadyFunctor(RcPtr(ready_to_read)));
+        BoxFunctor write_cb = BoxFunctor(new SetReadyFunctor(RcPtr(ready_to_write)));
+        GlobalIoEventHandler::register_reader_callback(descriptor, std::move(read_cb), true);
+        GlobalIoEventHandler::register_writer_callback(descriptor, std::move(write_cb), true);
+    } catch (std::exception& e) {
+        // Destructors are only called for the completely constructed objects.
+        // When constructor of an object throws an exception, destructor for that object is not called.
+
+        // Manually close the file descriptor - otherwise it will leak.
+        ::close(fd);
+
+        // Rethrow the exception.
+        throw;
+    }
 }
 
 FileDescriptor::FileDescriptor(FileDescriptor&& other) noexcept

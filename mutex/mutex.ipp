@@ -20,11 +20,23 @@ template <typename T>
 MutexGuard<T>::MutexGuard(Mutex<T>& mutex)
     : mutex(mutex)
 {
+#ifdef DEBUG_MUTEX_CANARY
+    if (mutex.TOP_CANARY != 0x0123456789ABCDEF) {
+        ERRORPRINT("Mutex top canary died!");
+        exit(6);
+    }
+    if (mutex.BOT_CANARY != 0xFEDCBA9876543210) {
+        ERRORPRINT("Mutex bot canary died!");
+        exit(6);
+    }
+#endif
     int res = pthread_mutex_lock(&mutex.get_inner_mutex());
     if (res) {
         std::stringstream errmsg;
 
-        errmsg << "MutexGuard: Failed to lock mutex: " << strerror(errno);
+        // fun fact: pthread_mutex_lock does not set errno
+        // instead it returns the error value
+        errmsg << "MutexGuard: Failed to lock mutex: " << strerror(res);
         throw std::runtime_error(errmsg.str());
     }
 #ifdef DEBUG_MUTEX
@@ -40,11 +52,21 @@ MutexGuard<T>::~MutexGuard()
 #ifdef DEBUG_MUTEX
     pthread_mutex_lock(&mutex.locked_already_mutex);
 #endif
+#ifdef DEBUG_MUTEX_CANARY
+    if (mutex.TOP_CANARY != 0x0123456789ABCDEF) {
+        ERRORPRINT("Mutex top canary died!");
+        exit(6);
+    }
+    if (mutex.BOT_CANARY != 0xFEDCBA9876543210) {
+        ERRORPRINT("Mutex bot canary died!");
+        exit(6);
+    }
+#endif
     int res = pthread_mutex_unlock(&mutex.get_inner_mutex());
     if (res) {
         std::stringstream errmsg;
 
-        errmsg << "MutexGuard: Failed to unlock mutex: " << strerror(errno);
+        errmsg << "MutexGuard: Failed to unlock mutex: " << strerror(res);
         DBGPRINT(errmsg.str());
     }
 #ifdef DEBUG_MUTEX
@@ -102,6 +124,16 @@ T* MutexGuard<T>::operator->()
 template <typename T>
 Mutex<T>::Mutex()
 {
+#ifdef DEBUG_MUTEX_CANARY
+    if (TOP_CANARY != 0x0123456789ABCDEF) {
+        ERRORPRINT("Mutex top canary died!");
+        exit(6);
+    }
+    if (BOT_CANARY != 0xFEDCBA9876543210) {
+        ERRORPRINT("Mutex bot canary died!");
+        exit(6);
+    }
+#endif
 #ifdef DEBUG_MUTEX
 
     pthread_mutex_init(&this->locked_already_mutex, NULL);
@@ -129,6 +161,16 @@ template <typename T>
 Mutex<T>::Mutex(T&& inner)
     : inner_type(std::move(inner))
 {
+#ifdef DEBUG_MUTEX_CANARY
+    if (TOP_CANARY != 0x0123456789ABCDEF) {
+        ERRORPRINT("Mutex top canary died!");
+        exit(6);
+    }
+    if (BOT_CANARY != 0xFEDCBA9876543210) {
+        ERRORPRINT("Mutex bot canary died!");
+        exit(6);
+    }
+#endif
 #ifdef DEBUG_MUTEX
     pthread_mutex_init(&this->locked_already_mutex, NULL);
 
@@ -154,6 +196,16 @@ Mutex<T>::Mutex(T&& inner)
 template <typename T>
 Mutex<T>::~Mutex()
 {
+#ifdef DEBUG_MUTEX_CANARY
+    if (TOP_CANARY != 0x0123456789ABCDEF) {
+        ERRORPRINT("Mutex top canary died!");
+        exit(6);
+    }
+    if (BOT_CANARY != 0xFEDCBA9876543210) {
+        ERRORPRINT("Mutex bot canary died!");
+        exit(6);
+    }
+#endif
     /*
          * NOTE:
          * pthread_mutex_destroy can actually error,

@@ -12,7 +12,7 @@ namespace http {
 
 template <typename RH>
 HttpServer<RH>::HttpServer(uint16_t port, RH fn)
-    : listener(TcpListener(port).for_each<TcpListener>(handle_connection))
+    : listener(TcpListener(port).for_each<TcpListener>(handle_connection, handle_exception))
 {
     // If we don't pass RH as a parameter,
     // we would have to write HttpServer<decltype(SOME_LAMBDA)>(PORT)
@@ -32,6 +32,11 @@ template <typename RH>
 void HttpServer<RH>::handle_connection(TcpStream& stream)
 {
     GlobalRuntime::spawn(HttpConnectionFuture(std::move(stream)));
+}
+
+template<typename RH>
+void HttpServer<RH>::handle_exception(std::exception& e) {
+    ERRORPRINT("HttpServer: " << e.what());
 }
 
 template <typename RH>
@@ -91,7 +96,7 @@ HttpServer<RH>::HttpConnectionFuture::HttpConnectionFuture(TcpStream&& pstream)
 template <typename RH>
 HttpServer<RH>::HttpConnectionFuture::~HttpConnectionFuture() {
     if (parser.stream != nullptr) {
-        INFOPRINT("HCF dtor");
+        DBGPRINT("hcf dtor");
     }
 }
 

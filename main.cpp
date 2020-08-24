@@ -14,7 +14,7 @@
 #include "ioruntime/SocketAddr.hpp"
 #include "ioruntime/TcpListener.hpp"
 #include "utils/utils.hpp"
-#include <signal.h>
+#include <csignal>
 
 using futures::FdLineStream;
 using futures::ForEachFuture;
@@ -42,7 +42,7 @@ int core()
     try {
         auto runtime = RuntimeBuilder()
                            .with_workers(4)
-                           // .without_workers()
+                           //.without_workers()
                            .build();
         auto io_event = BoxPtr<IoEventHandler>::make();
         runtime.register_io_handler(std::move(io_event));
@@ -64,7 +64,19 @@ int core()
         GlobalRuntime::spawn(HttpServer(1235, [](http::HttpRequest& req) {
             std::stringstream out;
 
-            out << "<h1>path: " << req.getPath() << "</h1>" << std::endl;
+            out << "<h1>path: " << req.getPath() << "</h1><br>"
+                << "<a>method: " << req.getMethod() << "</a><br>"
+                << "<a>version: " << req.getVersion() << "</a><hr>"
+                << "<h1>Queries:</h1><br><table><tr><th>key</th><th>value</th></tr>";
+            for (auto& query: req.getQuery()) {
+                out << "<tr><td>" << query.first << "</td><td>" << query.second << "</td></tr>";
+            }
+            out << "</table><hr><h1>Headers:</h1><table><tr><th>key</th><th>value</th></tr>";
+            for (auto& header: req.getHeaders()) {
+                out << "<tr><td>" << header.first << "</td><td>" << header.second << "</td></tr>";
+            }
+            out << "</table><hr><h1>Body:</h1><br>" << req.getBody();
+
             auto response = HttpResponseBuilder()
                 .status(HttpResponse::HTTP_STATUS_OK)
                 .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf-8")

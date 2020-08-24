@@ -55,7 +55,7 @@ TcpListener::TcpListener(in_port_t port)
 
 StreamPollResult<TcpStream> TcpListener::poll_next(Waker&& waker)
 {
-    INFOPRINT("pollnext Listener");
+    // INFOPRINT("pollnext Listener");
     // register immediately;
     auto is_ready = connection_ready->lock();
 
@@ -71,13 +71,30 @@ StreamPollResult<TcpStream> TcpListener::poll_next(Waker&& waker)
             GlobalIoEventHandler::register_reader_callback(descriptor, std::move(cb), true);
             throw std::runtime_error(strerror(errno));
         }
-        INFOPRINT("accepted client " << client);
+        DBGPRINT("accepted client " << client);
 
         *is_ready = false;
         BoxFunctor cb = BoxFunctor(new SetReadyFunctor(RcPtr(connection_ready)));
         GlobalIoEventHandler::register_reader_callback(descriptor, std::move(cb), true);
         GlobalIoEventHandler::register_reader_callback(descriptor, waker.boxed(), true, 1);
-        return StreamPollResult<TcpStream>::ready(TcpStream(client, SocketAddr(*client_address_in)));
+//        for (;;) {
+//            try {
+//                INFOPRINT("stream test");
+                auto stream = TcpStream(client, SocketAddr(*client_address_in));
+                return StreamPollResult<TcpStream>::ready(std::move(stream));
+//            } catch (std::exception& e) {
+//                // FIXME: shit code
+//                             INFOPRINT("Retry for " << client);
+//                if (strstr(e.what(), "FD_SETSIZE") != nullptr) {
+//                    int newfd = dup(client);
+//                    close(client);
+//                    client = newfd;
+//                    continue;
+//                } else {
+//                    throw;
+//                }
+//            }
+//        }
     } else {
         BoxFunctor cb = BoxFunctor(new SetReadyFunctor(RcPtr(connection_ready)));
         GlobalIoEventHandler::register_reader_callback(descriptor, std::move(cb), true);

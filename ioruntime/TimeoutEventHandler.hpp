@@ -8,14 +8,21 @@
 #include "ioruntime.hpp"
 
 namespace ioruntime {
+
+struct CallbackInfo {
+    bool used;
+    BoxFunctor functor;
+};
+
 class TimeoutEventHandler : public IEventHandler {
 public:
     void reactor_step() override;
-
+    void register_timeout(uint64_t ms, BoxFunctor&& callback);
 private:
-    static unsigned long get_time_ms();
-    std::vector<unsigned long> clocks;
+    static uint64_t get_time_ms();
+    Mutex<std::multimap<uint64_t, CallbackInfo>> clocks_mutex;
 };
+
 }
 
 #endif //WEBSERV_IORUNTIME_TIMEOUTEVENTHANDLER_HPP

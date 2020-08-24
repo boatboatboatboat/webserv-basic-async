@@ -47,6 +47,7 @@ public:
     explicit HttpServer(uint16_t port, RH fn);
     PollResult<void> poll(Waker&& waker) override;
     static void handle_connection(TcpStream& stream);
+    static void handle_exception(std::exception& e);
 
 private:
     ForEachFuture<TcpListener, TcpStream> listener;

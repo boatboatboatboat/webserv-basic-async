@@ -17,19 +17,22 @@ template <typename St, typename Fp>
 class ForEachFuture : public IFuture<void> {
 public:
     explicit ForEachFuture(St&& stream, void (*function)(Fp&));
-    ForEachFuture(ForEachFuture&& other);
-    ~ForEachFuture() override { }
+    explicit ForEachFuture(St&& stream, void (*function)(Fp&), void (*_eh)(std::exception& e));
+    ForEachFuture(ForEachFuture&& other) noexcept ;
+    ~ForEachFuture() override = default;
     PollResult<void> poll(Waker&& waker) override;
 
 private:
     St _stream;
     void (*_function)(Fp&);
+    void (*_eh)(std::exception& e);
 };
 
 template <typename St, typename Fp>
 ForEachFuture<St, Fp>::ForEachFuture(St&& stream, void (*function)(Fp&))
     : _stream(std::move(stream))
     , _function(function)
+    , _eh(nullptr)
 {
 }
 
@@ -37,28 +40,46 @@ template <typename St, typename Fp>
 PollResult<void>
 ForEachFuture<St, Fp>::poll(Waker&& waker)
 {
-    StreamPollResult<Fp> result = _stream.poll_next(std::move(waker));
-
-    switch (result.get_status()) {
-    case StreamPollResult<Fp>::Pending: {
+    try {
+        auto result = _stream.poll_next(std::move(waker));
+        switch (result.get_status()) {
+        case StreamPollResult<Fp>::Pending: {
+            return PollResult<void>::pending();
+        } break;
+        case StreamPollResult<Fp>::Ready: {
+            _function(result.get());
+            return PollResult<void>::pending();
+        } break;
+        case StreamPollResult<Fp>::Finished: {
+            return PollResult<void>::ready();
+        } break;
+        }
         return PollResult<void>::pending();
-    } break;
-    case StreamPollResult<Fp>::Ready: {
-        _function(result.get());
-        return PollResult<void>::pending();
-    } break;
-    case StreamPollResult<Fp>::Finished: {
-        return PollResult<void>::ready();
-    } break;
+    } catch (std::exception& e) {
+        if (_eh != nullptr) {
+            _eh(e);
+            return PollResult<void>::pending();
+        } else {
+            throw;
+        }
     }
-    return PollResult<void>::pending();
 }
+
 template <typename St, typename Fp>
-ForEachFuture<St, Fp>::ForEachFuture(ForEachFuture&& other)
+ForEachFuture<St, Fp>::ForEachFuture(ForEachFuture&& other)noexcept
     : _stream(std::move(other._stream))
     , _function(other._function)
+    , _eh(other._eh)
 {
 }
+
+template <typename St, typename Fp>
+ForEachFuture<St, Fp>::ForEachFuture(St&& stream, void (*function)(Fp&), void (*_eh)(std::exception&)): _stream(std::move(stream))
+    , _function(function)
+    , _eh(_eh)
+{
+}
+
 }
 
 #endif //WEBSERV_FUTURES_FOREACHFUTURE_HPP

@@ -128,7 +128,6 @@ void IoEventHandler::register_special_callback(int fd, BoxFunctor&& x, bool once
         if (pair == fds->end()) {
             fds->insert(std::pair(fd, true));
         }
-        INFOPRINT("registered " << fd);
     }
     register_callback(fd, std::move(x), special_listeners, special_fds, once, unique);
 }
@@ -231,6 +230,12 @@ void IoEventHandler::register_callback(int fd,
     bool once,
     int unique)
 {
+    if (fd < 0) {
+        throw std::runtime_error("IoEventHandler::register_callback: Negative file descriptor");
+    }
+    if (fd >= FD_SETSIZE) {
+        throw std::runtime_error("IoEventHandler::register_callback: File descriptor >= FD_SETSIZE");
+    }
     {
         auto max = maxfds.lock();
         if (fd > *max)

@@ -15,6 +15,8 @@ class IStreamExt : public IStream<T> {
 public:
     template <typename St>
     ForEachFuture<St, T> for_each(void (*function)(T& f));
+    template <typename St>
+    ForEachFuture<St, T> for_each(void (*function)(T& f), void (*eh)(std::exception& e));
 };
 
 }

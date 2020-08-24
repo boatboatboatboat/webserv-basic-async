@@ -24,7 +24,7 @@ void dbg_puts(std::string const& printme);
 
 #else
 
-#define LINE_INFO
+#define LINE_INFO ""
 
 #endif
 
