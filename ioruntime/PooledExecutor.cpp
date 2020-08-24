@@ -35,9 +35,10 @@ PooledExecutor::PooledExecutor(int worker_count)
                 reinterpret_cast<void* (*)(void*)>(worker_thread_function),
                 &messages[idx])
             != 0) {
-            // todo: make better exception
             throw std::runtime_error("PooledExecutor: failed to create workers");
         }
+
+        workers.push_back(thread);
     }
 }
 
@@ -51,13 +52,15 @@ void PooledExecutor::spawn(RcPtr<Task>&& future)
         auto spawn_head = spawn_head_mutex.lock();
 
         *spawn_head += 1;
-        if (*spawn_head > workers.size())
+        if (*spawn_head >= workers.size())
             *spawn_head = 0;
         head = *spawn_head;
     }
+    size_t taco;
     {
         auto queue = task_queues.at(head).lock();
 
+        taco = queue->size();
         queue->push(std::move(future));
     }
     {
@@ -69,19 +72,21 @@ void PooledExecutor::spawn(RcPtr<Task>&& future)
 
 void PooledExecutor::respawn(RcPtr<Task>&& future)
 {
-    int head = 0;
+    int head;
 
     {
         auto spawn_head = spawn_head_mutex.lock();
 
         *spawn_head += 1;
-        if (*spawn_head > workers.size())
+        if (*spawn_head >= workers.size())
             *spawn_head = 0;
         head = *spawn_head;
     }
+    size_t taco;
     {
         auto queue = task_queues.at(head).lock();
 
+        taco = queue->size();
         queue->push(std::move(future));
     }
 }
@@ -118,7 +123,8 @@ PooledExecutor::worker_thread_function(WorkerMessage* message)
         }
 
         if (!task_found) {
-            // If no task was found
+            // If no task was found, we should sleep for a short while instead.
+            usleep(500);
             task_found = steal_task(message, task);
         }
 
@@ -167,7 +173,8 @@ bool PooledExecutor::steal_task(WorkerMessage* message, RcPtr<Task>& task)
 
         auto other_queue = other_queue_mutex.lock();
         if (!other_queue->empty()) {
-            // move task out of the queue
+            // move task out of the queue,
+            // into the WORKER, not the worker queue.
             task = std::move(other_queue->front());
             other_queue->pop();
             return true;

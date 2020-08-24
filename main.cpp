@@ -14,6 +14,7 @@
 #include "ioruntime/SocketAddr.hpp"
 #include "ioruntime/TcpListener.hpp"
 #include "utils/utils.hpp"
+#include <signal.h>
 
 using futures::FdLineStream;
 using futures::ForEachFuture;
@@ -34,14 +35,14 @@ using ioruntime::TcpListener;
 
 int core()
 {
-    signal(SIGPIPE, [](int signal) {
-        (void)signal;
-        WARNPRINT("Signal broken pipe " << signal);
-    });
+    // ignore SIGPIPE,
+    // a slowloris attack can cause so many SIGPIPEs (to the point of 30k queued),
+    // that all threads are preoccupied with running the signal handler
+    signal(SIGPIPE, SIG_IGN);
     try {
         auto runtime = RuntimeBuilder()
-                           .with_workers(12)
-                           //.without_workers()
+                           .with_workers(4)
+                           // .without_workers()
                            .build();
         auto io_event = BoxPtr<IoEventHandler>::make();
         runtime.register_io_handler(std::move(io_event));
@@ -54,7 +55,7 @@ int core()
                 }));
         GlobalRuntime::spawn(HttpServer(1234, [](http::HttpRequest& req) {
             (void)req;
-            INFOPRINT("connection inc");
+            INFOPRINT("Handle request");
             auto response = HttpResponseBuilder()
                 .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf-8")
                 .build();

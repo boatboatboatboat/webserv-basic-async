@@ -6,15 +6,26 @@
 #include "GlobalIoEventHandler.hpp"
 #include <sys/socket.h>
 
+
+#include <fcntl.h>
+
 namespace ioruntime {
 
 ssize_t Socket::read(char* buffer, size_t size)
 {
-    return recv(descriptor, buffer, size, 0);
+    // shhh don't tell anyone
+    if (fcntl(descriptor, F_SETFL, O_NONBLOCK) < 0)
+        return -1;
+    // MSG_NOSIGNAL disables SIGPIPE being called on a broken pipe
+    return recv(descriptor, buffer, size, MSG_NOSIGNAL);
 }
 ssize_t Socket::write(const char* buffer, size_t size)
 {
-    return send(descriptor, buffer, size, 0);
+    // shhh don't tell anyone
+    if (fcntl(descriptor, F_SETFL, O_NONBLOCK) < 0)
+        return -1;
+    // MSG_NOSIGNAL disables SIGPIPE being called on a broken pipe
+    return send(descriptor, buffer, size, MSG_NOSIGNAL);
 }
 
 Socket::Socket(int fd)
@@ -35,6 +46,9 @@ Socket::Socket()
 Socket Socket::uninitialized()
 {
     return Socket();
+}
+Socket::~Socket()
+{
 }
 
 }

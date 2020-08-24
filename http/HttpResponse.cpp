@@ -176,9 +176,9 @@ PollResult<void> HttpResponse::poll_respond(ioruntime::Socket& socket, Waker&& w
         if (poll_result.is_ready()) {
             auto result = poll_result.get();
 
-            if (result < 0)
+            if (result < 0) {
                 throw std::runtime_error("HttpResponse: poll_respond: status write returned error");
-
+            }
             written += result;
 
             if (written == (ssize_t)current.length()) {
@@ -213,9 +213,6 @@ PollResult<void> HttpResponse::poll_respond(ioruntime::Socket& socket, Waker&& w
             auto result = poll_result.get();
 
             if (result < 0) {
-#ifdef DEBUG
-                ERRORPRINT("HttpResponse (future): " << strerror(errno));
-#endif
                 throw std::runtime_error("HttpResponse: poll_respond: header write returned error");
             }
 
@@ -240,10 +237,10 @@ PollResult<void> HttpResponse::poll_respond(ioruntime::Socket& socket, Waker&& w
             if (body_poll_result.is_ready()) {
                 auto body_result = body_poll_result.get();
                 if (body_result < 0) {
-                    throw std::runtime_error("HttpResponse: poll_respond: body read returned error");
 #ifdef DEBUG
                     ERRORPRINT("HttpResponse (future): " << strerror(errno));
 #endif
+                    throw std::runtime_error("HttpResponse: poll_respond: body read returned error");
                 }
                 else if (body_result == 0) {
                     // Body read has reached EOF
@@ -265,9 +262,6 @@ PollResult<void> HttpResponse::poll_respond(ioruntime::Socket& socket, Waker&& w
             auto result = poll_result.get();
 
             if (result < 0) {
-#ifdef DEBUG
-                ERRORPRINT("HttpResponse (future): " << strerror(errno));
-#endif
                 throw std::runtime_error("HttpResponse: poll_respond: body write returned error");
             }
             written += result;

@@ -51,30 +51,85 @@ void IoEventHandler::reactor_step()
     int selected = select(max + 1, &read_selected, &write_selected, &special_selected, &tv);
 
     if (selected > 0) {
-        for (int fd = 0; fd <= max; fd += 1) {
-            fire_listeners_for(fd, read_selected, read_listeners);
-            fire_listeners_for(fd, write_selected, write_listeners);
-            fire_listeners_for(fd, special_selected, special_listeners);
+        {
+            std::map<int, bool> fds;
+            {
+                auto fds_guard = read_fd_in_use.lock();
+                fds = *fds_guard;
+            }
+            for (auto& fd_pair : fds) {
+                auto fd = fd_pair.first;
+                if (!fire_listeners_for(fd, read_selected, read_listeners)) {
+                    DBGPRINT("FD leak " << fd);
+                }
+            }
+        }
+        {
+            std::map<int, bool> fds;
+            {
+                auto fds_guard = write_fd_in_use.lock();
+                fds = *fds_guard;
+            }
+            for (auto& fd_pair : fds) {
+                auto fd = fd_pair.first;
+                if (!fire_listeners_for(fd, write_selected, write_listeners)) {
+                    DBGPRINT("FD leak " << fd);
+                }
+            }
+        }
+        {
+            std::map<int, bool> fds;
+            {
+                auto fds_guard = special_fd_in_use.lock();
+                fds = *fds_guard;
+            }
+            for (auto& fd_pair : fds) {
+                auto fd = fd_pair.first;
+                if (!fire_listeners_for(fd, special_selected, special_listeners)) {
+                    DBGPRINT("FD leak " << fd);
+                }
+            }
         }
     } else if (selected < 0) {
-        std::stringstream errmsg;
-        errmsg << "Select failed: " << strerror(errno);
-        //DBGPRINT(errmsg.str());
+        WARNPRINT("Select failed: " << strerror(errno));
     }
 }
 
 void IoEventHandler::register_reader_callback(int fd, BoxFunctor&& x, bool once, int unique)
 {
+    {
+        auto fds = read_fd_in_use.lock();
+        auto pair = fds->find(fd);
+        if (pair == fds->end()) {
+            fds->insert(std::pair(fd, true));
+        }
+        TRACEPRINT("registered " << fd);
+    }
     register_callback(fd, std::move(x), read_listeners, read_fds, once, unique);
 }
 
 void IoEventHandler::register_writer_callback(int fd, BoxFunctor&& x, bool once, int unique)
-{
+{    {
+        auto fds = write_fd_in_use.lock();
+        auto pair = fds->find(fd);
+        if (pair == fds->end()) {
+            fds->insert(std::pair(fd, true));
+        }
+        TRACEPRINT("registered " << fd);
+    }
     register_callback(fd, std::move(x), write_listeners, write_fds, once, unique);
 }
 
 void IoEventHandler::register_special_callback(int fd, BoxFunctor&& x, bool once, int unique)
 {
+    {
+        auto fds = special_fd_in_use.lock();
+        auto pair = fds->find(fd);
+        if (pair == fds->end()) {
+            fds->insert(std::pair(fd, true));
+        }
+        INFOPRINT("registered " << fd);
+    }
     register_callback(fd, std::move(x), special_listeners, special_fds, once, unique);
 }
 
@@ -88,6 +143,8 @@ void IoEventHandler::unregister_reader_callbacks(int fd)
         auto listeners = read_listeners.lock();
         listeners->erase(fd);
     }
+    auto fds_in_use_guard = read_fd_in_use.lock();
+    fds_in_use_guard->erase(fd);
 }
 
 void IoEventHandler::unregister_writer_callbacks(int fd)
@@ -96,8 +153,12 @@ void IoEventHandler::unregister_writer_callbacks(int fd)
         auto fds = write_fds.lock();
         FD_CLR(fd, &*fds);
     }
-    auto listeners = write_listeners.lock();
-    listeners->erase(fd);
+    {
+        auto listeners = write_listeners.lock();
+        listeners->erase(fd);
+    }
+    auto fds_in_use_guard = write_fd_in_use.lock();
+    fds_in_use_guard->erase(fd);
 }
 
 void IoEventHandler::unregister_special_callbacks(int fd)
@@ -106,11 +167,15 @@ void IoEventHandler::unregister_special_callbacks(int fd)
         auto fds = special_fds.lock();
         FD_CLR(fd, &*fds);
     }
-    auto listeners = special_listeners.lock();
-    listeners->erase(fd);
+    {
+        auto listeners = special_listeners.lock();
+        listeners->erase(fd);
+    }
+    auto fds_in_use_guard = special_fd_in_use.lock();
+    fds_in_use_guard->erase(fd);
 }
 
-void IoEventHandler::fire_listeners_for(int fd, fd_set& selected,
+bool IoEventHandler::fire_listeners_for(int fd, fd_set& selected,
     Mutex<Listeners>& listeners_mutex)
 {
     if (FD_ISSET(fd, &selected)) {
@@ -137,10 +202,7 @@ void IoEventHandler::fire_listeners_for(int fd, fd_set& selected,
         {
             auto it = cbinfos.begin();
             while (it != cbinfos.end()) {
-                std::stringstream x;
-                x << "firing " << fd << "[" << it->second.once << ", " << it->second.unique << "]";
-                //            	DBGPRINT(x.str());
-                //
+                TRACEPRINT("firing " << fd << "[" << it->second.once << ", " << it->second.unique << "]");
                 (*it->second.bf)();
                 if (it->second.once) {
                     it = cbinfos.erase(it);
@@ -156,6 +218,9 @@ void IoEventHandler::fire_listeners_for(int fd, fd_set& selected,
                 listeners->insert(std::move(cbinfo));
             }
         }
+        return true;
+    } else {
+        return false;
     }
 }
 

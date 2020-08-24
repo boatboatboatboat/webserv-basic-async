@@ -56,7 +56,6 @@ PollResult<void> HttpServer<RH>::HttpConnectionFuture::poll(Waker&& waker)
                 return poll(std::move(waker));
             }
         } catch (std::exception& e) {
-            WARNPRINT("request parser error: " << e.what());
             state = Respond;
             res = HttpResponseBuilder()
                 .status(HttpResponse::HTTP_STATUS_INTERNAL_SERVER_ERROR)
@@ -90,7 +89,11 @@ HttpServer<RH>::HttpConnectionFuture::HttpConnectionFuture(TcpStream&& pstream)
 }
 
 template <typename RH>
-HttpServer<RH>::HttpConnectionFuture::~HttpConnectionFuture() = default;
+HttpServer<RH>::HttpConnectionFuture::~HttpConnectionFuture() {
+    if (parser.stream != nullptr) {
+        INFOPRINT("HCF dtor");
+    }
+}
 
 template <typename RH>
 HttpServer<RH>::HttpConnectionFuture::HttpConnectionFuture(HttpServer::HttpConnectionFuture&& other) noexcept
@@ -101,6 +104,7 @@ HttpServer<RH>::HttpConnectionFuture::HttpConnectionFuture(HttpServer::HttpConne
     , parser(std::move(other.parser))
     , handler(other.handler)
 {
+    other.parser.stream = nullptr;
     parser.stream = &stream;
 }
 

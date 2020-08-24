@@ -55,19 +55,23 @@ PollResult<ssize_t> FileDescriptor::poll_read(char* buffer, size_t size, Waker&&
     auto ready_guard = ready_to_read->lock();
     if (!*ready_guard) {
         // Register the passed waker so the parent future can be woken up
-        GlobalIoEventHandler::register_reader_callback(descriptor, waker.boxed(), false, 10);
+        GlobalIoEventHandler::register_reader_callback(descriptor, waker.boxed(), true, 10);
         // File descriptor is not ready to read,
         // return that it's pending
         return PollResult<ssize_t>::pending();
     }
     ssize_t result = read(buffer, size);
 
+    if (result < 0) {
+        TRACEPRINT("read error: " << result);
+    }
+
     // Re-register the "ready" callback
     BoxFunctor cb = BoxFunctor(new SetReadyFunctor(RcPtr(ready_to_read)));
     GlobalIoEventHandler::register_reader_callback(descriptor, std::move(cb), true);
 
     // Register the passed waker so the parent future can be woken up
-    GlobalIoEventHandler::register_reader_callback(descriptor, waker.boxed(), false, 10);
+    GlobalIoEventHandler::register_reader_callback(descriptor, waker.boxed(), true, 10);
 
     // Set the file descriptor as not ready
     *ready_guard = false;
@@ -82,7 +86,7 @@ PollResult<ssize_t> FileDescriptor::poll_write(const char* buffer, size_t size, 
     auto ready_guard = ready_to_write->lock();
     if (!*ready_guard) {
         // Register the passed waker so the parent future can be woken up
-        GlobalIoEventHandler::register_writer_callback(descriptor, waker.boxed(), false, 10);
+        GlobalIoEventHandler::register_writer_callback(descriptor, waker.boxed(), true, 10);
 
         // File descriptor is not ready to write,
         // return that it's pending
@@ -90,12 +94,16 @@ PollResult<ssize_t> FileDescriptor::poll_write(const char* buffer, size_t size, 
     }
     ssize_t result = write(buffer, size);
 
+    if (result < 0) {
+        TRACEPRINT("write error: " << strerror(errno));
+    }
+
     // Re-register the "ready" callback
     BoxFunctor read_cb = BoxFunctor(new SetReadyFunctor(RcPtr(ready_to_write)));
     GlobalIoEventHandler::register_writer_callback(descriptor, std::move(read_cb), true);
 
     // Register the passed waker so the parent future can be woken up
-    GlobalIoEventHandler::register_writer_callback(descriptor, waker.boxed(), false, 10);
+    GlobalIoEventHandler::register_writer_callback(descriptor, waker.boxed(), true, 10);
 
     // Set the file descriptor as not ready
     *ready_guard = false;

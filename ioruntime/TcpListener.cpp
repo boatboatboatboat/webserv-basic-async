@@ -50,11 +50,12 @@ TcpListener::TcpListener(in_port_t port)
 
     // register reader callback so the listener can get polled
     BoxFunctor cb = BoxFunctor(new SetReadyFunctor(RcPtr(connection_ready)));
-    GlobalIoEventHandler::register_reader_callback(descriptor, std::move(cb), false);
+    GlobalIoEventHandler::register_reader_callback(descriptor, std::move(cb), true);
 }
 
 StreamPollResult<TcpStream> TcpListener::poll_next(Waker&& waker)
 {
+    INFOPRINT("pollnext Listener");
     // register immediately;
     auto is_ready = connection_ready->lock();
 
@@ -65,14 +66,22 @@ StreamPollResult<TcpStream> TcpListener::poll_next(Waker&& waker)
         unsigned int client_address_length = sizeof(client_address);
 
         if ((client = accept(descriptor, &client_address, &client_address_length)) < 0) {
+            WARNPRINT("Denied client");
+            BoxFunctor cb = BoxFunctor(new SetReadyFunctor(RcPtr(connection_ready)));
+            GlobalIoEventHandler::register_reader_callback(descriptor, std::move(cb), true);
             throw std::runtime_error(strerror(errno));
         }
+        INFOPRINT("accepted client " << client);
 
         *is_ready = false;
-        GlobalIoEventHandler::register_reader_callback(descriptor, waker.boxed(), false, 1);
+        BoxFunctor cb = BoxFunctor(new SetReadyFunctor(RcPtr(connection_ready)));
+        GlobalIoEventHandler::register_reader_callback(descriptor, std::move(cb), true);
+        GlobalIoEventHandler::register_reader_callback(descriptor, waker.boxed(), true, 1);
         return StreamPollResult<TcpStream>::ready(TcpStream(client, SocketAddr(*client_address_in)));
     } else {
-        GlobalIoEventHandler::register_reader_callback(descriptor, waker.boxed(), false, 1);
+        BoxFunctor cb = BoxFunctor(new SetReadyFunctor(RcPtr(connection_ready)));
+        GlobalIoEventHandler::register_reader_callback(descriptor, std::move(cb), true);
+        GlobalIoEventHandler::register_reader_callback(descriptor, waker.boxed(), true, 1);
         return StreamPollResult<TcpStream>::pending(TcpStream::uninitialized());
     }
 }

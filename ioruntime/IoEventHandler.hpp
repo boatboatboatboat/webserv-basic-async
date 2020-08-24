@@ -37,7 +37,7 @@ private:
         int unique;
     };
     typedef std::multimap<int, CallbackInfo> Listeners;
-    static void fire_listeners_for(int fd, fd_set& selected, Mutex<Listeners>& listeners);
+    static bool fire_listeners_for(int fd, fd_set& selected, Mutex<Listeners>& listeners);
     void register_callback(int fd, BoxFunctor&& x, Mutex<Listeners>& listeners, Mutex<fd_set>& set, bool once, int unique);
 
     Mutex<fd_set> read_fds = Mutex(fd_set {});
@@ -47,6 +47,9 @@ private:
     Mutex<Listeners> write_listeners = Mutex(Listeners());
     Mutex<Listeners> special_listeners = Mutex(Listeners());
     Mutex<int> maxfds = Mutex(0);
+    Mutex<std::map<int, bool>> read_fd_in_use;
+    Mutex<std::map<int, bool>> write_fd_in_use;
+    Mutex<std::map<int, bool>> special_fd_in_use;
 };
 } // namespace ioruntime
 

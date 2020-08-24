@@ -14,7 +14,7 @@ public:
     explicit Socket(int fd);
     static Socket uninitialized();
     Socket(Socket&& other) noexcept;
-    ~Socket() override = default;
+    ~Socket() override;// = default;
     ssize_t read(char* buffer, size_t size) override;
     ssize_t write(const char* buffer, size_t size) override;
 
