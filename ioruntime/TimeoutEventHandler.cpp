@@ -57,4 +57,10 @@ void TimeoutEventHandler::register_timeout(uint64_t ms, BoxFunctor&& callback)
     clocks->insert(std::pair(tick, CallbackInfo { .used = false, .functor = std::move(callback) }));
 }
 
+void TimeoutEventHandler::register_timeout_real(uint64_t ms, BoxFunctor&& callback)
+{
+    auto clocks = clocks_mutex.lock();
+    clocks->insert(std::pair(ms, CallbackInfo { .used = false, .functor = std::move(callback) }));
+}
+
 }

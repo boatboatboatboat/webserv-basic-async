@@ -3,21 +3,26 @@
 //
 
 #include "Runtime.hpp"
+#include "GlobalTimeoutEventHandler.hpp"
 #include "IExecutor.hpp"
+#include "TimeoutEventHandler.hpp"
 #include <iostream>
 
 using ioruntime::IExecutor;
 
 namespace ioruntime {
-void Runtime::register_handler(BoxPtr<IEventHandler>&& handler)
+void Runtime::register_handler(BoxPtr<IEventHandler>&& handler, HandlerType ht = Any)
 {
     handlers.push_back(std::move(handler));
-}
-
-void Runtime::register_io_handler(BoxPtr<IoEventHandler>&& handler)
-{
-    register_handler(std::move(handler));
-    GlobalIoEventHandler::set(dynamic_cast<IoEventHandler*>(handlers.back().get()));
+    switch (ht) {
+    case Io: {
+        GlobalIoEventHandler::set(dynamic_cast<IoEventHandler*>(handlers.back().get()));
+    } break;
+    case Timeout: {
+        GlobalTimeoutEventHandler::set(dynamic_cast<TimeoutEventHandler*>(handlers.back().get()));
+    } break;
+    default: break;
+    }
 }
 
 void Runtime::naive_run()

@@ -8,17 +8,6 @@
 
 namespace ioruntime {
 
-TcpListener::SetReadyFunctor::SetReadyFunctor(RcPtr<Mutex<bool>>&& cr_source)
-    : ready_mutex(std::move(cr_source))
-{
-}
-
-void TcpListener::SetReadyFunctor::operator()()
-{
-    auto cread_guard = ready_mutex->lock();
-    *cread_guard = true;
-}
-
 TcpListener::TcpListener(in_port_t port)
     : addr({})
 {

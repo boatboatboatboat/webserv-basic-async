@@ -42,6 +42,7 @@ public:
     static const HttpStatus HTTP_STATUS_FORBIDDEN;
     static const HttpStatus HTTP_STATUS_NOT_FOUND;
     static const HttpStatus HTTP_STATUS_METHOD_NOT_ALLOWED;
+    static const HttpStatus HTTP_STATUS_REQUEST_TIMEOUT;
     static const HttpStatus HTTP_STATUS_REQUEST_URI_TOO_LONG;
     static const HttpStatus HTTP_STATUS_INTERNAL_SERVER_ERROR;
     static const HttpStatus HTTP_STATUS_NOT_IMPLEMENTED;

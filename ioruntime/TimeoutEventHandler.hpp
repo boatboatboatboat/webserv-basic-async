@@ -18,8 +18,9 @@ class TimeoutEventHandler : public IEventHandler {
 public:
     void reactor_step() override;
     void register_timeout(uint64_t ms, BoxFunctor&& callback);
-private:
+    void register_timeout_real(uint64_t ms, BoxFunctor&& callback);
     static uint64_t get_time_ms();
+private:
     Mutex<std::multimap<uint64_t, CallbackInfo>> clocks_mutex;
 };
 

@@ -19,10 +19,14 @@ class Runtime {
     friend class RuntimeBuilder;
 
 public:
-    void register_handler(BoxPtr<IEventHandler>&& handler);
+    enum HandlerType {
+        Any,
+        Io,
+        Timeout
+    };
+    void register_handler(BoxPtr<IEventHandler>&& handler, HandlerType ht);
     void spawn(BoxPtr<IFuture<void>>&& future);
     void naive_run();
-    void register_io_handler(BoxPtr<IoEventHandler>&& handler);
 
 private:
     Runtime();

@@ -8,17 +8,6 @@
 
 namespace ioruntime {
 
-FileDescriptor::SetReadyFunctor::SetReadyFunctor(RcPtr<Mutex<bool>>&& cr_source)
-    : ready_mutex(std::move(cr_source))
-{
-}
-
-void FileDescriptor::SetReadyFunctor::operator()()
-{
-    auto cread_guard = ready_mutex->lock();
-    *cread_guard = true;
-}
-
 FileDescriptor::FileDescriptor(int fd)
 {
     try {

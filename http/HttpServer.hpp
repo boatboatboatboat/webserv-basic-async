@@ -11,11 +11,13 @@
 #include "../ioruntime/TcpStream.hpp"
 #include "HttpResponse.hpp"
 #include "ParserFuture.hpp"
+#include "../ioruntime/TimeoutFuture.hpp"
 
 using futures::ForEachFuture;
 using futures::IFuture;
 using ioruntime::TcpListener;
 using ioruntime::TcpStream;
+using ioruntime::TimeoutFuture;
 
 namespace http {
 template <typename RH>
@@ -39,6 +41,7 @@ private:
         HttpResponse res;
         TcpStream stream;
         ParserFuture parser;
+        TimeoutFuture timeout;
         RH handler;
     };
 

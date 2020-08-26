@@ -4,6 +4,7 @@
 #include <netinet/in.h>
 
 #include "futures/ForEachFuture.hpp"
+#include "futures/SelectFuture.hpp"
 #include "http/HttpParser.hpp"
 #include "http/HttpRequest.hpp"
 #include "http/HttpResponse.hpp"
@@ -13,6 +14,8 @@
 #include "ioruntime/FdLineStream.hpp"
 #include "ioruntime/SocketAddr.hpp"
 #include "ioruntime/TcpListener.hpp"
+#include "ioruntime/TimeoutEventHandler.hpp"
+#include "ioruntime/TimeoutFuture.hpp"
 #include "utils/utils.hpp"
 #include <csignal>
 
@@ -31,7 +34,8 @@ using ioruntime::IoEventHandler;
 using ioruntime::Runtime;
 using ioruntime::RuntimeBuilder;
 using ioruntime::TcpListener;
-
+using ioruntime::TimeoutEventHandler;
+using ioruntime::TimeoutFuture;
 
 int core()
 {
@@ -44,8 +48,8 @@ int core()
                            .with_workers(4)
                            //.without_workers()
                            .build();
-        auto io_event = BoxPtr<IoEventHandler>::make();
-        runtime.register_io_handler(std::move(io_event));
+        runtime.register_handler(BoxPtr<IoEventHandler>::make(), Runtime::HandlerType::Io);
+        runtime.register_handler(BoxPtr<TimeoutEventHandler>::make(), Runtime::HandlerType::Timeout);
         GlobalRuntime::set_runtime(&runtime);
         GlobalRuntime::spawn(
             FdLineStream(STDIN_FILENO)
@@ -57,10 +61,11 @@ int core()
             (void)req;
             INFOPRINT("Handle request");
             auto response = HttpResponseBuilder()
-                .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf-8")
-                .build();
+                                .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf-8")
+                                .build();
             return response;
         }));
+
         GlobalRuntime::spawn(HttpServer(1235, [](http::HttpRequest& req) {
             std::stringstream out;
 
@@ -68,43 +73,46 @@ int core()
                 << "<a>method: " << req.getMethod() << "</a><br>"
                 << "<a>version: " << req.getVersion() << "</a><hr>"
                 << "<h1>Queries:</h1><br><table><tr><th>key</th><th>value</th></tr>";
-            for (auto& query: req.getQuery()) {
+            for (auto& query : req.getQuery()) {
                 out << "<tr><td>" << query.first << "</td><td>" << query.second << "</td></tr>";
             }
             out << "</table><hr><h1>Headers:</h1><table><tr><th>key</th><th>value</th></tr>";
-            for (auto& header: req.getHeaders()) {
+            for (auto& header : req.getHeaders()) {
                 out << "<tr><td>" << header.first << "</td><td>" << header.second << "</td></tr>";
             }
             out << "</table><hr><h1>Body:</h1><br>" << req.getBody();
 
             auto response = HttpResponseBuilder()
-                .status(HttpResponse::HTTP_STATUS_OK)
-                .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf-8")
-                .body(BoxPtr<StringBody>::make(out.str()))
-                .build();
+                                .status(HttpResponse::HTTP_STATUS_OK)
+                                .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf-8")
+                                .body(BoxPtr<StringBody>::make(out.str()))
+                                .build();
             return response;
         }));
+
         GlobalRuntime::spawn(HttpServer(1236, [](http::HttpRequest& req) {
             (void)req;
             auto response = HttpResponseBuilder()
-                .status(HttpResponse::HTTP_STATUS_OK)
-                .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf-8")
-                .body(BoxPtr<FileDescriptor>::make(open("test2.txt", O_RDONLY)))
-                .build();
+                                .status(HttpResponse::HTTP_STATUS_OK)
+                                .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf-8")
+                                .body(BoxPtr<FileDescriptor>::make(open("test2.txt", O_RDONLY)))
+                                .build();
             return response;
         }));
+
         GlobalRuntime::spawn(HttpServer(1237, [](http::HttpRequest& req) {
             (void)req;
             throw std::runtime_error("Handler error test");
             return HttpResponseBuilder().build();
         }));
+
         GlobalRuntime::spawn(HttpServer(1238, [](http::HttpRequest& req) {
             (void)req;
             auto response = HttpResponseBuilder()
-                .status(HttpResponse::HTTP_STATUS_OK)
-                .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf-8")
-                .body(BoxPtr<InfiniteBody>::make())
-                .build();
+                                .status(HttpResponse::HTTP_STATUS_OK)
+                                .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf-8")
+                                .body(BoxPtr<InfiniteBody>::make())
+                                .build();
             return response;
         }));
         runtime.naive_run();

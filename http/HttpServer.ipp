@@ -36,7 +36,8 @@ void HttpServer<RH>::handle_connection(TcpStream& stream)
 
 template<typename RH>
 void HttpServer<RH>::handle_exception(std::exception& e) {
-    ERRORPRINT("HttpServer: " << e.what());
+    (void)e;
+    TRACEPRINT("HttpServer: " << e.what());
 }
 
 template <typename RH>
@@ -58,6 +59,17 @@ PollResult<void> HttpServer<RH>::HttpConnectionFuture::poll(Waker&& waker)
                         .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf8")
                         .build();
                 }
+                return poll(std::move(waker));
+            }
+            auto timer_result = timeout.poll(Waker(waker));
+            if (timer_result.is_ready()) {
+                // timeout
+                state = Respond;
+                // FIXME: gateway timeout requires connection header
+                res = HttpResponseBuilder()
+                    .status(HttpResponse::HTTP_STATUS_GATEWAY_TIMEOUT)
+                    .build();
+                WARNPRINT("Request timed out");
                 return poll(std::move(waker));
             }
         } catch (std::exception& e) {
@@ -90,6 +102,7 @@ HttpServer<RH>::HttpConnectionFuture::HttpConnectionFuture(TcpStream&& pstream)
     , res()
     , stream(std::move(pstream))
     , parser(&stream)
+    , timeout(5000)
 {
 }
 
@@ -107,6 +120,7 @@ HttpServer<RH>::HttpConnectionFuture::HttpConnectionFuture(HttpServer::HttpConne
     , res(std::move(other.res))
     , stream(std::move(other.stream))
     , parser(std::move(other.parser))
+    , timeout(std::move(other.timeout))
     , handler(other.handler)
 {
     other.parser.stream = nullptr;

@@ -16,7 +16,7 @@ PollResult<HttpRequest> ParserFuture::poll(Waker&& waker)
 {
     auto& socket = stream->get_socket();
 
-    char read_buffer[64];
+    char read_buffer[128];
 
     auto poll_result = socket.poll_read(read_buffer, sizeof(read_buffer), std::move(waker));
     if (poll_result.is_ready()) {

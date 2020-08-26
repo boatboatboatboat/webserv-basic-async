@@ -20,6 +20,7 @@ const HttpStatus HttpResponse::HTTP_STATUS_UNAUTHORIZED = { .code = 401, .messag
 const HttpStatus HttpResponse::HTTP_STATUS_FORBIDDEN = { .code = 403, .message = "Forbidden" };
 const HttpStatus HttpResponse::HTTP_STATUS_NOT_FOUND = { .code = 404, .message = "Not Found" };
 const HttpStatus HttpResponse::HTTP_STATUS_METHOD_NOT_ALLOWED = { .code = 405 , .message = "Method Not Allowed" };
+const HttpStatus HttpResponse::HTTP_STATUS_REQUEST_TIMEOUT = { .code = 408 , .message = "Request Timeout" };
 const HttpStatus HttpResponse::HTTP_STATUS_REQUEST_URI_TOO_LONG = { .code = 414, .message = "URI Too Long" };
 const HttpStatus HttpResponse::HTTP_STATUS_REQUEST_IM_A_TEAPOT = { .code = 418, .message = "I'm a Teapot" };
 const HttpStatus HttpResponse::HTTP_STATUS_INTERNAL_SERVER_ERROR = { .code = 500, .message = "Internal Server Error" };

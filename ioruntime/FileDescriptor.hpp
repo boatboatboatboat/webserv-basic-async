@@ -9,23 +9,13 @@
 #include "../func/Functor.hpp"
 #include "IAsyncRead.hpp"
 #include "IAsyncWrite.hpp"
+#include "../func/SetReadyFunctor.hpp"
 
 using boxed::RcPtr;
 
 namespace ioruntime {
 
 class FileDescriptor : public IAsyncRead, public IAsyncWrite {
-protected:
-    class SetReadyFunctor : public Functor {
-    public:
-        explicit SetReadyFunctor(RcPtr<Mutex<bool>>&& cr_source);
-        ~SetReadyFunctor() override = default;
-        void operator()() override;
-
-    private:
-        RcPtr<Mutex<bool>> ready_mutex;
-    };
-
 public:
     explicit FileDescriptor(int fd);
     static FileDescriptor uninitialized();
