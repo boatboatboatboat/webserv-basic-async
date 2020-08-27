@@ -12,7 +12,7 @@
 namespace http {
 
 const HttpStatus HttpResponse::HTTP_STATUS_CONTINUE = { .code = 100, .message = "Continue" };
-const HttpStatus HttpResponse::HTTP_STATUS_SWITCHING_PROTOCOL = { .code = 101, .message = "Switching Protocols" };
+const HttpStatus HttpResponse::HTTP_STATUS_SWITCHING_PROTOCOLS = { .code = 101, .message = "Switching Protocols" };
 const HttpStatus HttpResponse::HTTP_STATUS_OK = { .code = 200, .message = "OK" };
 const HttpStatus HttpResponse::HTTP_STATUS_MOVED_PERMANENTLY = { .code = 301, .message = "Moved Permanently" };
 const HttpStatus HttpResponse::HTTP_STATUS_BAD_REQUEST = { .code = 400, .message = "Bad Request" };
@@ -30,8 +30,7 @@ const HttpStatus HttpResponse::HTTP_STATUS_SERVICE_UNAVAILABLE = { .code = 503, 
 const HttpStatus HttpResponse::HTTP_STATUS_GATEWAY_TIMEOUT = { .code = 504, .message = "Gateway Timeout" };
 const HttpStatus HttpResponse::HTTP_STATUS_VERSION_NOT_SUPPORTED = { .code = 505, .message = "HTTP Version Not Supported" };
 
-// FIXME: Global with a ctor that can throw
-static std::string lineTerminator = "\r\n";
+static const char* lineTerminator = "\r\n";
 
 //HttpResponse::HttpResponse(HttpRequest* request)
 //{
@@ -165,7 +164,7 @@ PollResult<void> HttpResponse::poll_respond(ioruntime::Socket& socket, Waker&& w
             // fixme: use real http version
             std::stringstream oss;
             oss
-                << "HTTP/1.1" //<< this->request->getVersion()
+                << this->response_version
                 << " " << std::to_string(this->response_status.code) << " " << this->response_status.message << lineTerminator;
             current = oss.str();
         }
@@ -330,6 +329,10 @@ HttpResponse HttpResponseBuilder::build()
 HttpResponseBuilder::HttpResponseBuilder():
     response_status(HttpResponse::HTTP_STATUS_REQUEST_IM_A_TEAPOT),
     response_body(nullptr)
+{
+
+}
+HttpResponseBuilder& HttpResponseBuilder::version(HttpVersion version)
 {
 
 }

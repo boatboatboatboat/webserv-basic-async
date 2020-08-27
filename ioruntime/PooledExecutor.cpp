@@ -56,11 +56,9 @@ void PooledExecutor::spawn(RcPtr<Task>&& future)
             *spawn_head = 0;
         head = *spawn_head;
     }
-    size_t taco;
     {
         auto queue = task_queues.at(head).lock();
 
-        taco = queue->size();
         queue->push(std::move(future));
     }
     {
@@ -82,11 +80,9 @@ void PooledExecutor::respawn(RcPtr<Task>&& future)
             *spawn_head = 0;
         head = *spawn_head;
     }
-    size_t taco;
     {
         auto queue = task_queues.at(head).lock();
 
-        taco = queue->size();
         queue->push(std::move(future));
     }
 }
@@ -128,7 +124,6 @@ PooledExecutor::worker_thread_function(WorkerMessage* message)
             task_found = steal_task(message, task);
         }
 
-        // TODO: clean up task stale (currently there's a different system for Threadless and Pooled)
         if (task_found) {
             try {
                 BoxPtr<IFuture<void>> future_slot(nullptr);
@@ -154,7 +149,6 @@ PooledExecutor::worker_thread_function(WorkerMessage* message)
                 }
             } catch (std::exception& e) {
                 WARNPRINT("Poll failed: " << e.what());
-                // TODO: tasks leak on error causing infinite null future calls
                 throw std::runtime_error("Poll failed - exiting to prevent spin");
             }
         }

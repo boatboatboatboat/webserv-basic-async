@@ -6,12 +6,13 @@
 #define WEBSERV_HTTPRESPONSE_HPP
 
 #include "HttpRequest.hpp"
+#include "HttpVersion.hpp"
 #include <map>
 #include <string>
 
 namespace http {
 struct HttpStatus {
-    unsigned int code;
+    unsigned short code;
     const char* message;
 };
 
@@ -20,6 +21,7 @@ class HttpResponse;
 class HttpResponseBuilder {
 public:
     HttpResponseBuilder();
+    HttpResponseBuilder& version(HttpVersion version);
     HttpResponseBuilder& status(HttpStatus status);
     HttpResponseBuilder& header(std::string const& name, std::string const& value);
     HttpResponseBuilder& body(BoxPtr<ioruntime::IAsyncRead>&& body);
@@ -34,10 +36,22 @@ private:
 class HttpResponse {
 public:
     static const HttpStatus HTTP_STATUS_CONTINUE;
-    static const HttpStatus HTTP_STATUS_SWITCHING_PROTOCOL;
+    static const HttpStatus HTTP_STATUS_SWITCHING_PROTOCOLS;
     static const HttpStatus HTTP_STATUS_OK;
+    static const HttpStatus HTTP_STATUS_CREATED;
+    static const HttpStatus HTTP_STATUS_ACCEPTED;
+    static const HttpStatus HTTP_STATUS_NON_AUTHORITATIVE_INFORMATION;
+    static const HttpStatus HTTP_STATUS_NO_CONTENT;
+    static const HttpStatus HTTP_STATUS_RESET_CONTENT;
+    static const HttpStatus HTTP_STATUS_MULTIPLE_CHOICES;
     static const HttpStatus HTTP_STATUS_MOVED_PERMANENTLY;
+    static const HttpStatus HTTP_STATUS_FOUND;
+    static const HttpStatus HTTP_STATUS_SEE_OTHER;
+    static const HttpStatus HTTP_STATUS_USE_PROXY;
+    static const HttpStatus HTTP_STATUS_UNUSED;
+    static const HttpStatus HTTP_STATUS_TEMPORARY_REDIRECT;
     static const HttpStatus HTTP_STATUS_BAD_REQUEST;
+    static const HttpStatus HTTP_STATUS_PAYMENT_REQUIRED;
     static const HttpStatus HTTP_STATUS_UNAUTHORIZED;
     static const HttpStatus HTTP_STATUS_FORBIDDEN;
     static const HttpStatus HTTP_STATUS_NOT_FOUND;
@@ -71,6 +85,7 @@ private:
     std::map<std::string, std::string> response_headers;
     std::map<std::string, std::string>::const_iterator header_it;
     HttpStatus response_status;
+    std::string response_version;
     BoxPtr<ioruntime::IAsyncRead> response_body;
 };
 

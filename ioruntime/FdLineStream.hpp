@@ -36,7 +36,7 @@ public:
         , max(other.head)
         , fd(std::move(other.fd))
     {
-        utils::mem_copy(rbuffer, other.rbuffer);
+        utils::memcpy(rbuffer, other.rbuffer);
     }
 
     ~FdLineStream() override
@@ -58,7 +58,6 @@ public:
             GncResult res = get_next_character(c, Waker(waker));
             switch (res) {
             case Error: { // An error has occurred
-                // TODO: error handling
                 throw std::runtime_error("FdLineStream poll_next res error");
             } break;
             case CharacterReturned: { // A character was returned

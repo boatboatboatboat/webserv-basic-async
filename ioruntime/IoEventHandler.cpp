@@ -25,15 +25,15 @@ void IoEventHandler::reactor_step()
 
     {
         auto fds = read_fds.lock();
-        utils::mem_copy(read_selected, *fds);
+        utils::memcpy(read_selected, *fds);
     }
     {
         auto fds = write_fds.lock();
-        utils::mem_copy(write_selected, *fds);
+        utils::memcpy(write_selected, *fds);
     }
     {
         auto fds = special_fds.lock();
-        utils::mem_copy(special_selected, *fds);
+        utils::memcpy(special_selected, *fds);
     }
 
     // TODO: timeout event handler should have some influence over the select timeout
@@ -192,7 +192,7 @@ bool IoEventHandler::fire_listeners_for(int fd, fd_set& selected,
             auto it = range.first;
             while (it != range.second) {
                 cbinfos.insert(std::move(*it));
-                it->second.bf.leak(); // TODO: make this not a hack
+                it->second.bf.leak(); // required because struct move
                 it = listeners->erase(it);
             }
         }

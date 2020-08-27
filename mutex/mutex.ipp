@@ -7,8 +7,7 @@
 #include <iostream>
 #include <strings.h>
 
-// TODO: bad header
-#include <sstream>
+#include <string>
 #include <sys/types.h>
 #include <zconf.h>
 
@@ -21,11 +20,11 @@ MutexGuard<T>::MutexGuard(Mutex<T>& mutex)
     : mutex(mutex)
 {
 #ifdef DEBUG_MUTEX_CANARY
-    if (mutex.TOP_CANARY != 0x0123456789ABCDEF) {
+    if (mutex.TOP_CANARY != mutex.TOP_CANARY_VAL) {
         ERRORPRINT("Mutex top canary died!");
         exit(6);
     }
-    if (mutex.BOT_CANARY != 0xFEDCBA9876543210) {
+    if (mutex.BOT_CANARY != mutex.BOT_CANARY_VAL) {
         ERRORPRINT("Mutex bot canary died!");
         exit(6);
     }
@@ -53,11 +52,11 @@ MutexGuard<T>::~MutexGuard()
     pthread_mutex_lock(&mutex.locked_already_mutex);
 #endif
 #ifdef DEBUG_MUTEX_CANARY
-    if (mutex.TOP_CANARY != 0x0123456789ABCDEF) {
+    if (mutex.TOP_CANARY != mutex.TOP_CANARY_VAL) {
         ERRORPRINT("Mutex top canary died!");
         exit(6);
     }
-    if (mutex.BOT_CANARY != 0xFEDCBA9876543210) {
+    if (mutex.BOT_CANARY != mutex.BOT_CANARY_VAL) {
         ERRORPRINT("Mutex bot canary died!");
         exit(6);
     }
@@ -125,11 +124,11 @@ template <typename T>
 Mutex<T>::Mutex()
 {
 #ifdef DEBUG_MUTEX_CANARY
-    if (TOP_CANARY != 0x0123456789ABCDEF) {
+    if (TOP_CANARY != TOP_CANARY_VAL) {
         ERRORPRINT("Mutex top canary died!");
         exit(6);
     }
-    if (BOT_CANARY != 0xFEDCBA9876543210) {
+    if (BOT_CANARY != BOT_CANARY_VAL) {
         ERRORPRINT("Mutex bot canary died!");
         exit(6);
     }
@@ -150,8 +149,7 @@ Mutex<T>::Mutex()
 #endif
 
     if (result) {
-        // TODO: better mutex errors
-        throw "Nice Mutex error!!!";
+        throw std::runtime_error("Mutex init failed");
     }
 
     this->inner_type = T();
@@ -162,11 +160,11 @@ Mutex<T>::Mutex(T&& inner)
     : inner_type(std::move(inner))
 {
 #ifdef DEBUG_MUTEX_CANARY
-    if (TOP_CANARY != 0x0123456789ABCDEF) {
+    if (TOP_CANARY != TOP_CANARY_VAL) {
         ERRORPRINT("Mutex top canary died!");
         exit(6);
     }
-    if (BOT_CANARY != 0xFEDCBA9876543210) {
+    if (BOT_CANARY != BOT_CANARY_VAL) {
         ERRORPRINT("Mutex bot canary died!");
         exit(6);
     }
@@ -188,8 +186,7 @@ Mutex<T>::Mutex(T&& inner)
     if (result) {
         // we have to recover from the initializer move.
         inner = std::move(inner_type);
-        // TODO: make better mutex errors
-        throw "Nice Mutex Error!!!";
+        throw std::runtime_error("Mutex init failed");
     }
 }
 
@@ -197,11 +194,11 @@ template <typename T>
 Mutex<T>::~Mutex()
 {
 #ifdef DEBUG_MUTEX_CANARY
-    if (TOP_CANARY != 0x0123456789ABCDEF) {
+    if (TOP_CANARY != TOP_CANARY_VAL) {
         ERRORPRINT("Mutex top canary died!");
         exit(6);
     }
-    if (BOT_CANARY != 0xFEDCBA9876543210) {
+    if (BOT_CANARY != BOT_CANARY_VAL) {
         ERRORPRINT("Mutex bot canary died!");
         exit(6);
     }
@@ -274,8 +271,7 @@ Mutex<T>::Mutex(Mutex&& other)
     // so we need to move it out manually,
     // so the Mutex dtor doesn't destroy it
 
-    // TODO: use libft bzero
-    bzero(&other.inner_mutex, sizeof(pthread_mutex_t));
+    utils::bzero(other.inner_mutex);
 }
 
 #ifdef DEBUG_MUTEX

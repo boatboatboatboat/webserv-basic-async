@@ -9,13 +9,18 @@
 #include <cstring>
 
 namespace utils {
+
+void* ft_memcpy(void* dest, void const* src, size_t length);
+
 template <typename T>
-void mem_copy(T& destination, T& source)
+void memcpy(T& destination, T& source)
 {
     if (&destination == &source)
         return;
-    memcpy(&destination, &source, sizeof(T));
+
+    ft_memcpy(&destination, &source, sizeof(T));
 }
+
 } // namespace utils
 
 #endif // WEBSERV_MEM_COPY_HPP

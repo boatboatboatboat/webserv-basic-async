@@ -26,8 +26,7 @@ TcpListener::TcpListener(in_port_t port)
     new_address.sin_addr.s_addr = INADDR_ANY;
     // PORT is specified by server configuration
     new_address.sin_port = htons(port);
-    // FIXME: use libft bzero
-    bzero(new_address.sin_zero, sizeof(new_address.sin_zero));
+    utils::bzero(new_address.sin_zero);
     // bind descriptor to address
     if (bind(descriptor, reinterpret_cast<sockaddr*>(&new_address), sizeof(new_address)) < 0)
         throw std::runtime_error(strerror(errno));

@@ -13,19 +13,18 @@ DefaultPageBody::DefaultPageBody(HttpStatus code)
 
 PollResult<ssize_t> DefaultPageBody::poll_read(char* buffer, size_t size, Waker&& waker)
 {
-    //FIXME: use libft strlen
     char buf[16];
     char const* str;
     size_t len;
     switch (state) {
     case PageStart: {
         str = DEFAULT_PAGE_START;
-        len = std::strlen(DEFAULT_PAGE_START);
+        len = utils::strlen(DEFAULT_PAGE_START);
     } break;
     case Code: {
         std::sprintf(buf, "%u", code.code);
         str = buf;
-        len = std::strlen(buf);
+        len = utils::strlen(buf);
     } break;
     case Space: {
         str = " ";
@@ -33,15 +32,15 @@ PollResult<ssize_t> DefaultPageBody::poll_read(char* buffer, size_t size, Waker&
     } break;
     case Message: {
         str = code.message;
-        len = std::strlen(code.message);
+        len = utils::strlen(code.message);
     } break;
     case PageEnd: {
         str = DEFAULT_PAGE_END;
-        len = std::strlen(DEFAULT_PAGE_END);
+        len = utils::strlen(DEFAULT_PAGE_END);
     } break;
     }
     auto left_to_write = std::min(size, len - written);
-    memcpy(buffer, str + written, left_to_write);
+    utils::ft_memcpy(buffer, str + written, left_to_write);
     written += left_to_write;
     if (left_to_write == 0) {
         if (state != PageEnd) {

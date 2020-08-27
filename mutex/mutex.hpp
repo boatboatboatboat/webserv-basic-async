@@ -6,8 +6,9 @@
 #define ASYNCTEST2_MUTEX_HPP
 
 #include <pthread.h>
+#include <stddef.h>
+#include <stdint.h>
 
-//TODO: bad header
 #include <sys/types.h>
 #include <zconf.h>
 
@@ -23,7 +24,7 @@ public:
     MutexGuard(MutexGuard&&) = delete;
     MutexGuard(MutexGuard&) = delete;
 
-#ifdef DEBUG
+#ifdef DEBUG_MUTEX
     explicit MutexGuard(Mutex<T>& mutex, const char* fin, int line, const char* fun);
 #endif
     explicit MutexGuard(Mutex<T>& mutex);
@@ -40,7 +41,6 @@ private:
     Mutex<T>& mutex;
 };
 
-// TODO: implement void mutexguard
 template <>
 class MutexGuard<void> {
 public:
@@ -85,14 +85,24 @@ private:
 
     pthread_mutex_t inner_mutex;
 #ifdef DEBUG_MUTEX_CANARY
+
+    // Google Sanitizers don't pick up on some underflows/overflows.
+    // Whenever EINVAL is thrown while trying to lock/unlock a mutex,
+    // it's generally because of an underflow/overflow.
+    // If compiled with DEBUG_MUTEX_CANARY, a canary will be added
+    // at the beginning and end of the value behind the mutex.
+    // If the canaries do not match up with whatever the canary constants
+    // are set to, it will print an error and abort.
 public:
-    volatile uint64_t TOP_CANARY = 0x0123456789ABCDEF;
+    static const uint64_t TOP_CANARY_VAL = 0x0123456789ABCDEF;
+    volatile uint64_t TOP_CANARY = TOP_CANARY_VAL;
 private:
 #endif
     T inner_type;
 #ifdef DEBUG_MUTEX_CANARY
 public:
-    volatile uint64_t BOT_CANARY = 0xFEDCBA9876543210;
+    static const uint64_t BOT_CANARY_VAL = 0xFEDCBA9876543210;
+    volatile uint64_t BOT_CANARY = BOT_CANARY_VAL;
 private:
 #endif
 #ifdef DEBUG_MUTEX
@@ -105,7 +115,6 @@ private:
 #endif
 };
 
-// TODO: implement void mutex
 template <>
 class Mutex<void> {
     friend class MutexGuard<void>;

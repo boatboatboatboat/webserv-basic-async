@@ -5,6 +5,8 @@
 #ifndef WEBSERV_UTIL_HPP
 #define WEBSERV_UTIL_HPP
 #include "mem_copy.hpp"
+#include "cstr.hpp"
+#include "mem_zero.hpp"
 #include <string>
 
 void dbg_puts(std::string const& printme);
