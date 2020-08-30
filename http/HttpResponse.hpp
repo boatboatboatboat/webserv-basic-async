@@ -5,16 +5,16 @@
 #ifndef WEBSERV_HTTPRESPONSE_HPP
 #define WEBSERV_HTTPRESPONSE_HPP
 
+#include "DefaultPageBody.hpp"
+#include "HttpHeader.hpp"
 #include "HttpRequest.hpp"
+#include "HttpRfcConstants.hpp"
+#include "HttpStatus.hpp"
 #include "HttpVersion.hpp"
 #include <map>
 #include <string>
 
 namespace http {
-struct HttpStatus {
-    unsigned short code;
-    const char* message;
-};
 
 class HttpResponse;
 
@@ -23,72 +23,56 @@ public:
     HttpResponseBuilder();
     HttpResponseBuilder& version(HttpVersion version);
     HttpResponseBuilder& status(HttpStatus status);
-    HttpResponseBuilder& header(std::string const& name, std::string const& value);
+    HttpResponseBuilder& header(HttpHeaderName name, HttpHeaderValue value);
     HttpResponseBuilder& body(BoxPtr<ioruntime::IAsyncRead>&& body);
     HttpResponse build();
 
 private:
-    std::map<std::string, std::string> response_headers;
-    HttpStatus response_status;
-    BoxPtr<ioruntime::IAsyncRead> response_body;
+    std::map<HttpHeaderName, HttpHeaderValue> _headers;
+    HttpVersion _version = HTTP_VERSION_1_1;
+    HttpStatus _status;
+    BoxPtr<ioruntime::IAsyncRead> _body;
 };
 
 class HttpResponse {
 public:
-    static const HttpStatus HTTP_STATUS_CONTINUE;
-    static const HttpStatus HTTP_STATUS_SWITCHING_PROTOCOLS;
-    static const HttpStatus HTTP_STATUS_OK;
-    static const HttpStatus HTTP_STATUS_CREATED;
-    static const HttpStatus HTTP_STATUS_ACCEPTED;
-    static const HttpStatus HTTP_STATUS_NON_AUTHORITATIVE_INFORMATION;
-    static const HttpStatus HTTP_STATUS_NO_CONTENT;
-    static const HttpStatus HTTP_STATUS_RESET_CONTENT;
-    static const HttpStatus HTTP_STATUS_MULTIPLE_CHOICES;
-    static const HttpStatus HTTP_STATUS_MOVED_PERMANENTLY;
-    static const HttpStatus HTTP_STATUS_FOUND;
-    static const HttpStatus HTTP_STATUS_SEE_OTHER;
-    static const HttpStatus HTTP_STATUS_USE_PROXY;
-    static const HttpStatus HTTP_STATUS_UNUSED;
-    static const HttpStatus HTTP_STATUS_TEMPORARY_REDIRECT;
-    static const HttpStatus HTTP_STATUS_BAD_REQUEST;
-    static const HttpStatus HTTP_STATUS_PAYMENT_REQUIRED;
-    static const HttpStatus HTTP_STATUS_UNAUTHORIZED;
-    static const HttpStatus HTTP_STATUS_FORBIDDEN;
-    static const HttpStatus HTTP_STATUS_NOT_FOUND;
-    static const HttpStatus HTTP_STATUS_METHOD_NOT_ALLOWED;
-    static const HttpStatus HTTP_STATUS_REQUEST_TIMEOUT;
-    static const HttpStatus HTTP_STATUS_REQUEST_URI_TOO_LONG;
-    static const HttpStatus HTTP_STATUS_INTERNAL_SERVER_ERROR;
-    static const HttpStatus HTTP_STATUS_NOT_IMPLEMENTED;
-    static const HttpStatus HTTP_STATUS_BAD_GATEWAY;
-    static const HttpStatus HTTP_STATUS_GATEWAY_TIMEOUT;
-    static const HttpStatus HTTP_STATUS_VERSION_NOT_SUPPORTED;
-    static const HttpStatus HTTP_STATUS_SERVICE_UNAVAILABLE;
-    static const HttpStatus HTTP_STATUS_REQUEST_IM_A_TEAPOT;
 
     HttpResponse();
-    explicit HttpResponse(std::map<std::string, std::string>&& response_headers, HttpStatus status, BoxPtr<ioruntime::IAsyncRead>&& response_body);
+    explicit HttpResponse(std::map<HttpHeaderName, HttpHeaderValue>&& response_headers, HttpStatus status, BoxPtr<ioruntime::IAsyncRead>&& response_body);
     HttpResponse(HttpResponse&& other) noexcept;
 
     HttpResponse& operator=(HttpResponse&& other) noexcept;
     virtual ~HttpResponse();
     PollResult<void> poll_respond(ioruntime::Socket& socket, Waker&& waker);
+    bool write_response(ioruntime::Socket& socket, Waker&& waker);
 private:
     enum State {
-        WriteStatus,
-        WriteHeaders,
+        WriteStatusVersion,
+        WriteStatusSpace1,
+        WriteStatusCode,
+        WriteStatusSpace2,
+        WriteStatusMessage,
+        WriteStatusCRLF,
+        WriteHeaderName,
+        WriteHeaderSplit,
+        WriteHeaderValue,
+        WriteHeaderCRLF,
+        WriteSeperatorCLRF,
+        ReadBody,
         WriteBody
     };
-    State state = WriteStatus;
-    std::string current;
-    ssize_t written {};
-    std::map<std::string, std::string> response_headers;
-    std::map<std::string, std::string>::const_iterator header_it;
+    char buf[128] { };
+    State state { WriteStatusVersion };
+    std::string_view current;
+    ssize_t written { 0 };
+    std::map<HttpHeaderName, HttpHeaderValue> response_headers;
+    std::map<HttpHeaderName, HttpHeaderValue>::const_iterator header_it;
     HttpStatus response_status;
-    std::string response_version;
+    HttpVersion response_version;
     BoxPtr<ioruntime::IAsyncRead> response_body;
 };
 
 }
+
 
 #endif //WEBSERV_HTTPRESPONSE_HPP

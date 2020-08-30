@@ -83,8 +83,8 @@ int core()
             out << "</table><hr><h1>Body:</h1><br>" << req.getBody();
 
             auto response = HttpResponseBuilder()
-                                .status(HttpResponse::HTTP_STATUS_OK)
-                                .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf-8")
+                                .status(http::HTTP_STATUS_OK)
+                                .header(http::header::CONTENT_TYPE, "text/html; charset=utf-8")
                                 .body(BoxPtr<StringBody>::make(out.str()))
                                 .build();
             return response;
@@ -93,7 +93,7 @@ int core()
         GlobalRuntime::spawn(HttpServer(1236, [](http::HttpRequest& req) {
             (void)req;
             auto response = HttpResponseBuilder()
-                                .status(HttpResponse::HTTP_STATUS_OK)
+                                .status(http::HTTP_STATUS_OK)
                                 .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf-8")
                                 .body(BoxPtr<FileDescriptor>::make(open("test2.txt", O_RDONLY)))
                                 .build();
@@ -109,7 +109,7 @@ int core()
         GlobalRuntime::spawn(HttpServer(1238, [](http::HttpRequest& req) {
             (void)req;
             auto response = HttpResponseBuilder()
-                                .status(HttpResponse::HTTP_STATUS_OK)
+                                .status(http::HTTP_STATUS_OK)
                                 .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf-8")
                                 .body(BoxPtr<InfiniteBody>::make())
                                 .build();

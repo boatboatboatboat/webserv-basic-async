@@ -14,33 +14,28 @@ DefaultPageBody::DefaultPageBody(HttpStatus code)
 PollResult<ssize_t> DefaultPageBody::poll_read(char* buffer, size_t size, Waker&& waker)
 {
     char buf[16];
-    char const* str;
-    size_t len;
+    std::string_view str;
     switch (state) {
     case PageStart: {
         str = DEFAULT_PAGE_START;
-        len = utils::strlen(DEFAULT_PAGE_START);
     } break;
     case Code: {
         std::sprintf(buf, "%u", code.code);
         str = buf;
-        len = utils::strlen(buf);
     } break;
     case Space: {
         str = " ";
-        len = 1;
     } break;
     case Message: {
         str = code.message;
-        len = utils::strlen(code.message);
     } break;
     case PageEnd: {
         str = DEFAULT_PAGE_END;
-        len = utils::strlen(DEFAULT_PAGE_END);
     } break;
     }
+    auto len = str.length();
     auto left_to_write = std::min(size, len - written);
-    utils::ft_memcpy(buffer, str + written, left_to_write);
+    utils::ft_memcpy(buffer, str.data() + written, left_to_write);
     written += left_to_write;
     if (left_to_write == 0) {
         if (state != PageEnd) {

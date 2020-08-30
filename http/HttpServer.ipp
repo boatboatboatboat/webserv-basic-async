@@ -3,6 +3,7 @@
 //
 
 #include "../ioruntime/GlobalRuntime.hpp"
+#include "HttpHeader.hpp"
 #include "HttpResponse.hpp"
 #include "HttpServer.hpp"
 
@@ -46,6 +47,7 @@ PollResult<void> HttpServer<RH>::HttpConnectionFuture::poll(Waker&& waker)
     switch (state) {
     case Listen: {
         try {
+            TRACEPRINT("connection listening");
             auto poll_result = parser.poll(Waker(waker));
             if (poll_result.is_ready()) {
                 req = poll_result.get();
@@ -55,19 +57,20 @@ PollResult<void> HttpServer<RH>::HttpConnectionFuture::poll(Waker&& waker)
                 } catch (std::exception& e) {
                     WARNPRINT("request handler error: " << e.what());
                     res = HttpResponseBuilder()
-                        .status(HttpResponse::HTTP_STATUS_INTERNAL_SERVER_ERROR)
-                        .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf8")
+                        .status(HTTP_STATUS_INTERNAL_SERVER_ERROR)
+                        .header(http::header::CONTENT_TYPE, "text/html; charset=utf8")
                         .build();
                 }
                 return poll(std::move(waker));
             }
+            TRACEPRINT("connection listening match timer");
             auto timer_result = timeout.poll(Waker(waker));
             if (timer_result.is_ready()) {
                 // timeout
                 state = Respond;
                 // FIXME: gateway timeout requires connection header
                 res = HttpResponseBuilder()
-                    .status(HttpResponse::HTTP_STATUS_GATEWAY_TIMEOUT)
+                    .status(HTTP_STATUS_GATEWAY_TIMEOUT)
                     .build();
                 WARNPRINT("Request timed out");
                 return poll(std::move(waker));
@@ -75,8 +78,8 @@ PollResult<void> HttpServer<RH>::HttpConnectionFuture::poll(Waker&& waker)
         } catch (std::exception& e) {
             state = Respond;
             res = HttpResponseBuilder()
-                .status(HttpResponse::HTTP_STATUS_INTERNAL_SERVER_ERROR)
-                .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf8")
+                .status(HTTP_STATUS_INTERNAL_SERVER_ERROR)
+                .header(http::header::CONTENT_TYPE, "text/html; charset=utf8")
                 .build();
             return poll(std::move(waker));
         }
@@ -109,7 +112,7 @@ HttpServer<RH>::HttpConnectionFuture::HttpConnectionFuture(TcpStream&& pstream)
 template <typename RH>
 HttpServer<RH>::HttpConnectionFuture::~HttpConnectionFuture() {
     if (parser.stream != nullptr) {
-        DBGPRINT("hcf dtor");
+        DBGPRINT("HttpConnectionFuture: connection finished");
     }
 }
 

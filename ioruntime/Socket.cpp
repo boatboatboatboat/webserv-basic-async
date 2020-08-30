@@ -72,7 +72,7 @@ Socket Socket::uninitialized()
 Socket::~Socket()
 {
     if (descriptor >= 0) {
-        DBGPRINT("unregister " << descriptor);
+        TRACEPRINT("unregister " << descriptor);
         GlobalIoEventHandler::unregister_special_callbacks(descriptor);
     }
 }

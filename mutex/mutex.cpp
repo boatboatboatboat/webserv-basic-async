@@ -8,12 +8,12 @@ namespace mutex {
 
 MutexGuard<void>::MutexGuard(Mutex<void>& mutex): mutex(mutex)
 {
-    pthread_mutex_lock(&mutex.get_inner_mutex());
+    pthread_mutex_lock(&mutex.inner_mutex);
 }
 
 MutexGuard<void>::~MutexGuard()
 {
-    pthread_mutex_unlock(&mutex.get_inner_mutex());
+    pthread_mutex_unlock(&mutex.inner_mutex);
 }
 
 Mutex<void>::Mutex()

@@ -38,7 +38,7 @@ void IoEventHandler::reactor_step()
 
     // TODO: timeout event handler should have some influence over the select timeout
     struct timeval tv {
-        .tv_sec = 10,
+        .tv_sec = 1,
         .tv_usec = 0
     };
 
@@ -60,7 +60,9 @@ void IoEventHandler::reactor_step()
             for (auto& fd_pair : fds) {
                 auto fd = fd_pair.first;
                 if (!fire_listeners_for(fd, read_selected, read_listeners)) {
-                    DBGPRINT("FD leak " << fd);
+#ifdef DEBUG_CHECK_IEH_FD_LEAKS
+                    DBGPRINT("possible file dscriptor leak: " << fd);
+#endif
                 }
             }
         }
@@ -73,7 +75,9 @@ void IoEventHandler::reactor_step()
             for (auto& fd_pair : fds) {
                 auto fd = fd_pair.first;
                 if (!fire_listeners_for(fd, write_selected, write_listeners)) {
-                    DBGPRINT("FD leak " << fd);
+#ifdef DEBUG_CHECK_IEH_FD_LEAKS
+                    DBGPRINT("possible file dscriptor leak: " << fd);
+#endif
                 }
             }
         }
@@ -86,7 +90,9 @@ void IoEventHandler::reactor_step()
             for (auto& fd_pair : fds) {
                 auto fd = fd_pair.first;
                 if (!fire_listeners_for(fd, special_selected, special_listeners)) {
-                    DBGPRINT("FD leak " << fd);
+#ifdef DEBUG_CHECK_IEH_FD_LEAKS
+                    DBGPRINT("possible file dscriptor leak: " << fd);
+#endif
                 }
             }
         }
@@ -244,6 +250,7 @@ void IoEventHandler::register_callback(int fd,
     {
         auto fds = set.lock();
         FD_SET(fd, &*fds);
+        TRACEPRINT("Fd set: " << fd);
     }
     auto listeners_locked = listeners.lock();
     if (unique != 0) {

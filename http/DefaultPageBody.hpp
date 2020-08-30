@@ -5,7 +5,8 @@
 #ifndef WEBSERV_DEFAULTPAGEBODY_HPP
 #define WEBSERV_DEFAULTPAGEBODY_HPP
 
-#include "HttpResponse.hpp"
+#include "../ioruntime/IAsyncRead.hpp"
+#include "HttpStatus.hpp"
 
 namespace http {
 
