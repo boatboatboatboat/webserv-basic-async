@@ -3,7 +3,7 @@
 //
 
 #include "Socket.hpp"
-#include "GlobalIoEventHandler.hpp"
+#include "../ioruntime/GlobalIoEventHandler.hpp"
 #include <sys/socket.h>
 
 
@@ -16,7 +16,10 @@ public:
     }
 };
 
-namespace ioruntime {
+
+using ioruntime::GlobalIoEventHandler;
+
+namespace net {
 
 ssize_t Socket::read(char* buffer, size_t size)
 {
@@ -65,7 +68,7 @@ Socket::Socket()
 {
 }
 
-Socket Socket::uninitialized()
+Socket net::Socket::uninitialized()
 {
     return Socket();
 }

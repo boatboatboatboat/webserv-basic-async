@@ -13,10 +13,9 @@
 using futures::IFuture;
 using futures::PollResult;
 
-namespace ioruntime {
+namespace net {
 
 class TcpStream;
-
 class TcpStreamResponseFuture : public IFuture<void> {
 public:
     TcpStreamResponseFuture(TcpStream&& stream, std::string (*responder)(std::string& str));
@@ -26,16 +25,13 @@ private:
     enum State {
         Reading,
         Writing
-    };
+    } state = Reading;
     size_t written = 0;
-    State state = Reading;
     char buffer[64] {};
     std::string message;
     std::string (*responder)(std::string& str);
     Socket socket;
 };
-
-
 class TcpStream {
     friend class TcpStreamResponseFuture;
 
@@ -54,6 +50,6 @@ private:
     Socket socket;
     SocketAddr address;
 };
-
 }
+
 #endif //WEBSERV_IORUNTIME_TCPSTREAM_HPP

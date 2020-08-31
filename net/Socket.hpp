@@ -5,11 +5,11 @@
 #ifndef WEBSERV_IORUNTIME_SOCKET_HPP
 #define WEBSERV_IORUNTIME_SOCKET_HPP
 
-#include "FileDescriptor.hpp"
+#include "../ioruntime/FileDescriptor.hpp"
 
-namespace ioruntime {
+namespace net {
 
-class Socket : public FileDescriptor {
+class Socket : public ioruntime::FileDescriptor {
 public:
     explicit Socket(int fd);
     static Socket uninitialized();
@@ -21,7 +21,6 @@ public:
 private:
     Socket();
 };
-
 }
 
 #endif //WEBSERV_IORUNTIME_SOCKET_HPP

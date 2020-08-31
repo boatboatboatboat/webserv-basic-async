@@ -3,10 +3,12 @@
 //
 
 #include "TcpStream.hpp"
+#include "Socket.hpp"
+#include "SocketAddr.hpp"
 
-namespace ioruntime {
+namespace net {
 
-PollResult<void> ioruntime::TcpStreamResponseFuture::poll(Waker&& waker)
+PollResult<void> TcpStreamResponseFuture::poll(Waker&& waker)
 {
     switch (state) {
     case Reading: {

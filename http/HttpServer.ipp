@@ -6,6 +6,8 @@
 #include "HttpHeader.hpp"
 #include "HttpResponse.hpp"
 #include "HttpServer.hpp"
+#include "../net/TcpListener.hpp"
+#include "../net/TcpStream.hpp"
 
 using ioruntime::GlobalRuntime;
 
@@ -13,7 +15,7 @@ namespace http {
 
 template <typename RH>
 HttpServer<RH>::HttpServer(uint16_t port, RH fn)
-    : listener(TcpListener(port).for_each<TcpListener>(handle_connection, handle_exception))
+    : listener(net::TcpListener(port).for_each<net::TcpListener>(handle_connection, handle_exception))
 {
     // If we don't pass RH as a parameter,
     // we would have to write HttpServer<decltype(SOME_LAMBDA)>(PORT)
@@ -30,7 +32,7 @@ PollResult<void> HttpServer<RH>::poll(Waker&& waker)
 }
 
 template <typename RH>
-void HttpServer<RH>::handle_connection(TcpStream& stream)
+void HttpServer<RH>::handle_connection(net::TcpStream& stream)
 {
     GlobalRuntime::spawn(HttpConnectionFuture(std::move(stream)));
 }
@@ -100,7 +102,7 @@ PollResult<void> HttpServer<RH>::HttpConnectionFuture::poll(Waker&& waker)
 }
 
 template <typename RH>
-HttpServer<RH>::HttpConnectionFuture::HttpConnectionFuture(TcpStream&& pstream)
+HttpServer<RH>::HttpConnectionFuture::HttpConnectionFuture(net::TcpStream&& pstream)
     : req()
     , res()
     , stream(std::move(pstream))

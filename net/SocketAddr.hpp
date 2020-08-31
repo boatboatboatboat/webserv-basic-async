@@ -5,12 +5,10 @@
 #ifndef WEBSERV_IORUNTIME_SOCKETADDR_HPP
 #define WEBSERV_IORUNTIME_SOCKETADDR_HPP
 
-// TODO: there should be a net namespace
-
 #include <netinet/in.h>
 #include <string>
 
-namespace ioruntime {
+namespace net {
 
 class SocketAddr {
 public:
@@ -20,11 +18,19 @@ public:
     [[nodiscard]] uint16_t get_port() const;
 
 private:
+//    enum IpTag {
+//        IpV4,
+//        IpV6
+//    } tag;
+//    union {
+//        sockaddr_in addr_v4;
+//        sockaddr_in6 addr_v6;
+//    };
+//
     sockaddr_in addr;
 };
-
 }
 
-std::ostream& operator<<(std::ostream& os, const ioruntime::SocketAddr& sa);
+std::ostream& operator<<(std::ostream& os, const net::SocketAddr& sa);
 
 #endif //WEBSERV_IORUNTIME_SOCKETADDR_HPP

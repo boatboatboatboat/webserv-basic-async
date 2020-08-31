@@ -1,5 +1,5 @@
 #include "HttpResponse.hpp"
-#include "../ioruntime/Socket.hpp"
+#include "../net/Socket.hpp"
 #include "DefaultPageBody.hpp"
 #include "HttpHeader.hpp"
 #include "HttpRequest.hpp"
@@ -31,7 +31,7 @@ HttpResponse::HttpResponse(std::map<HttpHeaderName, HttpHeaderValue>&& response_
     }
 }
 
-bool HttpResponse::write_response(ioruntime::Socket& socket, Waker&& waker)
+bool HttpResponse::write_response(net::Socket& socket, Waker&& waker)
 {
     auto str = current.data() + written;
     auto len = current.length() - written;
@@ -54,7 +54,7 @@ bool HttpResponse::write_response(ioruntime::Socket& socket, Waker&& waker)
     return false;
 }
 
-PollResult<void> HttpResponse::poll_respond(ioruntime::Socket& socket, Waker&& waker)
+PollResult<void> HttpResponse::poll_respond(net::Socket& socket, Waker&& waker)
 {
     TRACEPRINT("responder state: " << state);
     switch (state) {

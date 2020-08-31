@@ -6,6 +6,8 @@
 #define WEBSERV_RUNTIMEBUILDER_HPP
 
 #include "ioruntime.hpp"
+#include "Runtime.hpp"
+
 
 namespace ioruntime {
 class RuntimeBuilder {
@@ -20,6 +22,7 @@ private:
     bool pooled = false;
     int worker_count = 0;
 };
+
 } // namespace ioruntime
 
 #endif // WEBSERV_RUNTIMEBUILDER_HPP

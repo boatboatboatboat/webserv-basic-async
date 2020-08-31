@@ -5,10 +5,10 @@
 #include "SocketAddr.hpp"
 #include <iostream>
 
-namespace ioruntime {
+namespace net {
 
-SocketAddr::SocketAddr(sockaddr_in addr)
-    : addr(addr)
+SocketAddr::SocketAddr(sockaddr_in addr):
+    addr(addr)
 {
 }
 
@@ -29,7 +29,7 @@ uint16_t SocketAddr::get_port() const
 
 }
 
-std::ostream& operator<<(std::ostream& os, const ioruntime::SocketAddr& sa)
+std::ostream& operator<<(std::ostream& os, const net::SocketAddr& sa)
 {
     uint32_t ip_raw = sa.get_ip();
     auto* ip = reinterpret_cast<uint8_t*>(&ip_raw);

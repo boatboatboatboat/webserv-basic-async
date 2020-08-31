@@ -5,7 +5,7 @@
 #ifndef WEBSERV_HTTPREQUEST_HPP
 #define WEBSERV_HTTPREQUEST_HPP
 
-#include "../ioruntime/TcpStream.hpp"
+#include "../net/TcpStream.hpp"
 #include "HttpParser.hpp"
 #include "ParserFuture.hpp"
 #include <map>
@@ -56,7 +56,7 @@ public:
     std::string getVersion();
     std::vector<std::string> pathSplit();
     std::string urlDecode(std::string str);
-    static ParserFuture parse_async(ioruntime::TcpStream& stream, size_t limit = 8192);
+    static ParserFuture parse_async(net::TcpStream& stream, size_t limit = 8192);
 
 private:
     HttpParser parser;

@@ -6,7 +6,7 @@
 
 namespace http {
 
-ParserFuture::ParserFuture(TcpStream* stream, size_t limit)
+ParserFuture::ParserFuture(net::TcpStream* stream, size_t limit)
     : stream(stream)
     , limit(limit)
 {

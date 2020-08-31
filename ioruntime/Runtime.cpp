@@ -45,4 +45,10 @@ void Runtime::spawn(BoxPtr<IFuture<void>>&& future)
     auto task = RcPtr<Task>::make(std::move(future), executor.get());
     executor->spawn(std::move(task));
 }
+
+void Runtime::globalize()
+{
+    GlobalRuntime::set_runtime(this);
+}
+
 } // namespace ioruntime

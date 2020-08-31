@@ -27,6 +27,7 @@ public:
     void register_handler(BoxPtr<IEventHandler>&& handler, HandlerType ht);
     void spawn(BoxPtr<IFuture<void>>&& future);
     void naive_run();
+    void globalize();
 
 private:
     Runtime();

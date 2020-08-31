@@ -6,12 +6,12 @@
 #define WEBSERV_PARSERFUTURE_HPP
 
 #include "../futures/IFuture.hpp"
-#include "../ioruntime/TcpStream.hpp"
+#include "../net/TcpStream.hpp"
 #include "HttpRequest.hpp"
 
 using futures::IFuture;
 using futures::PollResult;
-using ioruntime::TcpStream;
+using net::TcpStream;
 
 namespace http {
 // forward declarations
@@ -21,10 +21,10 @@ class HttpRequest;
 class ParserFuture : public IFuture<HttpRequest> {
 public:
     ParserFuture() = delete;
-    explicit ParserFuture(TcpStream* stream, size_t limit = 8192);
+    explicit ParserFuture(net::TcpStream* stream, size_t limit = 8192);
     PollResult<HttpRequest> poll(Waker&& waker) override;
 
-    TcpStream* stream;
+    net::TcpStream* stream;
 private:
     const size_t limit;
     std::string buffer;

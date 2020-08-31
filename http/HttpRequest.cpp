@@ -1,6 +1,7 @@
 #include "HttpRequest.hpp"
 #include "../utils/utils.hpp"
 #include "HttpResponse.hpp"
+#include "../net/TcpStream.hpp"
 #include <algorithm>
 #include <sstream>
 #include <vector>
@@ -184,7 +185,7 @@ std::string HttpRequest::urlDecode(std::string text)
     return escaped.str();
 }
 
-ParserFuture HttpRequest::parse_async(TcpStream& stream, size_t limit)
+ParserFuture HttpRequest::parse_async(net::TcpStream& stream, size_t limit)
 {
     return ParserFuture(&stream, limit);
 }

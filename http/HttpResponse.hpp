@@ -11,6 +11,7 @@
 #include "HttpRfcConstants.hpp"
 #include "HttpStatus.hpp"
 #include "HttpVersion.hpp"
+#include "../net/Socket.hpp"
 #include <map>
 #include <string>
 
@@ -43,8 +44,8 @@ public:
 
     HttpResponse& operator=(HttpResponse&& other) noexcept;
     virtual ~HttpResponse();
-    PollResult<void> poll_respond(ioruntime::Socket& socket, Waker&& waker);
-    bool write_response(ioruntime::Socket& socket, Waker&& waker);
+    PollResult<void> poll_respond(net::Socket& socket, Waker&& waker);
+    bool write_response(net::Socket& socket, Waker&& waker);
 private:
     enum State {
         WriteStatusVersion,

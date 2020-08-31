@@ -3,10 +3,13 @@
 //
 
 #include "TcpListener.hpp"
-#include "GlobalIoEventHandler.hpp"
+#include "../ioruntime/GlobalIoEventHandler.hpp"
+#include "SocketAddr.hpp"
 #include <netinet/in.h>
 
-namespace ioruntime {
+using ioruntime::GlobalIoEventHandler;
+
+namespace net {
 
 TcpListener::TcpListener(in_port_t port)
     : addr({})
@@ -34,7 +37,7 @@ TcpListener::TcpListener(in_port_t port)
     if (listen(descriptor, SOMAXCONN) < 0)
         throw std::runtime_error(strerror(errno));
 
-    addr = SocketAddr(new_address);
+    addr = net::SocketAddr(new_address);
 
     // register reader callback so the listener can get polled
     BoxFunctor cb = BoxFunctor(new SetReadyFunctor(RcPtr(connection_ready)));
@@ -68,7 +71,7 @@ StreamPollResult<TcpStream> TcpListener::poll_next(Waker&& waker)
 //        for (;;) {
 //            try {
 //                INFOPRINT("stream test");
-                auto stream = TcpStream(client, SocketAddr(*client_address_in));
+                auto stream = TcpStream(client, net::SocketAddr(*client_address_in));
                 return StreamPollResult<TcpStream>::ready(std::move(stream));
 //            } catch (std::exception& e) {
 //                // FIXME: shit code
