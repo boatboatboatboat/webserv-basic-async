@@ -1,1 +1,8 @@
-hello
+{
+    "workers": 0,
+    "http": {
+        "servers": [
+            {}
+        ]
+    }
+}

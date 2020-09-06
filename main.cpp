@@ -37,10 +37,58 @@ using ioruntime::IoEventHandler;
 using ioruntime::Runtime;
 using ioruntime::RuntimeBuilder;
 using ioruntime::TimeoutEventHandler;
-using ioruntime::TimeoutEventHandler;
 using ioruntime::TimeoutFuture;
 
-int core()
+void build_from_config(json::Json const& config, RuntimeBuilder& builder) {
+    // Load workers
+    if (config["workers"].is_number()) {
+        auto worker_count = static_cast<int64_t>(config["workers"].number_value());
+
+        if (worker_count < 0) {
+            throw std::runtime_error("Worker count is negative");
+        } else if (worker_count == 0) {
+            INFOPRINT("Runtime will use no worker threads");
+            builder = builder.without_workers();
+        } else {
+            INFOPRINT("Runtime will use " << worker_count << " worker thread(s)");
+            builder = builder.with_workers(worker_count);
+        }
+    } else {
+        throw std::runtime_error("Worker count is not a number");
+    }
+}
+
+void spawn_from_config(json::Json const& config) {
+    if (!config["http"].is_object())
+        throw std::runtime_error("http field is either not set or not an object");
+
+    if (config["http"]["servers"].is_array()) {
+        auto servers = config["http"]["servers"].array_items();
+
+        if (servers.empty()) {
+            throw std::runtime_error("http.servers has no items -- it is entirely useless");
+        }
+
+        bool default_host_set, default_port_set = false;
+        uint16_t default_port;
+        uint64_t ip;
+
+        for (auto const& item : servers) {
+            if (item.is_object()) {
+                auto const& server_info = item.object_items();
+
+                // server_info[""][""];
+                (void)server_info;
+            } else {
+                throw std::runtime_error("http.servers item is not an object");
+            }
+        }
+    } else {
+        throw std::runtime_error("http.servers is either not set or not an array");
+    }
+}
+
+int main()
 {
     // ignore SIGPIPE,
     // a dos attack can cause so many SIGPIPEs (to the point of 30k queued),
@@ -49,7 +97,6 @@ int core()
     try {
         json::Json config;
         std::string error;
-        std::string abc;
         {
             auto rt = RuntimeBuilder()
                 .without_workers()
@@ -58,18 +105,26 @@ int core()
             rt.register_handler(BoxPtr<IoEventHandler>::make(), Runtime::HandlerType::Io);
             rt.globalize();
 
-            GlobalRuntime::spawn(ioruntime::FdStringReadFuture(fs::File::open("config.json"), abc));
+            std::string config_str;
+            GlobalRuntime::spawn(ioruntime::FdStringReadFuture(fs::File::open("config.json"), config_str));
             rt.naive_run();
 
-            INFOPRINT("PARSE STATR");
-
-            config = json::Json::parse(abc, error);
-            INFOPRINT("PARSE SENDER");
+            config = json::Json::parse(config_str, error);
         }
         if (!error.empty()) {
-            // eh
-            throw std::runtime_error(error);
+            ERRORPRINT("bad config: " << error);
+            throw std::runtime_error("Config error");
         }
+
+        auto builder = RuntimeBuilder();
+
+        build_from_config(config, builder);
+
+        auto runtime = builder.build();
+        runtime.globalize();
+
+        spawn_from_config(config);
+
 //
 //        auto runtime = RuntimeBuilder()
 //                           .with_workers(4)
@@ -143,12 +198,7 @@ int core()
 //        }));
 //        runtime.naive_run();
     } catch (std::exception& e) {
-        std::cerr << "Failed to load runtime: " << e.what() << std::endl;
+        ERRORPRINT("Failed to load runtime: " << e.what());
     }
     return 0;
-}
-
-int main()
-{
-    return (core());
 }

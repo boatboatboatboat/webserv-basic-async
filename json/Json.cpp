@@ -212,7 +212,7 @@ Json::Json() noexcept
 {
 }
 Json::Json(std::nullptr_t) noexcept
-    : m_ptr(statics().null)
+    : m_ptr(RcPtr<JsonNull>::make())
 {
 }
 Json::Json(double value)
@@ -252,7 +252,7 @@ Json::Json(const Json::object& values)
 {
 }
 Json::Json(Json::object&& values)
-    : m_ptr(RcPtr<JsonObject>::make(move(values)))
+    : m_ptr(RcPtr<JsonObject>::make(values))
 {
 }
 
@@ -390,8 +390,16 @@ namespace {
      * @param err_ret
      * @return
      */
+        // NOTE:
+        // if err_ret is const,
+        // you would try and return const T in an auto() -> T;
+        // which is not allowed
+        // however it's syntactically valid c++
+        // it will basically disable moves or something
+        // don't set it to const
+        // it will cause a bunch of random mutex and shared_ptr errors
         template <typename T>
-        T error(string&& msg, const T err_ret)
+        T error(string&& msg, T err_ret)
         {
             if (!failed)
                 err = std::move(msg);
@@ -585,6 +593,7 @@ namespace {
 
             if (str[i] != '.' && str[i] != 'e' && str[i] != 'E'
                 && (i - start_pos) <= static_cast<size_t>(std::numeric_limits<int>::digits10)) {
+                // TODO: use strtol
                 return std::atoi(str.c_str() + start_pos);
             }
 
@@ -660,7 +669,7 @@ namespace {
                 return parse_string();
 
             case '{': {
-                map<string, Json> data;
+                Json::object data;
                 ch = next_token();
                 if (ch == '}')
                     return data;
@@ -694,14 +703,14 @@ namespace {
 
                     ch = next_token();
                 }
-                return data;
+                return Json(std::move(data));
             }
 
             case '[': {
                 vector<Json> data;
                 ch = next_token();
                 if (ch == ']')
-                    return data;
+                    return Json(std::move(data));
 
                 while (true) {
                     i--;
@@ -720,7 +729,7 @@ namespace {
                     ch = next_token();
                     (void)ch;
                 }
-                return data;
+                return Json(std::move(data));
             }
 
             default:

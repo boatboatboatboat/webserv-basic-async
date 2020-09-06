@@ -13,14 +13,14 @@ namespace ioruntime {
 class RuntimeBuilder {
 public:
     RuntimeBuilder() = default;
-    RuntimeBuilder& with_workers(int d);
+    RuntimeBuilder& with_workers(uint64_t d);
     RuntimeBuilder& without_workers();
     Runtime build();
     static Runtime dead_runtime();
 
 private:
     bool pooled = false;
-    int worker_count = 0;
+    int64_t worker_count = 0;
 };
 
 } // namespace ioruntime
