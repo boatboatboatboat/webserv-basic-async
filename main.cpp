@@ -69,15 +69,36 @@ void spawn_from_config(json::Json const& config) {
             throw std::runtime_error("http.servers has no items -- it is entirely useless");
         }
 
-        bool default_host_set, default_port_set = false;
+        bool default_host_set = false, default_port_set = false;
         uint16_t default_port;
-        uint64_t ip;
+        net::IpAddress default_ip = net::IpAddress::v4(0);
 
-        for (auto const& item : servers) {
-            if (item.is_object()) {
-                auto const& server_info = item.object_items();
+        for (auto const& server : servers) {
+            if (server.is_object()) {
+                auto const& listen = server["listen"];
 
-                // server_info[""][""];
+                if (listen.is_null()) {
+                    if (!(default_host_set && default_port_set)) {
+                        throw std::runtime_error("no listen field without a default host:port combo set");;
+                    } else {
+                        uint16_t some_port = default_port;
+                        net::IpAddress some_ip = default_ip;
+                    }
+                } else if (!listen.is_array()) {
+                    throw std::runtime_error("listen field is not an array");
+                } else {
+                    for (auto const& combination: listen.array_items()) {
+                        auto ip_field = combination["ip"];
+                        auto port_field = combination["port"];
+                        if (port_field.is_null()) {
+                            if (default_port_set) {
+
+                            }
+                        }
+                    }
+                }
+                default_host_set = true;
+                default_port_set = true;
                 (void)server_info;
             } else {
                 throw std::runtime_error("http.servers item is not an object");
@@ -95,14 +116,15 @@ int main()
     // that all threads are preoccupied with running the signal handler
     signal(SIGPIPE, SIG_IGN);
     try {
+
         json::Json config;
         std::string error;
+
         {
             auto rt = RuntimeBuilder()
                 .without_workers()
                 .build();
 
-            rt.register_handler(BoxPtr<IoEventHandler>::make(), Runtime::HandlerType::Io);
             rt.globalize();
 
             std::string config_str;
@@ -111,6 +133,7 @@ int main()
 
             config = json::Json::parse(config_str, error);
         }
+
         if (!error.empty()) {
             ERRORPRINT("bad config: " << error);
             throw std::runtime_error("Config error");
@@ -125,78 +148,7 @@ int main()
 
         spawn_from_config(config);
 
-//
-//        auto runtime = RuntimeBuilder()
-//                           .with_workers(4)
-//                           .build();
-//        runtime.register_handler(BoxPtr<IoEventHandler>::make(), Runtime::HandlerType::Io);
-//        runtime.register_handler(BoxPtr<TimeoutEventHandler>::make(), Runtime::HandlerType::Timeout);
-//        runtime.globalize();
-//        GlobalRuntime::spawn(
-//            FdLineStream(STDIN_FILENO)
-//                .for_each<FdLineStream>([](std::string& str) {
-//                    (void)str;
-//                    INFOPRINT("stdin line: " << str);
-//                }));
-//        GlobalRuntime::spawn(HttpServer(1234, [](http::HttpRequest& req) {
-//            (void)req;
-//            INFOPRINT("Handle request");
-//            auto response = HttpResponseBuilder()
-//                                .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf-8")
-//                                .build();
-//            return response;
-//        }));
-//
-//        GlobalRuntime::spawn(HttpServer(1235, [](http::HttpRequest& req) {
-//            std::stringstream out;
-//
-//            out << "<h1>path: " << req.getPath() << "</h1><br>"
-//                << "<a>method: " << req.getMethod() << "</a><br>"
-//                << "<a>version: " << req.getVersion() << "</a><hr>"
-//                << "<h1>Queries:</h1><br><table><tr><th>key</th><th>value</th></tr>";
-//            for (auto& query : req.getQuery()) {
-//                out << "<tr><td>" << query.first << "</td><td>" << query.second << "</td></tr>";
-//            }
-//            out << "</table><hr><h1>Headers:</h1><table><tr><th>key</th><th>value</th></tr>";
-//            for (auto& header : req.getHeaders()) {
-//                out << "<tr><td>" << header.first << "</td><td>" << header.second << "</td></tr>";
-//            }
-//            out << "</table><hr><h1>Body:</h1><br>" << req.getBody();
-//
-//            auto response = HttpResponseBuilder()
-//                                .status(http::HTTP_STATUS_OK)
-//                                .header(http::header::CONTENT_TYPE, "text/html; charset=utf-8")
-//                                .body(BoxPtr<StringBody>::make(out.str()))
-//                                .build();
-//            return response;
-//        }));
-//
-//        GlobalRuntime::spawn(HttpServer(1236, [](http::HttpRequest& req) {
-//            (void)req;
-//            auto response = HttpResponseBuilder()
-//                                .status(http::HTTP_STATUS_OK)
-//                                .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf-8")
-//                                .body(BoxPtr<FileDescriptor>::make(open("test2.txt", O_RDONLY)))
-//                                .build();
-//            return response;
-//        }));
-//
-//        GlobalRuntime::spawn(HttpServer(1237, [](http::HttpRequest& req) {
-//            (void)req;
-//            throw std::runtime_error("Handler error test");
-//            return HttpResponseBuilder().build();
-//        }));
-//
-//        GlobalRuntime::spawn(HttpServer(1238, [](http::HttpRequest& req) {
-//            (void)req;
-//            auto response = HttpResponseBuilder()
-//                                .status(http::HTTP_STATUS_OK)
-//                                .header(HttpRequest::HTTP_HEADER_CONTENT_TYPE, "text/html; charset=utf-8")
-//                                .body(BoxPtr<InfiniteBody>::make())
-//                                .build();
-//            return response;
-//        }));
-//        runtime.naive_run();
+        runtime.naive_run();
     } catch (std::exception& e) {
         ERRORPRINT("Failed to load runtime: " << e.what());
     }

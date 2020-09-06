@@ -2,7 +2,67 @@
     "workers": 0,
     "http": {
         "servers": [
-            {}
+            {
+                "name": "localhost",
+                "listen": [
+                    { "ip": [127, 0, 0, 1], "port": 80 },
+                    { "ip": [127, 0, 0, 1], "port": 1234 }
+                ],
+                "locations": {
+                    "/": {
+                        "root": "/Users/abobas/ft_webserver/html",
+                        "index": [
+                            "index.html",
+                            "index.php"
+                        ],
+                        "accepted-methods": [
+                            "GET"
+                        ],
+                        "autoindex": false
+                    },
+                    "/assets": {
+                        "root": "/Users/abobas/ft_webserver/html/assets",
+                        "index": [
+                            "index.html",
+                            "index.php"
+                        ],
+                        "accepted-methods": [
+                            "GET"
+                        ],
+                        "autoindex": false
+                    }
+                }
+            },
+            {
+                "name": "localhost",
+                "listen": [
+                    { "ip": [127, 0, 0, 1], "port": 443 }
+                ],
+                "locations": {
+                    "/": {
+                        "root": "/Users/abobas/ft_webserver/html",
+                        "index": [
+                            "index.html",
+                            "index.php"
+                        ],
+                        "accepted-methods": [
+                            "GET"
+                        ],
+                        "autoindex": true
+                    },
+                    "/assets": {
+                        "root": "/Users/abobas/ft_webserver/html/assets",
+                        "index": [
+                            "index.html",
+                            "index.php"
+                        ],
+                        "accepted-methods": [
+                            "GET"
+                        ],
+                        "autoindex": true
+                    }
+                }
+            }
         ]
     }
 }

@@ -72,7 +72,7 @@ TcpStream::TcpStream(int fd, SocketAddr address)
 
 TcpStream::TcpStream()
     : socket(Socket::uninitialized())
-    , address({})
+    , address(sockaddr_in({}))
 {
 }
 

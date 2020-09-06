@@ -9,8 +9,8 @@
 
 using mutex::Mutex;
 
-template <class T, class U>
-concept Derived = std::is_base_of<U, T>::value;
+//template <class T, class U>
+//concept Derived = std::is_base_of<U, T>::value;
 
 namespace boxed {
 template <typename T>
@@ -20,7 +20,7 @@ public:
 
     RcPtr()
     {
-        this->refs_mutex = new Mutex<unsigned long>(1);
+        this->refs_mutex = new Mutex<uint64_t>(1);
         this->inner = new (std::nothrow) T();
         if (this->inner == nullptr) {
             delete this->refs_mutex;
@@ -31,7 +31,7 @@ public:
 
     explicit RcPtr(T&& other)
     {
-        this->refs_mutex = new Mutex<unsigned long>(1);
+        this->refs_mutex = new Mutex<uint64_t>(1);
         this->inner = new (std::nothrow) T(std::move(other));
         if (this->inner == nullptr) {
             delete this->refs_mutex;
@@ -148,7 +148,7 @@ public:
         return *refs;
     }
 
-    Mutex<unsigned long>* get_raw_mutex() const { return this->refs_mutex; }
+    Mutex<uint64_t>* get_raw_mutex() const { return this->refs_mutex; }
 
     ~RcPtr()
     {
@@ -186,6 +186,7 @@ RcPtr<T>::RcPtr(int a, int b)
     this->refs_mutex = nullptr;
 }
 
+/*
 template<typename T, size_t N>
 class RcPtr<T[N]> {
 public:
@@ -305,6 +306,7 @@ private:
     Mutex<unsigned long>* refs_mutex;
 };
 
+ */
 template<typename T, typename U>
 bool operator==(RcPtr<T> const& lhs, RcPtr<U> const& rhs) noexcept {
     return lhs.get() == rhs.get();
