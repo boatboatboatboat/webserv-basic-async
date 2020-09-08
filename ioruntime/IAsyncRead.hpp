@@ -14,7 +14,7 @@ namespace ioruntime {
 
 class IAsyncRead {
 public:
-    virtual PollResult<ssize_t> poll_read(char* buffer, size_t size, Waker&& waker) = 0;
+    virtual auto poll_read(char* buffer, size_t size, Waker&& waker) -> PollResult<ssize_t> = 0;
     virtual ~IAsyncRead() = 0;
 };
 

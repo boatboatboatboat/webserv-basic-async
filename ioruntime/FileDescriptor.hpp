@@ -18,15 +18,15 @@ namespace ioruntime {
 class FileDescriptor : public IAsyncRead, public IAsyncWrite {
 public:
     explicit FileDescriptor(int fd);
-    static FileDescriptor uninitialized();
     FileDescriptor(FileDescriptor&& other) noexcept;
-    virtual ~FileDescriptor();
-    virtual ssize_t read(char* buffer, size_t size);
-    virtual ssize_t write(const char* buffer, size_t size);
-    PollResult<ssize_t> poll_read(char* buffer, size_t size, Waker&& waker) override;
-    PollResult<ssize_t> poll_write(const char* buffer, size_t size, Waker&& waker) override;
-    int close() &&;
-    [[nodiscard]] int get_descriptor() const;
+    ~FileDescriptor() override;
+    static auto uninitialized() -> FileDescriptor;
+    virtual auto read(char* buffer, size_t size) -> ssize_t;
+    virtual auto write(const char* buffer, size_t size) -> ssize_t;
+    auto poll_read(char* buffer, size_t size, Waker&& waker) -> PollResult<ssize_t> override;
+    auto poll_write(const char* buffer, size_t size, Waker&& waker) -> PollResult<ssize_t> override;
+    auto close() && -> int;
+    [[nodiscard]] auto get_descriptor() const -> int;
 
 protected:
     int descriptor;

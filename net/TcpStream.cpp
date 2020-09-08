@@ -8,7 +8,7 @@
 
 namespace net {
 
-PollResult<void> TcpStreamResponseFuture::poll(Waker&& waker)
+auto TcpStreamResponseFuture::poll(Waker&& waker) -> PollResult<void>
 {
     switch (state) {
     case Reading: {
@@ -76,7 +76,7 @@ TcpStream::TcpStream()
 {
 }
 
-TcpStream TcpStream::uninitialized()
+auto TcpStream::uninitialized() -> TcpStream
 {
     return TcpStream();
 }
@@ -93,17 +93,17 @@ TcpStreamResponseFuture::TcpStreamResponseFuture(TcpStream&& stream, std::string
 {
 }
 
-TcpStreamResponseFuture TcpStream::respond(std::string (*fp)(std::string&)) &&
+auto TcpStream::respond(std::string (*fp)(std::string&)) && -> TcpStreamResponseFuture
 {
     return TcpStreamResponseFuture(std::move(*this), fp);
 }
 
-SocketAddr const& TcpStream::get_addr() const
+auto TcpStream::get_addr() const -> SocketAddr const&
 {
     return address;
 }
 
-Socket& TcpStream::get_socket()
+auto TcpStream::get_socket() -> Socket&
 {
     return socket;
 }

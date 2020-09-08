@@ -8,13 +8,13 @@
 namespace futures {
 
 template <typename T>
-PollResult<T> PollResult<T>::pending()
+auto PollResult<T>::pending() -> PollResult<T>
 {
     return PollResult<T>(PollResult::Pending);
 }
 
 template <typename T>
-PollResult<T> PollResult<T>::ready(T&& result)
+auto PollResult<T>::ready(T&& result) -> PollResult<T>
 {
     return PollResult<T>(PollResult::Ready, std::move(result));
 }
@@ -34,19 +34,19 @@ PollResult<T>::PollResult(PollResult::Status status)
 }
 
 template <typename T>
-bool PollResult<T>::is_ready() const
+auto PollResult<T>::is_ready() const -> bool
 {
     return _status == Ready;
 }
 
 template <typename T>
-bool PollResult<T>::is_pending() const
+auto PollResult<T>::is_pending() const -> bool
 {
     return _status == Pending;
 }
 
 template <typename T>
-T PollResult<T>::get()
+auto PollResult<T>::get() -> T
 {
     return _result;
 }

@@ -11,11 +11,11 @@ template <typename T>
 class PollResult {
 public:
     PollResult() = delete;
-    static PollResult<T> pending();
-    static PollResult<T> ready(T&& result);
-    bool is_ready() const;
-    bool is_pending() const;
-    T get();
+    [[nodiscard]] static auto pending() -> PollResult<T>;
+    [[nodiscard]] static auto ready(T&& result) -> PollResult<T>;
+    [[nodiscard]] auto is_ready() const -> bool;
+    [[nodiscard]] auto is_pending() const -> bool;
+    auto get() -> T;
 
 private:
     enum Status { Pending,
@@ -30,10 +30,10 @@ template <>
 class PollResult<void> {
 public:
     PollResult() = delete;
-    static PollResult<void> pending();
-    static PollResult<void> ready();
-    bool is_ready() const;
-    bool is_pending() const;
+    [[nodiscard]] static auto pending() -> PollResult<void>;
+    [[nodiscard]] static auto ready() -> PollResult<void>;
+    [[nodiscard]] auto is_ready() const -> bool;
+    [[nodiscard]] auto is_pending() const -> bool;
 
 private:
     enum Status { Pending,

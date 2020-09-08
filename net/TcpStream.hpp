@@ -19,7 +19,7 @@ class TcpStream;
 class TcpStreamResponseFuture : public IFuture<void> {
 public:
     TcpStreamResponseFuture(TcpStream&& stream, std::string (*responder)(std::string& str));
-    PollResult<void> poll(Waker&& waker) override;
+    auto poll(Waker&& waker) -> PollResult<void> override;
 
 private:
     enum State {

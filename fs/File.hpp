@@ -14,9 +14,9 @@ using ioruntime::FileDescriptor;
 class File: public FileDescriptor {
 public:
     File() = delete;
-    static File open(std::string const& path);
-    static File open_no_traversal(std::string const& path);
-    static File from_raw_fd(int fd);
+    static auto open(std::string const& path) -> File;
+    static auto open_no_traversal(std::string const& path) -> File;
+    static auto from_raw_fd(int fd) -> File;
 private:
     explicit File(FileDescriptor&& fd);
 };

@@ -3,6 +3,7 @@
 //
 
 #include "IpAddress.hpp"
+#include <iostream>
 
 namespace net {
 
@@ -16,12 +17,24 @@ IpAddress::IpAddress(Tag tag, uint64_t ip, uint64_t ip2):
     }
 }
 
-IpAddress IpAddress::v4(uint32_t ip)
+IpAddress::IpAddress(Ipv4Address ip):
+    tag(Ipv4)
+{
+    in_v4 = ip;
+}
+
+IpAddress::IpAddress(Ipv6Address ip):
+    tag(Ipv6)
+{
+    in_v6 = ip;
+}
+
+auto IpAddress::v4(uint32_t ip) -> IpAddress
 {
     return IpAddress(IpAddress::Ipv4, ip, 0);
 }
 
-IpAddress IpAddress::v6(uint16_t b1, uint16_t b2, uint16_t b3, uint16_t b4, uint16_t b5, uint16_t b6, uint16_t b7, uint16_t b8)
+auto IpAddress::v6(uint16_t b1, uint16_t b2, uint16_t b3, uint16_t b4, uint16_t b5, uint16_t b6, uint16_t b7, uint16_t b8) -> IpAddress
 {
     uint64_t ip = b1;
     ip <<= 8u;
@@ -40,27 +53,27 @@ IpAddress IpAddress::v6(uint16_t b1, uint16_t b2, uint16_t b3, uint16_t b4, uint
     return IpAddress(IpAddress::Ipv6, ip, ip2);
 }
 
-bool IpAddress::is_v4() const
+auto IpAddress::is_v4() const -> bool
 {
     return tag == Ipv4;
 }
 
-bool IpAddress::is_v6() const
+auto IpAddress::is_v6() const -> bool
 {
     return tag == Ipv6;
 }
 
-Ipv4Address IpAddress::get_v4() const
+auto IpAddress::get_v4() const -> Ipv4Address
 {
     return in_v4;
 }
 
-Ipv6Address IpAddress::get_v6() const
+auto IpAddress::get_v6() const -> Ipv6Address
 {
     return in_v6;
 }
 
-IpAddress IpAddress::v4(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4)
+auto IpAddress::v4(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4) -> IpAddress
 {
     uint32_t ip = b1;
     ip <<= 8u;
@@ -72,5 +85,26 @@ IpAddress IpAddress::v4(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4)
 
     return IpAddress(IpAddress::Ipv4, ip, 0);
 }
+auto IpAddress::from_str(std::string_view str) -> IpAddress
+{
+    try {
+        return IpAddress(Ipv4Address(str));
+    } catch (std::exception& e) {
+        try {
+            return IpAddress(Ipv6Address(str));
+        } catch (std::exception& e) {
+            throw std::runtime_error("could not convert from string");
+        }
+    }
+}
 
+}
+
+auto operator<<(std::ostream& os, const net::IpAddress& sa) -> std::ostream& {
+    if (sa.is_v4()) {
+        os << sa.get_v4();
+    } else if (sa.is_v6()) {
+        os << sa.get_v6();
+    }
+    return os;
 }

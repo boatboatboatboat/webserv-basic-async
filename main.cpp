@@ -3,6 +3,8 @@
 #include <iostream>
 #include <netinet/in.h>
 
+#include "http/DirectoryBody.hpp"
+#include "config/Config.hpp"
 #include "fs/File.hpp"
 #include "futures/ForEachFuture.hpp"
 #include "futures/SelectFuture.hpp"
@@ -26,6 +28,7 @@ using futures::FdLineStream;
 using futures::ForEachFuture;
 using futures::IFuture;
 using futures::PollResult;
+using http::DirectoryBody;
 using http::HttpRequest;
 using http::HttpResponse;
 using http::HttpResponseBuilder;
@@ -39,77 +42,357 @@ using ioruntime::RuntimeBuilder;
 using ioruntime::TimeoutEventHandler;
 using ioruntime::TimeoutFuture;
 
-void build_from_config(json::Json const& config, RuntimeBuilder& builder) {
-    // Load workers
-    if (config["workers"].is_number()) {
-        auto worker_count = static_cast<int64_t>(config["workers"].number_value());
-
-        if (worker_count < 0) {
-            throw std::runtime_error("Worker count is negative");
-        } else if (worker_count == 0) {
-            INFOPRINT("Runtime will use no worker threads");
-            builder = builder.without_workers();
-        } else {
-            INFOPRINT("Runtime will use " << worker_count << " worker thread(s)");
-            builder = builder.with_workers(worker_count);
-        }
-    } else {
-        throw std::runtime_error("Worker count is not a number");
+auto base_config_from_json(json::Json const& config) -> BaseConfig
+{
+    if (!config.is_object()) {
+        throw std::runtime_error("config is not an object");
     }
-}
 
-void spawn_from_config(json::Json const& config) {
-    if (!config["http"].is_object())
-        throw std::runtime_error("http field is either not set or not an object");
+    optional<string> config_root = std::nullopt;
+    optional<vector<string>> config_index_pages = std::nullopt;
+    optional<map<uint16_t, string>> config_error_pages = std::nullopt;
+    optional<bool> config_use_cgi = std::nullopt;
+    optional<vector<HttpMethod>> config_allowed_methods = std::nullopt;
+    optional<bool> config_autoindex = std::nullopt;
 
-    if (config["http"]["servers"].is_array()) {
-        auto servers = config["http"]["servers"].array_items();
+    // set root field
+    if (config["root"].is_string()) {
+        config_root = optional<string> { config["root"].string_value() };
+    } else if (!config["root"].is_null()) {
+        throw std::runtime_error("http.servers[?].root is not a string");
+    }
+    TRACEPRINT("root: " << config_root.value_or("(null)"));
 
-        if (servers.empty()) {
-            throw std::runtime_error("http.servers has no items -- it is entirely useless");
-        }
+    // set index_pages
+    if (config["index_pages"].is_array()) {
+        vector<string> converted_pages;
 
-        bool default_host_set = false, default_port_set = false;
-        uint16_t default_port;
-        net::IpAddress default_ip = net::IpAddress::v4(0);
-
-        for (auto const& server : servers) {
-            if (server.is_object()) {
-                auto const& listen = server["listen"];
-
-                if (listen.is_null()) {
-                    if (!(default_host_set && default_port_set)) {
-                        throw std::runtime_error("no listen field without a default host:port combo set");;
-                    } else {
-                        uint16_t some_port = default_port;
-                        net::IpAddress some_ip = default_ip;
-                    }
-                } else if (!listen.is_array()) {
-                    throw std::runtime_error("listen field is not an array");
-                } else {
-                    for (auto const& combination: listen.array_items()) {
-                        auto ip_field = combination["ip"];
-                        auto port_field = combination["port"];
-                        if (port_field.is_null()) {
-                            if (default_port_set) {
-
-                            }
-                        }
-                    }
-                }
-                default_host_set = true;
-                default_port_set = true;
-                (void)server_info;
+        for (auto& page : config["index_pages"].array_items()) {
+            if (page.is_string()) {
+                converted_pages.push_back(page.string_value());
             } else {
-                throw std::runtime_error("http.servers item is not an object");
+                throw std::runtime_error("http.servers[?].index_pages[?] is not a string");
             }
         }
+        config_index_pages = optional<vector<string>> { converted_pages };
+    } else if (config["index_pages"].is_string()) {
+        vector<string> converted_pages;
+
+        converted_pages.push_back(config["index_pages"].string_value());
+        config_index_pages = optional<vector<string>> { converted_pages };
+    } else if (!config["index_pages"].is_null()) {
+        throw std::runtime_error("http.servers[?].index_pages is not an array or string");
+    }
+
+    // set error pages
+    if (config["error_pages"].is_object()) {
+        map<uint16_t, string> error_pages;
+
+        for (auto& [status_code_str, page] : config["error_pages"].object_items()) {
+            if (!page.is_string()) {
+                throw std::runtime_error("http.servers[?].error_pages[?] is not a string");
+            }
+            // FIXME: atoi
+            int code = std::atoi(status_code_str.c_str());
+            if (code < 100 || code > 999) {
+                throw std::runtime_error("http.servers[?].error_pages[KEY] key is not a valid status code");
+            }
+            error_pages.insert(std::pair<uint16_t, string>(code, page.string_value()));
+        }
+
+        config_error_pages = optional<map<uint16_t, string>> { error_pages };
+    } else if (!config["error_pages"].is_null()) {
+        throw std::runtime_error("http.servers[?].error_pages is not a map");
+    }
+
+    // set use cgi
+    if (config["use_cgi"].is_bool()) {
+        config_use_cgi = optional<bool> { config["use_cgi"].bool_value() };
+    } else if (!config["use_cgi"].is_null()) {
+        throw std::runtime_error("http.servers[?].use_cgi is not a boolean");
+    }
+
+    // set allowed methods
+    if (config["allowed_methods"].is_array()) {
+        vector<HttpMethod> methods;
+
+        for (auto& method : config["allowed_methods"].array_items()) {
+            if (!method.is_string()) {
+                throw std::runtime_error("allowed_methods contains non-string method");
+            }
+
+            const auto& m = method.string_value();
+            // lol
+            if (m == http::method::CONNECT) {
+                methods.push_back(http::method::CONNECT);
+            } else if (m == http::method::DELETE) {
+                methods.push_back(http::method::DELETE);
+            } else if (m == http::method::GET) {
+                methods.push_back(http::method::GET);
+            } else if (m == http::method::OPTIONS) {
+                methods.push_back(http::method::OPTIONS);
+            } else if (m == http::method::PATCH) {
+                methods.push_back(http::method::PATCH);
+            } else if (m == http::method::POST) {
+                methods.push_back(http::method::POST);
+            } else if (m == http::method::PUT) {
+                methods.push_back(http::method::PUT);
+            } else {
+                throw std::runtime_error("allowed_method contains invalid method");
+            }
+        }
+
+        config_allowed_methods = optional<vector<HttpMethod>> { methods };
+    } else if (!config["allowed_methods"].is_null()) {
+        throw std::runtime_error("http.servers[?].allowed_methods is not an array");
+    }
+
+    // set autoindex
+    if (config["autoindex"].is_bool()) {
+        config_autoindex = optional<bool> { config["autoindex"].bool_value() };
+    } else if (!config["autoindex"].is_null()) {
+        throw std::runtime_error("http.servers[?].autoindex is not a boolean");
+    }
+
+    return BaseConfig(
+        config_root,
+        config_index_pages,
+        config_error_pages,
+        config_use_cgi,
+        config_allowed_methods,
+        config_autoindex);
+}
+
+auto config_from_json(json::Json const& config) -> RootConfig
+{
+    if (!config["http"].is_object())
+        throw std::runtime_error("http field is null or not an object");
+
+    optional<uint64_t> worker_count = std::nullopt;
+
+    if (config["workers"].is_number()) {
+        int64_t workers = static_cast<int64_t>(config["workers"].number_value());
+
+        if (workers < 0) {
+            throw std::runtime_error("worker count is negative");
+        }
+        worker_count = optional<uint64_t> { workers };
+    }
+    TRACEPRINT("workers: " << worker_count.value_or(0));
+
+    if (config["http"]["servers"].is_array()) {
+        vector<ServerConfig> servers;
+
+        for (auto& server : config["http"]["servers"].array_items()) {
+            auto base = base_config_from_json(server);
+
+            optional<vector<string>> server_names = std::nullopt;
+
+            if (server["names"].is_array()) {
+                vector<string> names;
+
+                for (auto& name : server["names"].array_items()) {
+                    if (!name.is_string()) {
+                        throw std::runtime_error("names array contains non-string item");
+                    }
+                    names.push_back(name.string_value());
+                }
+                server_names = std::optional { names };
+            } else if (!server["names"].is_null()) {
+                throw std::runtime_error("names is not an array");
+            }
+
+            optional<vector<tuple<IpAddress, uint16_t>>> bind_addresses = std::nullopt;
+
+            if (server["listen"].is_array()) {
+                vector<tuple<IpAddress, uint16_t>> binds;
+
+                for (auto& comboj : server["listen"].array_items()) {
+                    if (comboj.is_string()) {
+                        auto const& combo = comboj.string_value();
+
+                        std::string_view ip;
+
+                        if (combo.starts_with("[")) {
+                            if (combo.find("]:") != std::string::npos) {
+                                ip = std::string_view(combo.data() + 1, combo.find("]:") - 1);
+                            } else {
+                                throw std::runtime_error("listen item is invalid format");
+                            }
+                        } else {
+                            if (combo.find(':') != std::string::npos) {
+                                ip = std::string_view(combo.data(), combo.find(':'));
+                            } else {
+                                throw std::runtime_error("listen item is invalid format");
+                            }
+                        }
+
+                        auto address = IpAddress::from_str(ip);
+                        auto port_str = std::string_view(combo.data() + combo.rfind(':') + 1, combo.length() - combo.rfind(':'));
+
+                        // fixme: atoll
+                        std::string sv(port_str);
+                        ssize_t port = atoll(sv.c_str());
+
+                        if (port <= 0 || port > UINT16_MAX)
+                            throw std::runtime_error("listen item port is zero or out of unsigned 16-bit range");
+
+                        TRACEPRINT("parse ip, port: (" << address << ", " << port << ")");
+                        binds.emplace_back(address, port);
+                    } else {
+                        throw std::runtime_error("listen item is not a string");
+                    }
+                }
+
+                bind_addresses = std::optional { binds };
+            } else if (!server["bind_addresses"].is_null()) {
+                throw std::runtime_error("bind_addresses is not an array");
+            }
+
+            optional<map<string, LocationConfig>> locations = std::nullopt;
+
+            if (server["locations"].is_object()) {
+                map<string, LocationConfig> locs;
+                for (auto& [name, obj] : server["locations"].object_items()) {
+                    auto location = LocationConfig(base_config_from_json(obj));
+
+                    locs.insert(std::make_pair(name, std::move(location)));
+                }
+
+                locations = std::optional { locs };
+            } else if (!server["locations"].is_null()) {
+                throw std::runtime_error("server.location is not a map");
+            }
+
+            servers.emplace_back(std::move(server_names), std::move(bind_addresses), std::move(locations), std::move(base));
+        }
+
+        auto base = base_config_from_json(config["http"]);
+
+        return RootConfig(worker_count, HttpConfig(std::move(servers), std::move(base)));
     } else {
-        throw std::runtime_error("http.servers is either not set or not an array");
+        throw std::runtime_error("http.servers field is null or not an array");
     }
 }
 
-int main()
+auto match_server(string_view host, vector<ServerConfig> const& servers) -> ServerConfig const&
+{
+    for (auto const& server : servers) {
+        auto const& names = server.get_server_names();
+
+        auto fhost = std::string_view(host);
+
+        {
+            auto sc = host.find(':');
+            if (host.find(':') != std::string::npos) {
+                fhost = std::string_view(host.data(), sc);
+            }
+        }
+
+        if (names.has_value()) {
+            for (auto const& name : *names) {
+                if (name == fhost) {
+                    TRACEPRINT("host matched servername " << name);
+                    return server;
+                } else {
+                    TRACEPRINT("match failure: " << name << " != " << fhost);
+                }
+            }
+        }
+    }
+    TRACEPRINT("host match defaulted");
+    return servers.at(0);
+}
+
+auto match_location(ServerConfig const& server, http::HttpRequest& req) -> optional<LocationConfig const*> {
+    if (server.get_locations().has_value()) {
+        for (auto const& [lstr, lcfg] : *server.get_locations()) {
+            if (req.getPath().starts_with(lstr)) {
+                return std::optional { &lcfg };
+            }
+        }
+    }
+    return std::nullopt;
+}
+
+auto match_base_config(RootConfig const& rcfg, http::HttpRequest& req) -> BaseConfig {
+    auto host = req.getHeader(http::header::HOST);
+
+    auto const& hcfg = rcfg.get_http_config();
+    auto const& scfg = match_server(host, hcfg.get_servers());
+    auto const& lcfg_o = match_location(scfg, req);
+
+    optional<string> root = std::nullopt;
+    optional<vector<string>> index_pages = std::nullopt;
+    optional<map<uint16_t, string>> error_pages = std::nullopt;
+    optional<bool> use_cgi = std::nullopt;
+    optional<vector<HttpMethod>> allowed_methods = std::nullopt;
+    optional<bool> autoindex = std::nullopt;
+
+    if (lcfg_o) {
+        auto lcfg = *lcfg_o;
+
+        if (lcfg->get_root()) {
+            root = lcfg->get_root();
+        }
+        if (lcfg->get_index_pages()) {
+            index_pages = lcfg->get_index_pages();
+        }
+        if (lcfg->get_error_pages()) {
+            error_pages = lcfg->get_error_pages();
+        }
+        if (lcfg->get_use_cgi()) {
+            use_cgi = lcfg->get_use_cgi();
+        }
+        if (lcfg->get_allowed_methods()) {
+            allowed_methods = lcfg->get_allowed_methods();
+        }
+        if (lcfg->get_autoindex()) {
+            autoindex = lcfg->get_autoindex();
+        }
+    }
+
+    if (!root && scfg.get_root()) {
+        root = scfg.get_root();
+    }
+    if (!index_pages && scfg.get_index_pages()) {
+        index_pages = scfg.get_index_pages();
+    }
+    if (!error_pages && scfg.get_error_pages()) {
+        error_pages = scfg.get_error_pages();
+    }
+    if (!use_cgi && scfg.get_use_cgi()) {
+        use_cgi = scfg.get_use_cgi();
+    }
+    if (!allowed_methods && scfg.get_allowed_methods()) {
+        allowed_methods = scfg.get_allowed_methods();
+    }
+    if (!autoindex && scfg.get_autoindex()) {
+        autoindex = scfg.get_autoindex();
+    }
+
+    if (!root && hcfg.get_root()) {
+        root = hcfg.get_root();
+    }
+    if (!index_pages && hcfg.get_index_pages()) {
+        index_pages = hcfg.get_index_pages();
+    }
+    if (!error_pages && hcfg.get_error_pages()) {
+        error_pages = hcfg.get_error_pages();
+    }
+    if (!use_cgi && hcfg.get_use_cgi()) {
+        use_cgi = hcfg.get_use_cgi();
+    }
+    if (!allowed_methods && hcfg.get_allowed_methods()) {
+        allowed_methods = hcfg.get_allowed_methods();
+    }
+    if (!autoindex && hcfg.get_autoindex()) {
+        autoindex = hcfg.get_autoindex();
+    }
+    return BaseConfig(root, index_pages, error_pages, use_cgi, allowed_methods, autoindex);
+}
+
+auto main() -> int
 {
     // ignore SIGPIPE,
     // a dos attack can cause so many SIGPIPEs (to the point of 30k queued),
@@ -122,8 +405,8 @@ int main()
 
         {
             auto rt = RuntimeBuilder()
-                .without_workers()
-                .build();
+                          .without_workers()
+                          .build();
 
             rt.globalize();
 
@@ -139,14 +422,102 @@ int main()
             throw std::runtime_error("Config error");
         }
 
+        RootConfigSingleton::set(config_from_json(config));
+        auto const& cfg = RootConfigSingleton::get();
+
         auto builder = RuntimeBuilder();
 
-        build_from_config(config, builder);
+        {
+            auto wc = cfg.get_worker_count().value_or(0);
+
+            if (wc == 0) {
+                TRACEPRINT("Building runtime without workers");
+                builder = builder.without_workers();
+            } else {
+                TRACEPRINT("Building runtime with workers (" << wc << ")");
+                builder = builder.with_workers(wc);
+            }
+        }
 
         auto runtime = builder.build();
         runtime.globalize();
 
-        spawn_from_config(config);
+        for (auto& server : cfg.get_http_config().get_servers()) {
+            auto bind_addresses = server.get_bind_addresses();
+            if (bind_addresses.has_value()) {
+                for (auto& [address, port] : *bind_addresses) {
+                    GlobalRuntime::spawn(HttpServer(address, port, [](http::HttpRequest& req) {
+                        auto const& cfg = RootConfigSingleton::get();
+                        auto host = req.getHeader(http::header::HOST);
+                        auto method = req.getMethod();
+                        auto path = req.getPath();
+
+                        const auto bcfg = match_base_config(cfg, req);
+                        {
+                            bool method_allowed = false;
+                            auto allowed_methods = bcfg.get_allowed_methods();
+
+                            if (allowed_methods.has_value()) {
+                                for (auto& allowed_method : *allowed_methods) {
+                                    if (allowed_method == method) {
+                                        method_allowed = true;
+                                        break;
+                                    }
+                                }
+                            } else if (method == http::method::GET || method == http::method::HEAD) {
+                                method_allowed = true;
+                            }
+
+                            if (!method_allowed) {
+                                return HttpResponseBuilder()
+                                    .status(http::HTTP_STATUS_METHOD_NOT_ALLOWED)
+                                    .version(http::HTTP_VERSION_1_1)
+                                    .header(http::header::CONNECTION, "close")
+                                    .build();
+                            }
+                        }
+                        {
+                            auto auto_index = bcfg.get_autoindex().value_or(false);
+
+                            try {
+                                auto file = BoxPtr(fs::File::open_no_traversal(req.getPath()));
+                                return HttpResponseBuilder()
+                                    .status(http::HTTP_STATUS_OK)
+                                    .version(http::HTTP_VERSION_1_1)
+                                    .body(std::move(file))
+                                    .header(http::header::CONNECTION, "close")
+                                    .build();
+                            } catch (std::invalid_argument& e) {
+                                if (auto_index) {
+                                    try {
+                                        auto dir = BoxPtr<DirectoryBody>::make(req.getPath());
+                                        return HttpResponseBuilder()
+                                            .status(http::HTTP_STATUS_OK)
+                                            .version(http::HTTP_VERSION_1_1)
+                                            .body(std::move(dir))
+                                            .header(http::header::CONNECTION, "close")
+                                            .build();
+                                    } catch (std::invalid_argument& e) {
+                                        // we catch "no such file",
+                                        // but we allow other throws
+                                        // this way the server will throw 500 on an actual error
+                                    }
+                                }
+                                return HttpResponseBuilder()
+                                    .status(http::HTTP_STATUS_NOT_FOUND)
+                                    .version(http::HTTP_VERSION_1_1)
+                                    .header(http::header::CONNECTION, "close")
+                                    .build();
+                            }
+                        }
+                        return HttpResponseBuilder()
+                            .status(http::HTTP_STATUS_NOT_FOUND)
+                            .version(http::HTTP_VERSION_1_1)
+                            .build();
+                    }));
+                }
+            }
+        }
 
         runtime.naive_run();
     } catch (std::exception& e) {

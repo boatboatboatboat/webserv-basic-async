@@ -103,19 +103,19 @@ MutexGuard<T>::MutexGuard(Mutex<T>& mutex, const char* fin, int line, const char
 #endif
 
 template <typename T>
-T& MutexGuard<T>::get()
+auto MutexGuard<T>::get() -> T&
 {
     return mutex.get_inner_type();
 }
 
 template <typename T>
-T& MutexGuard<T>::operator*()
+auto MutexGuard<T>::operator*() -> T&
 {
     return mutex.get_inner_type();
 }
 
 template <typename T>
-T* MutexGuard<T>::operator->()
+auto MutexGuard<T>::operator->() -> T*
 {
     return &mutex.get_inner_type();
 }
@@ -229,7 +229,7 @@ Mutex<T>::~Mutex()
 }
 
 template <typename T>
-MutexGuard<T> Mutex<T>::lock()
+auto Mutex<T>::lock() -> MutexGuard<T>
 {
 #ifdef DEBUG_MUTEX
     pthread_mutex_lock(&this->locked_already_mutex);
@@ -244,26 +244,26 @@ MutexGuard<T> Mutex<T>::lock()
 };
 
 template <typename T>
-pthread_mutex_t& Mutex<T>::get_inner_mutex()
+auto Mutex<T>::get_inner_mutex() -> pthread_mutex_t&
 {
     return this->inner_mutex;
 }
 
 template <typename T>
-T& Mutex<T>::get_inner_type()
+auto Mutex<T>::get_inner_type() -> T&
 {
     return this->inner_type;
 }
 template <typename T>
 template <typename... Args>
-Mutex<T>
-Mutex<T>::make(Args&&... args)
+auto
+Mutex<T>::make(Args&&... args) -> Mutex<T>
 {
     return Mutex<T>(T(std::forward<Args>(args)...));
 }
 
 template <typename T>
-Mutex<T>::Mutex(Mutex&& other)
+Mutex<T>::Mutex(Mutex&& other) noexcept
     : inner_mutex(other.inner_mutex)
     , inner_type(std::move(other.inner_type))
 {

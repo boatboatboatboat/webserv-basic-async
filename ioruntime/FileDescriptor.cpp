@@ -51,7 +51,7 @@ FileDescriptor::~FileDescriptor()
     }
 }
 
-PollResult<ssize_t> FileDescriptor::poll_read(char* buffer, size_t size, Waker&& waker)
+auto FileDescriptor::poll_read(char* buffer, size_t size, Waker&& waker) -> PollResult<ssize_t>
 {
     auto ready_guard = ready_to_read->lock();
     if (!*ready_guard) {
@@ -82,7 +82,7 @@ PollResult<ssize_t> FileDescriptor::poll_read(char* buffer, size_t size, Waker&&
     return PollResult<ssize_t>::ready(result + 0);
 }
 
-PollResult<ssize_t> FileDescriptor::poll_write(const char* buffer, size_t size, Waker&& waker)
+auto FileDescriptor::poll_write(const char* buffer, size_t size, Waker&& waker) -> PollResult<ssize_t>
 {
     auto ready_guard = ready_to_write->lock();
     if (!*ready_guard) {
@@ -114,15 +114,15 @@ PollResult<ssize_t> FileDescriptor::poll_write(const char* buffer, size_t size, 
     return PollResult<ssize_t>::ready(result + 0);
 }
 
-int FileDescriptor::get_descriptor() const
+auto FileDescriptor::get_descriptor() const -> int
 {
     return descriptor;
 }
-ssize_t FileDescriptor::read(char* buffer, size_t size)
+auto FileDescriptor::read(char* buffer, size_t size) -> ssize_t
 {
     return ::read(descriptor, buffer, size);
 }
-ssize_t FileDescriptor::write(const char* buffer, size_t size)
+auto FileDescriptor::write(const char* buffer, size_t size) -> ssize_t
 {
     return ::write(descriptor, buffer, size);
 }
@@ -134,12 +134,12 @@ FileDescriptor::FileDescriptor()
 {
 }
 
-FileDescriptor FileDescriptor::uninitialized()
+auto FileDescriptor::uninitialized() -> FileDescriptor
 {
     return FileDescriptor();
 }
 
-int FileDescriptor::close() &&
+auto FileDescriptor::close() && -> int
 {
     auto fd = std::move(*this);
     return (0);

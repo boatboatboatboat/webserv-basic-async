@@ -46,7 +46,7 @@ public:
         }
     }
 
-    StreamPollResult<std::string> poll_next(Waker&& waker) override
+    auto poll_next(Waker&& waker) -> StreamPollResult<std::string> override
     {
         if (completed) {
             return StreamPollResult<std::string>::finished();
@@ -106,7 +106,7 @@ private:
         NotReady
     };
 
-    GncResult get_next_character(char& c, Waker&& waker)
+    auto get_next_character(char& c, Waker&& waker) -> GncResult
     {
         if (head == 0) {
             auto poll_result = fd.poll_read(rbuffer, sizeof(rbuffer), std::move(waker));

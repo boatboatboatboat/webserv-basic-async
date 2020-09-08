@@ -19,12 +19,12 @@ SocketAddr::SocketAddr(sockaddr_in6 addr):
 {
 }
 
-uint32_t SocketAddr::get_v4() const
+auto SocketAddr::get_v4() const -> uint32_t
 {
     return addr_v4.sin_addr.s_addr;
 }
 
-in_port_t SocketAddr::get_real_port() const
+auto SocketAddr::get_real_port() const -> in_port_t
 {
     if (tag == IpV4) {
         return addr_v4.sin_port;
@@ -35,33 +35,33 @@ in_port_t SocketAddr::get_real_port() const
     }
 }
 
-uint16_t SocketAddr::get_port() const
+auto SocketAddr::get_port() const -> uint16_t
 {
     return ntohs(get_real_port());
 }
-sockaddr* SocketAddr::get_addr() const
+auto SocketAddr::get_addr() const -> sockaddr*
 {
     return const_cast<sockaddr*>(reinterpret_cast<sockaddr const*>(&addr_v4));
 }
 
-bool SocketAddr::is_v4() const
+auto SocketAddr::is_v4() const -> bool
 {
     return tag == IpV4;
 }
 
-bool SocketAddr::is_v6() const
+auto SocketAddr::is_v6() const -> bool
 {
     return tag == IpV6;
 }
 
-in6_addr SocketAddr::get_v6() const
+auto SocketAddr::get_v6() const -> in6_addr
 {
     return addr_v6.sin6_addr;
 }
 
 }
 
-std::ostream& operator<<(std::ostream& os, const net::SocketAddr& sa)
+auto operator<<(std::ostream& os, const net::SocketAddr& sa) -> std::ostream&
 {
     if (sa.is_v4()) {
         uint32_t ip_raw = sa.get_v4();
@@ -103,6 +103,7 @@ std::ostream& operator<<(std::ostream& os, const net::SocketAddr& sa)
             idx += 1;
         }
         os << "]:" << std::to_string(sa.get_port());
+        os << std::dec;
     }
     return os;
 }

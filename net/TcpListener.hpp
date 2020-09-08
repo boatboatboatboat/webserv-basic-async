@@ -19,8 +19,8 @@ namespace net {
 class TcpListener : public futures::IStreamExt<TcpStream> {
 public:
     explicit TcpListener(IpAddress ip, uint16_t port);
-    [[nodiscard]] SocketAddr const& get_addr() const;
-    futures::StreamPollResult<TcpStream> poll_next(Waker&& waker) override;
+    [[nodiscard]] auto get_addr() const -> SocketAddr const&;
+    auto poll_next(Waker&& waker) -> futures::StreamPollResult<TcpStream> override;
 
 private:
     int descriptor;

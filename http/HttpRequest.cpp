@@ -11,32 +11,10 @@
 
 namespace http {
 
-const char HttpRequest::HTTP_HEADER_ACCEPT[] = "Accept";
-const char HttpRequest::HTTP_HEADER_ALLOW[] = "Allow";
-const char HttpRequest::HTTP_HEADER_CONNECTION[] = "Connection";
-const char HttpRequest::HTTP_HEADER_CONTENT_LENGTH[] = "Content-Length";
-const char HttpRequest::HTTP_HEADER_CONTENT_TYPE[] = "Content-Type";
-const char HttpRequest::HTTP_HEADER_COOKIE[] = "Cookie";
-const char HttpRequest::HTTP_HEADER_HOST[] = "Host";
-const char HttpRequest::HTTP_HEADER_LAST_MODIFIED[] = "Last-Modified";
-const char HttpRequest::HTTP_HEADER_ORIGIN[] = "Origin";
-
-const char HttpRequest::HTTP_HEADER_UPGRADE[] = "Upgrade";
-const char HttpRequest::HTTP_HEADER_USER_AGENT[] = "User-Agent";
-
-const char HttpRequest::HTTP_METHOD_CONNECT[] = "CONNECT";
-const char HttpRequest::HTTP_METHOD_DELETE[] = "DELETE";
-const char HttpRequest::HTTP_METHOD_GET[] = "GET";
-const char HttpRequest::HTTP_METHOD_HEAD[] = "HEAD";
-const char HttpRequest::HTTP_METHOD_OPTIONS[] = "OPTIONS";
-const char HttpRequest::HTTP_METHOD_PATCH[] = "PATCH";
-const char HttpRequest::HTTP_METHOD_POST[] = "POST";
-const char HttpRequest::HTTP_METHOD_PUT[] = "PUT";
-
 HttpRequest::HttpRequest(std::string const& raw)
 {
     this->parser.parse(raw);
-    std::vector<std::string> parts = utils::split(getHeader(HTTP_HEADER_CONNECTION), ',');
+    std::vector<std::string> parts = utils::split(getHeader(http::header::CONNECTION), ',');
 }
 
 HttpRequest::~HttpRequest() = default;
@@ -54,7 +32,7 @@ std::string HttpRequest::getBody()
  * @param [in] name The name of the header field to retrieve.
  * @return The value of the header field.
  */
-std::string HttpRequest::getHeader(const std::string& name)
+std::string HttpRequest::getHeader(std::string_view name)
 {
     return this->parser.getHeader(name);
 }

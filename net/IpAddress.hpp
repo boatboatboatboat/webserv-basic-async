@@ -12,13 +12,14 @@
 namespace net {
 class IpAddress {
 public:
-    static IpAddress v4(uint32_t ip);
-    static IpAddress v4(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4);
-    static IpAddress v6(uint16_t b1, uint16_t b2, uint16_t b3, uint16_t b4, uint16_t b5, uint16_t b6, uint16_t b7, uint16_t b8);
-    [[nodiscard]] bool is_v4() const;
-    [[nodiscard]] bool is_v6() const;
-    [[nodiscard]] Ipv4Address get_v4() const;
-    [[nodiscard]] Ipv6Address get_v6() const;
+    static auto v4(uint32_t ip) -> IpAddress;
+    static auto v4(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4) -> IpAddress;
+    static auto v6(uint16_t b1, uint16_t b2, uint16_t b3, uint16_t b4, uint16_t b5, uint16_t b6, uint16_t b7, uint16_t b8) -> IpAddress;
+    static auto from_str(std::string_view str) -> IpAddress;
+    [[nodiscard]] auto is_v4() const -> bool;
+    [[nodiscard]] auto is_v6() const -> bool;
+    [[nodiscard]] auto get_v4() const -> Ipv4Address;
+    [[nodiscard]] auto get_v6() const -> Ipv6Address;
 private:
     enum Tag {
         Ipv4,
@@ -29,8 +30,11 @@ private:
         Ipv6Address in_v6;
     };
     IpAddress(Tag tag, uint64_t ip, uint64_t ip2);
-
+    explicit IpAddress(Ipv4Address ip);
+    explicit IpAddress(Ipv6Address ip);
 };
 }
+
+auto operator<<(std::ostream& os, const net::IpAddress& sa) -> std::ostream&;
 
 #endif //WEBSERV_NET_IPADDRESS_HPP

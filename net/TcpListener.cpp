@@ -52,7 +52,7 @@ TcpListener::TcpListener(IpAddress ip, in_port_t port):
         new_address.sin6_family = protocol_specifier;
         new_address.sin6_port = htons(port);
         new_address.sin6_addr = ip.get_v6().get_ip_posix();
-        new_address.sin6_len = sizeof(new_address);
+        // FIXME: new_address.sin6_len = sizeof(new_address);
         new_address.sin6_flowinfo = 0;
         addr = net::SocketAddr(new_address);
     }
@@ -71,7 +71,7 @@ TcpListener::TcpListener(IpAddress ip, in_port_t port):
     GlobalIoEventHandler::register_reader_callback(descriptor, std::move(cb), true);
 }
 
-StreamPollResult<TcpStream> TcpListener::poll_next(Waker&& waker)
+auto TcpListener::poll_next(Waker&& waker) -> StreamPollResult<TcpStream>
 {
     auto is_ready = connection_ready->lock();
 
@@ -104,7 +104,7 @@ StreamPollResult<TcpStream> TcpListener::poll_next(Waker&& waker)
     }
 }
 
-SocketAddr const& TcpListener::get_addr() const
+auto TcpListener::get_addr() const -> SocketAddr const&
 {
     return addr;
 }

@@ -22,11 +22,11 @@ class HttpResponse;
 class HttpResponseBuilder {
 public:
     HttpResponseBuilder();
-    HttpResponseBuilder& version(HttpVersion version);
-    HttpResponseBuilder& status(HttpStatus status);
-    HttpResponseBuilder& header(HttpHeaderName name, HttpHeaderValue value);
-    HttpResponseBuilder& body(BoxPtr<ioruntime::IAsyncRead>&& body);
-    HttpResponse build();
+    auto version(HttpVersion version) -> HttpResponseBuilder&;
+    auto status(HttpStatus status) -> HttpResponseBuilder&;
+    auto header(HttpHeaderName name, HttpHeaderValue value) -> HttpResponseBuilder&;
+    auto body(BoxPtr<ioruntime::IAsyncRead>&& body) -> HttpResponseBuilder&;
+    auto build() -> HttpResponse;
 
 private:
     std::map<HttpHeaderName, HttpHeaderValue> _headers;
@@ -42,10 +42,10 @@ public:
     explicit HttpResponse(std::map<HttpHeaderName, HttpHeaderValue>&& response_headers, HttpStatus status, BoxPtr<ioruntime::IAsyncRead>&& response_body);
     HttpResponse(HttpResponse&& other) noexcept;
 
-    HttpResponse& operator=(HttpResponse&& other) noexcept;
+    auto operator=(HttpResponse&& other) noexcept -> HttpResponse&;
     virtual ~HttpResponse();
-    PollResult<void> poll_respond(net::Socket& socket, Waker&& waker);
-    bool write_response(net::Socket& socket, Waker&& waker);
+    auto poll_respond(net::Socket& socket, Waker&& waker) -> PollResult<void>;
+    auto write_response(net::Socket& socket, Waker&& waker) -> bool;
 private:
     enum State {
         WriteStatusVersion,
@@ -62,7 +62,7 @@ private:
         ReadBody,
         WriteBody
     };
-    char buf[128] { };
+    char buf[1024] { };
     State state { WriteStatusVersion };
     std::string_view current;
     ssize_t written { 0 };

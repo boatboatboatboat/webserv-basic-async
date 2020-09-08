@@ -31,7 +31,7 @@ HttpResponse::HttpResponse(std::map<HttpHeaderName, HttpHeaderValue>&& response_
     }
 }
 
-bool HttpResponse::write_response(net::Socket& socket, Waker&& waker)
+auto HttpResponse::write_response(net::Socket& socket, Waker&& waker) -> bool
 {
     auto str = current.data() + written;
     auto len = current.length() - written;
@@ -54,7 +54,7 @@ bool HttpResponse::write_response(net::Socket& socket, Waker&& waker)
     return false;
 }
 
-PollResult<void> HttpResponse::poll_respond(net::Socket& socket, Waker&& waker)
+auto HttpResponse::poll_respond(net::Socket& socket, Waker&& waker) -> PollResult<void>
 {
     TRACEPRINT("responder state: " << state);
     switch (state) {
@@ -98,7 +98,7 @@ PollResult<void> HttpResponse::poll_respond(net::Socket& socket, Waker&& waker)
         if (poll_result.is_pending())
             return PollResult<void>::pending();
         if (poll_result.get() == 0) {
-            INFOPRINT("end of body");
+            TRACEPRINT("end of body");
             return PollResult<void>::ready();
         }
         current = std::string_view(buf, poll_result.get());
@@ -106,7 +106,7 @@ PollResult<void> HttpResponse::poll_respond(net::Socket& socket, Waker&& waker)
         return poll_respond(socket, std::move(waker));
     } break;
     case WriteBody: {
-    //    current = buf;
+        // current is already set in previous step
     } break;
     }
 
@@ -142,7 +142,7 @@ HttpResponse& HttpResponse::operator=(HttpResponse&& other) noexcept
     }
 
     this->state = other.state;
-    this->current = std::move(other.current);
+    this->current = other.current;
     this->response_headers = std::move(other.response_headers);
     this->header_it = other.header_it;
     this->response_status = other.response_status;
@@ -151,25 +151,25 @@ HttpResponse& HttpResponse::operator=(HttpResponse&& other) noexcept
     return *this;
 }
 
-HttpResponseBuilder& HttpResponseBuilder::status(HttpStatus status)
+auto HttpResponseBuilder::status(HttpStatus status) -> HttpResponseBuilder&
 {
     _status = status;
     return *this;
 }
 
-HttpResponseBuilder& HttpResponseBuilder::header(HttpHeaderName name, HttpHeaderValue value)
+auto HttpResponseBuilder::header(HttpHeaderName name, HttpHeaderValue value) -> HttpResponseBuilder&
 {
     _headers.insert(std::pair<HttpHeaderName, HttpHeaderValue>(name, value));
     return *this;
 }
 
-HttpResponseBuilder& HttpResponseBuilder::body(BoxPtr<ioruntime::IAsyncRead>&& body)
+auto HttpResponseBuilder::body(BoxPtr<ioruntime::IAsyncRead>&& body) -> HttpResponseBuilder&
 {
     _body = std::move(body);
     return *this;
 }
 
-HttpResponse HttpResponseBuilder::build()
+auto HttpResponseBuilder::build() -> HttpResponse
 {
     return HttpResponse(std::move(_headers), _status, std::move(_body));
 }
@@ -180,7 +180,7 @@ HttpResponseBuilder::HttpResponseBuilder()
 {
 }
 
-HttpResponseBuilder& HttpResponseBuilder::version(HttpVersion version)
+auto HttpResponseBuilder::version(HttpVersion version) -> HttpResponseBuilder&
 {
     _version = version;
     return *this;

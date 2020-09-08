@@ -25,6 +25,7 @@ public:
     PollResult<HttpRequest> poll(Waker&& waker) override;
 
     net::TcpStream* stream;
+
 private:
     const size_t limit;
     std::string buffer;

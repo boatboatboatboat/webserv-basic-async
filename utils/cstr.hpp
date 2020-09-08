@@ -8,7 +8,7 @@
 #include <cstddef>
 
 namespace utils {
-    size_t strlen(const char* s);
+    auto strlen(const char* s) -> size_t;
 }
 
 #endif //WEBSERV_CSTR_HPP
