@@ -20,6 +20,10 @@ using std::vector;
 using std::string;
 using std::tuple;
 using std::map;
+using std::pair;
+
+template<typename K, typename V>
+using table = vector<pair<K, V>>;
 
 using net::IpAddress;
 using http::HttpMethod;
@@ -44,15 +48,15 @@ private:
 
 class LocationConfig: public BaseConfig {
 public:
-    explicit LocationConfig(optional<map<Regex, LocationConfig>>&&, BaseConfig&& base);
-    [[nodiscard]] auto get_locations() const -> optional<map<Regex, LocationConfig>> const&;
+    explicit LocationConfig(optional<table<Regex, LocationConfig>>&&, BaseConfig&& base);
+    [[nodiscard]] auto get_locations() const -> optional<table<Regex, LocationConfig>> const&;
 private:
-    optional<map<Regex, LocationConfig>> locations;
+    optional<table<Regex, LocationConfig>> locations;
 };
 
 class ServerConfig: public LocationConfig {
 public:
-    ServerConfig(optional<vector<string>>&& server_names, optional<vector<tuple<IpAddress, uint16_t>>>&& bind_addresses, optional<map<Regex, LocationConfig>>&& locations, BaseConfig&& bc);
+    ServerConfig(optional<vector<string>>&& server_names, optional<vector<tuple<IpAddress, uint16_t>>>&& bind_addresses, optional<table<Regex, LocationConfig>>&& locations, BaseConfig&& bc);
     [[nodiscard]] auto get_server_names() const -> optional<vector<string>> const&;
     [[nodiscard]] auto get_bind_addresses() const -> optional<vector<tuple<IpAddress, uint16_t>>> const&;
 private:

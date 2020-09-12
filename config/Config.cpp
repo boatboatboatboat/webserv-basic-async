@@ -55,14 +55,14 @@ auto ServerConfig::get_bind_addresses() const -> optional<vector<tuple<IpAddress
     return bind_addresses;
 }
 
-ServerConfig::ServerConfig(optional<vector<string>>&& server_names, optional<vector<tuple<IpAddress, uint16_t>>>&& bind_addresses, optional<map<Regex, LocationConfig>>&& locations, BaseConfig&& bc)
+ServerConfig::ServerConfig(optional<vector<string>>&& server_names, optional<vector<tuple<IpAddress, uint16_t>>>&& bind_addresses, optional<table<Regex, LocationConfig>>&& locations, BaseConfig&& bc)
     : LocationConfig(std::move(locations), std::move(bc))
     , server_names(std::move(server_names))
     , bind_addresses(std::move(bind_addresses))
 {
 }
 
-auto LocationConfig::get_locations() const -> optional<map<Regex, LocationConfig>> const&
+auto LocationConfig::get_locations() const -> optional<table<Regex, LocationConfig>> const&
 {
     return locations;
 }
@@ -92,7 +92,7 @@ RootConfig::RootConfig(optional<uint64_t> worker_count, HttpConfig&& config)
     , http_config(std::move(config))
 {
 }
-LocationConfig::LocationConfig(optional<map<Regex, LocationConfig>>&& locations, BaseConfig&& base)
+LocationConfig::LocationConfig(optional<table<Regex, LocationConfig>>&& locations, BaseConfig&& base)
     : BaseConfig(std::move(base))
     , locations(std::move(locations))
 {

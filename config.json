@@ -9,7 +9,7 @@
                 ],
                 "locations": {
                     "^/": {
-                        "root": "/home/boat/CLionProjects/webserv-ssh/",
+                        "root": "/home/boat/CLionProjects/webserv-basic-async2/",
                         "index": [
                             "index.html",
                             "index.php"
@@ -20,13 +20,15 @@
                         "autoindex": true
                     },
                     "^/dirtest": {
-                        "root": "/home/boat/CLionProjects/webserv-ssh/ioruntime",
+                        "root": "/home/boat/CLionProjects/webserv-basic-async2/ioruntime",
                         "index": [
                             "index.html",
                             "index.php"
                         ],
                         "locations": {
-                            "\\.php$": {
+                            "\\.cpp$": {
+                                "include": true,
+                                "root": "/",
                                 "binary": "/usr/bin/php-cgi"
                             }
                         },

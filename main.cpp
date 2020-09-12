@@ -42,6 +42,7 @@ using ioruntime::Runtime;
 using ioruntime::RuntimeBuilder;
 using ioruntime::TimeoutEventHandler;
 using ioruntime::TimeoutFuture;
+using std::pair;
 
 auto base_config_from_json(json::Json const& config) -> BaseConfig
 {
@@ -164,12 +165,12 @@ auto base_config_from_json(json::Json const& config) -> BaseConfig
         config_autoindex);
 }
 
-auto recursive_locations(json::Json const& cfg) -> optional<map<Regex, LocationConfig>>
+auto recursive_locations(json::Json const& cfg) -> optional<table<Regex, LocationConfig>>
 {
-    map<Regex, LocationConfig> locations;
+    table<Regex, LocationConfig> locations;
 
     for (auto& [name, obj] : cfg["locations"].object_items()) {
-        locations.insert(
+        locations.emplace_back(
             std::make_pair(
                 Regex(name),
                 LocationConfig(
@@ -265,7 +266,7 @@ auto config_from_json(json::Json const& config) -> RootConfig
                 throw std::runtime_error("bind_addresses is not an array");
             }
 
-            optional<map<Regex, LocationConfig>> locations = std::nullopt;
+            optional<table<Regex, LocationConfig>> locations = std::nullopt;
 
             if (server["locations"].is_object()) {
                 locations = recursive_locations(server);
@@ -313,18 +314,18 @@ auto match_server(string_view host, vector<ServerConfig> const& servers) -> Serv
     return servers.at(0);
 }
 
-auto match_location(LocationConfig const& cfg, http::HttpRequest& req) -> optional<LocationConfig const*>
+// regex requires C-strings, we can't use string_view
+void match_location_i(LocationConfig const& cfg, const char *& path, vector<LocationConfig const*>& abcd)
 {
     LocationConfig const* lout = nullptr;
     ptrdiff_t len = -1;
 
     if (cfg.get_locations().has_value()) {
         for (auto const& [pattern, lcfg] : *cfg.get_locations()) {
-            auto const& gp = req.getPath();
             const char* end;
 
-            if (pattern.match(gp.c_str(), &end) != nullptr) {
-                ptrdiff_t diff = end - gp.c_str();
+            if (pattern.match(path, &end) != nullptr) {
+                ptrdiff_t diff = end - path;
                 if (diff > len) {
                     lout = &lcfg;
                     len = diff;
@@ -333,18 +334,33 @@ auto match_location(LocationConfig const& cfg, http::HttpRequest& req) -> option
         }
     }
     if (lout != nullptr) {
-        
+        DBGPRINT("Location matched: [" << std::string_view(path, len) << "] from (" << path << ")");
+        path += len;
+        DBGPRINT("Path adjusted: (" << path << ")");
+        // TODO: this should probably be a tuple<string, LocationConfig> to not match twice
+        abcd.push_back(lout);
+        match_location_i(*lout, path, abcd);
     }
-    return lout == nullptr ? std::nullopt : std::optional { lout };
+    // return lout == nullptr ? std::nullopt : std::optional { lout };
 }
 
-auto match_base_config(RootConfig const& rcfg, http::HttpRequest& req) -> BaseConfig
+auto match_location(LocationConfig const& cfg, http::HttpRequest& req) -> optional<tuple<vector<LocationConfig const*>, string>> {
+    vector<LocationConfig const*> location_list;
+    auto path = req.getPath();
+    auto* path_cstr = path.c_str();
+
+    match_location_i(cfg, path_cstr, location_list);
+    return location_list.empty() ? std::nullopt : optional { tuple { location_list, string(path_cstr) } };
+}
+
+auto match_base_config(RootConfig const& rcfg, http::HttpRequest& req) -> tuple<BaseConfig, string>
 {
     auto host = req.getHeader(http::header::HOST);
 
     auto const& hcfg = rcfg.get_http_config();
     auto const& scfg = match_server(host, hcfg.get_servers());
     auto const& lcfg_o = match_location(scfg, req);
+    auto matched_path = req.getPath();
 
     optional<string> root = std::nullopt;
     optional<vector<string>> index_pages = std::nullopt;
@@ -354,25 +370,30 @@ auto match_base_config(RootConfig const& rcfg, http::HttpRequest& req) -> BaseCo
     optional<bool> autoindex = std::nullopt;
 
     if (lcfg_o) {
-        auto lcfg = *lcfg_o;
+        auto& [lcfg_v, lcfg_p] = *lcfg_o;
 
-        if (lcfg->get_root()) {
-            root = lcfg->get_root();
-        }
-        if (lcfg->get_index_pages()) {
-            index_pages = lcfg->get_index_pages();
-        }
-        if (lcfg->get_error_pages()) {
-            error_pages = lcfg->get_error_pages();
-        }
-        if (lcfg->get_use_cgi()) {
-            use_cgi = lcfg->get_use_cgi();
-        }
-        if (lcfg->get_allowed_methods()) {
-            allowed_methods = lcfg->get_allowed_methods();
-        }
-        if (lcfg->get_autoindex()) {
-            autoindex = lcfg->get_autoindex();
+        matched_path = lcfg_p;
+        for (auto it = lcfg_v.rbegin(); it != lcfg_v.rend(); ++it) {
+            auto& lcfg = *it;
+
+            if (!root && lcfg->get_root()) {
+                root = lcfg->get_root();
+            }
+            if (!index_pages && lcfg->get_index_pages()) {
+                index_pages = lcfg->get_index_pages();
+            }
+            if (!error_pages && lcfg->get_error_pages()) {
+                error_pages = lcfg->get_error_pages();
+            }
+            if (!use_cgi && lcfg->get_use_cgi()) {
+                use_cgi = lcfg->get_use_cgi();
+            }
+            if (!allowed_methods && lcfg->get_allowed_methods()) {
+                allowed_methods = lcfg->get_allowed_methods();
+            }
+            if (!autoindex && lcfg->get_autoindex()) {
+                autoindex = lcfg->get_autoindex();
+            }
         }
     }
 
@@ -394,7 +415,6 @@ auto match_base_config(RootConfig const& rcfg, http::HttpRequest& req) -> BaseCo
     if (!autoindex && scfg.get_autoindex()) {
         autoindex = scfg.get_autoindex();
     }
-
     if (!root && hcfg.get_root()) {
         root = hcfg.get_root();
     }
@@ -413,7 +433,7 @@ auto match_base_config(RootConfig const& rcfg, http::HttpRequest& req) -> BaseCo
     if (!autoindex && hcfg.get_autoindex()) {
         autoindex = hcfg.get_autoindex();
     }
-    return BaseConfig(root, index_pages, error_pages, use_cgi, allowed_methods, autoindex);
+    return tuple { BaseConfig(root, index_pages, error_pages, use_cgi, allowed_methods, autoindex), matched_path };
 }
 
 auto main() -> int
@@ -479,7 +499,7 @@ auto main() -> int
                         auto builder = HttpResponseBuilder();
                         builder.status(http::HTTP_STATUS_NOT_FOUND);
 
-                        const auto bcfg = match_base_config(cfg, req);
+                        const auto [bcfg, matched_path] = match_base_config(cfg, req);
                         {
                             bool method_allowed = false;
                             auto allowed_methods = bcfg.get_allowed_methods();
@@ -506,7 +526,7 @@ auto main() -> int
                             auto const& root = bcfg.get_root();
 
                             if (root) {
-                                auto search_path = *root + req.getPath();
+                                auto search_path = *root + matched_path;
                                 DBGPRINT("Search path: " << search_path);
                                 try {
                                     auto file = BoxPtr(fs::File::open_no_traversal(search_path));
@@ -520,7 +540,6 @@ auto main() -> int
                                             auto dir = BoxPtr<DirectoryBody>::make(search_path, path);
                                             return HttpResponseBuilder()
                                                 .status(http::HTTP_STATUS_OK)
-                                                .header(http::header::TRANSFER_ENCODING, "chunked")
                                                 .body(std::move(dir))
                                                 .build();
                                         } catch (std::invalid_argument& e) {
