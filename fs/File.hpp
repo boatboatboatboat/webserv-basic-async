@@ -17,6 +17,7 @@ public:
     static auto open(std::string const& path) -> File;
     static auto open_no_traversal(std::string const& path) -> File;
     static auto from_raw_fd(int fd) -> File;
+    auto size() -> size_t;
 private:
     explicit File(FileDescriptor&& fd);
 };

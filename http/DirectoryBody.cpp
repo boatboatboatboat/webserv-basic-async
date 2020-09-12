@@ -4,7 +4,7 @@
 
 #include "DirectoryBody.hpp"
 
-http::DirectoryBody::DirectoryBody(const std::string& str)
+http::DirectoryBody::DirectoryBody(const std::string& str, std::string const& real_pathstr)
 {
     std::string no_traversal = str;
 
@@ -27,8 +27,14 @@ http::DirectoryBody::DirectoryBody(const std::string& str)
         throw std::system_error(errno, std::system_category());
     }
     path = no_traversal;
-    if (!path.ends_with('/'))
-        path = no_traversal + "/";
+    while (path.ends_with('/'))
+        path.pop_back();
+    path += "/";
+
+    real_path = real_pathstr;
+    while (real_path.ends_with('/'))
+        real_path.pop_back();
+    real_path += "/";
 }
 
 // FIXME: pageend not written?
@@ -41,7 +47,7 @@ auto http::DirectoryBody::poll_read(char* buffer, size_t size, Waker&& waker) ->
         switch (state) {
         case PageStart: {
             state = DirName;
-            cur = path;
+            cur = real_path;
         } break;
         case DirName: {
             state = PageStart2;
@@ -49,7 +55,7 @@ auto http::DirectoryBody::poll_read(char* buffer, size_t size, Waker&& waker) ->
         } break;
         case PageStart2: {
             state = DirName2;
-            cur = path;
+            cur = real_path;
         } break;
         case DirName2: {
             state = PageStart3;
@@ -67,7 +73,7 @@ auto http::DirectoryBody::poll_read(char* buffer, size_t size, Waker&& waker) ->
         } break;
         case FileLinkStart: {
             state = FileLinkPath;
-            cur = path;
+            cur = real_path;
         } break;
         case FileLinkPath: {
             state = FileLinkName;

@@ -13,7 +13,7 @@ namespace http {
 
 class DirectoryBody: public ioruntime::IAsyncRead {
 public:
-    explicit DirectoryBody(std::string const& str);
+    explicit DirectoryBody(std::string const& str, std::string const& real_pathstr);
     ~DirectoryBody() override;
     auto poll_read(char* buffer, size_t size, Waker&& waker) -> PollResult<ssize_t> override;
 private:
@@ -40,6 +40,7 @@ private:
     } state = PageStart;
     DIR* dir;
     std::string path;
+    std::string real_path;
     dirent* dirent;
     std::string_view cur = PAGE_START;
 };

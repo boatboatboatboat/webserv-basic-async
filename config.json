@@ -8,8 +8,8 @@
                     "127.0.0.1:1234"
                 ],
                 "locations": {
-                    "/": {
-                        "root": "/Users/abobas/ft_webserver/html",
+                    "^/": {
+                        "root": "/home/boat/CLionProjects/webserv-ssh/",
                         "index": [
                             "index.html",
                             "index.php"
@@ -19,42 +19,17 @@
                         ],
                         "autoindex": true
                     },
-                    "/assets": {
-                        "root": "/Users/abobas/ft_webserver/html/assets",
+                    "^/dirtest": {
+                        "root": "/home/boat/CLionProjects/webserv-ssh/ioruntime",
                         "index": [
                             "index.html",
                             "index.php"
                         ],
-                        "allowed_methods": [
-                            "GET"
-                        ],
-                        "autoindex": true
-                    }
-                }
-            },
-            {
-                "names": ["localhost"],
-                "listen": [
-                    "[::1]:1234"
-                ],
-                "locations": {
-                    "/": {
-                        "root": "/Users/abobas/ft_webserver/html",
-                        "index": [
-                            "index.html",
-                            "index.php"
-                        ],
-                        "allowed_methods": [
-                            "GET"
-                        ],
-                        "autoindex": true
-                    },
-                    "/assets": {
-                        "root": "/Users/abobas/ft_webserver/html/assets",
-                        "index": [
-                            "index.html",
-                            "index.php"
-                        ],
+                        "locations": {
+                            "\\.php$": {
+                                "binary": "/usr/bin/php-cgi"
+                            }
+                        },
                         "allowed_methods": [
                             "GET"
                         ],

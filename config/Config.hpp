@@ -13,6 +13,7 @@
 #include <map>
 #include "../net/IpAddress.hpp"
 #include "../http/HttpMethod.hpp"
+#include "../regex/Regex.hpp"
 
 using std::optional;
 using std::vector;
@@ -43,20 +44,20 @@ private:
 
 class LocationConfig: public BaseConfig {
 public:
-    explicit LocationConfig(BaseConfig&& base);
+    explicit LocationConfig(optional<map<Regex, LocationConfig>>&&, BaseConfig&& base);
+    [[nodiscard]] auto get_locations() const -> optional<map<Regex, LocationConfig>> const&;
 private:
+    optional<map<Regex, LocationConfig>> locations;
 };
 
-class ServerConfig: public BaseConfig {
+class ServerConfig: public LocationConfig {
 public:
-    ServerConfig(optional<vector<string>>&& server_names, optional<vector<tuple<IpAddress, uint16_t>>>&& bind_addresses, optional<map<string, LocationConfig>>&& locations, BaseConfig&& bc);
+    ServerConfig(optional<vector<string>>&& server_names, optional<vector<tuple<IpAddress, uint16_t>>>&& bind_addresses, optional<map<Regex, LocationConfig>>&& locations, BaseConfig&& bc);
     [[nodiscard]] auto get_server_names() const -> optional<vector<string>> const&;
     [[nodiscard]] auto get_bind_addresses() const -> optional<vector<tuple<IpAddress, uint16_t>>> const&;
-    [[nodiscard]] auto get_locations() const -> optional<map<string, LocationConfig>> const&;
 private:
     optional<vector<string>> server_names;
     optional<vector<tuple<IpAddress, uint16_t>>> bind_addresses;
-    optional<map<string, LocationConfig>> locations;
 };
 
 class HttpConfig: public BaseConfig {

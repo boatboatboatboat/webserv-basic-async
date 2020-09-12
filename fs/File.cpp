@@ -69,3 +69,14 @@ auto fs::File::from_raw_fd(int fd) -> fs::File
 
     return fs::File(FileDescriptor(fd));
 }
+
+auto fs::File::size() -> size_t
+{
+    struct stat sbuf {};
+
+    if (fstat(get_descriptor(), &sbuf)) {
+        throw std::system_error(errno, std::system_category());
+    }
+
+    return sbuf.st_size;
+}

@@ -3,11 +3,11 @@
 #include <iostream>
 #include <netinet/in.h>
 
-#include "http/DirectoryBody.hpp"
 #include "config/Config.hpp"
 #include "fs/File.hpp"
 #include "futures/ForEachFuture.hpp"
 #include "futures/SelectFuture.hpp"
+#include "http/DirectoryBody.hpp"
 #include "http/HttpParser.hpp"
 #include "http/HttpRequest.hpp"
 #include "http/HttpResponse.hpp"
@@ -20,6 +20,7 @@
 #include "ioruntime/TimeoutFuture.hpp"
 #include "net/SocketAddr.hpp"
 #include "net/TcpListener.hpp"
+#include "regex/Regex.hpp"
 #include "utils/utils.hpp"
 #include "json/Json.hpp"
 #include <csignal>
@@ -163,6 +164,21 @@ auto base_config_from_json(json::Json const& config) -> BaseConfig
         config_autoindex);
 }
 
+auto recursive_locations(json::Json const& cfg) -> optional<map<Regex, LocationConfig>>
+{
+    map<Regex, LocationConfig> locations;
+
+    for (auto& [name, obj] : cfg["locations"].object_items()) {
+        locations.insert(
+            std::make_pair(
+                Regex(name),
+                LocationConfig(
+                    recursive_locations(obj),
+                    base_config_from_json(obj))));
+    }
+    return locations.empty() ? std::nullopt : optional { locations };
+}
+
 auto config_from_json(json::Json const& config) -> RootConfig
 {
     if (!config["http"].is_object())
@@ -249,17 +265,10 @@ auto config_from_json(json::Json const& config) -> RootConfig
                 throw std::runtime_error("bind_addresses is not an array");
             }
 
-            optional<map<string, LocationConfig>> locations = std::nullopt;
+            optional<map<Regex, LocationConfig>> locations = std::nullopt;
 
             if (server["locations"].is_object()) {
-                map<string, LocationConfig> locs;
-                for (auto& [name, obj] : server["locations"].object_items()) {
-                    auto location = LocationConfig(base_config_from_json(obj));
-
-                    locs.insert(std::make_pair(name, std::move(location)));
-                }
-
-                locations = std::optional { locs };
+                locations = recursive_locations(server);
             } else if (!server["locations"].is_null()) {
                 throw std::runtime_error("server.location is not a map");
             }
@@ -304,18 +313,33 @@ auto match_server(string_view host, vector<ServerConfig> const& servers) -> Serv
     return servers.at(0);
 }
 
-auto match_location(ServerConfig const& server, http::HttpRequest& req) -> optional<LocationConfig const*> {
-    if (server.get_locations().has_value()) {
-        for (auto const& [lstr, lcfg] : *server.get_locations()) {
-            if (req.getPath().starts_with(lstr)) {
-                return std::optional { &lcfg };
+auto match_location(LocationConfig const& cfg, http::HttpRequest& req) -> optional<LocationConfig const*>
+{
+    LocationConfig const* lout = nullptr;
+    ptrdiff_t len = -1;
+
+    if (cfg.get_locations().has_value()) {
+        for (auto const& [pattern, lcfg] : *cfg.get_locations()) {
+            auto const& gp = req.getPath();
+            const char* end;
+
+            if (pattern.match(gp.c_str(), &end) != nullptr) {
+                ptrdiff_t diff = end - gp.c_str();
+                if (diff > len) {
+                    lout = &lcfg;
+                    len = diff;
+                }
             }
         }
     }
-    return std::nullopt;
+    if (lout != nullptr) {
+        
+    }
+    return lout == nullptr ? std::nullopt : std::optional { lout };
 }
 
-auto match_base_config(RootConfig const& rcfg, http::HttpRequest& req) -> BaseConfig {
+auto match_base_config(RootConfig const& rcfg, http::HttpRequest& req) -> BaseConfig
+{
     auto host = req.getHeader(http::header::HOST);
 
     auto const& hcfg = rcfg.get_http_config();
@@ -452,6 +476,9 @@ auto main() -> int
                         auto method = req.getMethod();
                         auto path = req.getPath();
 
+                        auto builder = HttpResponseBuilder();
+                        builder.status(http::HTTP_STATUS_NOT_FOUND);
+
                         const auto bcfg = match_base_config(cfg, req);
                         {
                             bool method_allowed = false;
@@ -469,50 +496,47 @@ auto main() -> int
                             }
 
                             if (!method_allowed) {
-                                return HttpResponseBuilder()
-                                    .status(http::HTTP_STATUS_METHOD_NOT_ALLOWED)
-                                    .version(http::HTTP_VERSION_1_1)
-                                    .header(http::header::CONNECTION, "close")
-                                    .build();
+                                return std::move(builder).build();
                             }
                         }
+
+                        // find files
                         {
                             auto auto_index = bcfg.get_autoindex().value_or(false);
+                            auto const& root = bcfg.get_root();
 
-                            try {
-                                auto file = BoxPtr(fs::File::open_no_traversal(req.getPath()));
-                                return HttpResponseBuilder()
-                                    .status(http::HTTP_STATUS_OK)
-                                    .version(http::HTTP_VERSION_1_1)
-                                    .body(std::move(file))
-                                    .header(http::header::CONNECTION, "close")
-                                    .build();
-                            } catch (std::invalid_argument& e) {
-                                if (auto_index) {
-                                    try {
-                                        auto dir = BoxPtr<DirectoryBody>::make(req.getPath());
-                                        return HttpResponseBuilder()
-                                            .status(http::HTTP_STATUS_OK)
-                                            .version(http::HTTP_VERSION_1_1)
-                                            .body(std::move(dir))
-                                            .header(http::header::CONNECTION, "close")
-                                            .build();
-                                    } catch (std::invalid_argument& e) {
-                                        // we catch "no such file",
-                                        // but we allow other throws
-                                        // this way the server will throw 500 on an actual error
+                            if (root) {
+                                auto search_path = *root + req.getPath();
+                                DBGPRINT("Search path: " << search_path);
+                                try {
+                                    auto file = BoxPtr(fs::File::open_no_traversal(search_path));
+                                    auto file_size = file->size();
+                                    builder.status(http::HTTP_STATUS_OK)
+                                        .body(std::move(file), file_size);
+                                    return builder.build();
+                                } catch (std::invalid_argument& e) {
+                                    if (auto_index) {
+                                        try {
+                                            auto dir = BoxPtr<DirectoryBody>::make(search_path, path);
+                                            return HttpResponseBuilder()
+                                                .status(http::HTTP_STATUS_OK)
+                                                .header(http::header::TRANSFER_ENCODING, "chunked")
+                                                .body(std::move(dir))
+                                                .build();
+                                        } catch (std::invalid_argument& e) {
+                                            // we catch "no such file",
+                                            // but we allow other throws
+                                            // this way the server will throw 500 on an actual error
+                                        }
                                     }
+                                    return HttpResponseBuilder()
+                                        .status(http::HTTP_STATUS_NOT_FOUND)
+                                        .build();
                                 }
-                                return HttpResponseBuilder()
-                                    .status(http::HTTP_STATUS_NOT_FOUND)
-                                    .version(http::HTTP_VERSION_1_1)
-                                    .header(http::header::CONNECTION, "close")
-                                    .build();
                             }
                         }
                         return HttpResponseBuilder()
                             .status(http::HTTP_STATUS_NOT_FOUND)
-                            .version(http::HTTP_VERSION_1_1)
                             .build();
                     }));
                 }
