@@ -14,7 +14,7 @@ namespace ioruntime {
 
 class IAsyncWrite {
 public:
-    virtual PollResult<ssize_t> poll_write(const char* buffer, size_t size, Waker&& waker) = 0;
+    virtual auto poll_write(const char* buffer, size_t size, Waker&& waker) -> PollResult<ssize_t> = 0;
 };
 
 }

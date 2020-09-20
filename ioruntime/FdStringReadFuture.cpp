@@ -8,7 +8,7 @@ ioruntime::FdStringReadFuture::FdStringReadFuture(FileDescriptor&& fd, std::stri
 {
 }
 
-futures::PollResult<void> ioruntime::FdStringReadFuture::poll(futures::Waker&& waker)
+auto ioruntime::FdStringReadFuture::poll(futures::Waker&& waker) -> futures::PollResult<void>
 {
     char buf[128];
 

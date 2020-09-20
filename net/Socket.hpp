@@ -12,11 +12,11 @@ namespace net {
 class Socket : public ioruntime::FileDescriptor {
 public:
     explicit Socket(int fd);
-    static Socket uninitialized();
+    static auto uninitialized() -> Socket;
     Socket(Socket&& other) noexcept;
     ~Socket() override;// = default;
-    ssize_t read(char* buffer, size_t size) override;
-    ssize_t write(const char* buffer, size_t size) override;
+    auto read(char* buffer, size_t size) -> ssize_t override;
+    auto write(const char* buffer, size_t size) -> ssize_t override;
 
 private:
     Socket();

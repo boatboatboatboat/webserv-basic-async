@@ -1,1 +1,46 @@
-hello
+{
+    "workers": 4,
+    "http": {
+        "servers": [
+            {
+                "names": [
+                    "localhost"
+                ],
+                "listen": [
+                    "127.0.0.1:1234"
+                ],
+                "locations": {
+                    "^/": {
+                        "root": "/home/boat/CLionProjects/webserv-basic-async2/",
+                        "index": [
+                            "index.html",
+                            "index.php"
+                        ],
+                        "allowed_methods": [
+                            "GET"
+                        ],
+                        "autoindex": true
+                    },
+                    "^/dirtest/?": {
+                        "root": "/home/boat/CLionProjects/webserv-basic-async2/ioruntime",
+                        "index": [
+                            "index.html",
+                            "index.php"
+                        ],
+                        "locations": {
+                            "\\.cpp$": {
+                                "final": true,
+                                "root": "/",
+                                "cgi-binary": "/usr/bin/php-cgi"
+                            }
+                        },
+                        "allowed_methods": [
+                            "GET"
+                        ],
+                        "autoindex": true
+                    }
+                }
+            }
+        ]
+    }
+}

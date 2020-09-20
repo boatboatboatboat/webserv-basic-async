@@ -6,7 +6,7 @@
 
 namespace utils {
 
-void* ft_memcpy(void* dest, void const* src, size_t length)
+auto ft_memcpy(void* dest, void const* src, size_t length) -> void*
 {
     if (dest == src)
         return (dest);

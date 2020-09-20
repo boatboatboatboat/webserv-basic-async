@@ -9,8 +9,8 @@
 
 using mutex::Mutex;
 
-template <class T, class U>
-concept Derived = std::is_base_of<U, T>::value;
+//template <class T, class U>
+//concept Derived = std::is_base_of<U, T>::value;
 
 namespace boxed {
 template <typename T>
@@ -20,7 +20,7 @@ public:
 
     RcPtr()
     {
-        this->refs_mutex = new Mutex<unsigned long>(1);
+        this->refs_mutex = new Mutex<uint64_t>(1);
         this->inner = new (std::nothrow) T();
         if (this->inner == nullptr) {
             delete this->refs_mutex;
@@ -28,9 +28,10 @@ public:
         }
     }
 
+
     explicit RcPtr(T&& other)
     {
-        this->refs_mutex = new Mutex<unsigned long>(1);
+        this->refs_mutex = new Mutex<uint64_t>(1);
         this->inner = new (std::nothrow) T(std::move(other));
         if (this->inner == nullptr) {
             delete this->refs_mutex;
@@ -49,31 +50,62 @@ public:
         return RcPtr<T>(0, 0);
     }
 
-    template<Derived<T> U>
-    RcPtr(RcPtr<U>& other)
+    //template<Derived<T> U>
+    template<typename U>
+    RcPtr(RcPtr<U> const& other)
     {
         {
             auto refs = other.get_raw_mutex()->lock();
             *refs += 1;
         }
         this->refs_mutex = other.get_raw_mutex();
-        this->inner = other.inner;
+        this->inner = const_cast<T*>(other.get());
     }
 
-    template<Derived<T> U>
-    RcPtr& operator=(RcPtr<U>& other)
+    RcPtr(RcPtr const& other) {
+        {
+            auto refs = other.get_raw_mutex()->lock();
+            *refs += 1;
+        }
+        this->refs_mutex = other.get_raw_mutex();
+        this->inner = const_cast<T*>(other.get());
+    }
+
+    //template<Derived<T> U>
+    template<typename U>
+    RcPtr& operator=(RcPtr<U> const& other)
     {
         {
             auto refs = other.get_raw_mutex()->lock();
             *refs += 1;
         }
         this->refs_mutex = other.get_raw_mutex();
-        this->control = other.control;
+        this->inner = const_cast<T*>(other.get());
         return *this;
     }
 
-    template<Derived<T> U>
+    RcPtr& operator=(RcPtr const& other)
+    {
+        {
+            auto refs = other.get_raw_mutex()->lock();
+            *refs += 1;
+        }
+        this->refs_mutex = other.get_raw_mutex();
+        this->inner = const_cast<T*>(other.get());
+        return *this;
+    }
+
+    //template<Derived<T> U>
+    template<typename U>
     RcPtr& operator=(RcPtr<U>&& other)
+    {
+        this->refs_mutex = other.get_raw_mutex();
+        this->inner = other.get();
+        other.leak();
+        return *this;
+    }
+
+    RcPtr& operator=(RcPtr&& other)
     {
         this->refs_mutex = other.get_raw_mutex();
         this->inner = other.inner;
@@ -81,8 +113,16 @@ public:
         return *this;
     }
 
-    template<Derived<T> U>
+    template<typename U>
     RcPtr(RcPtr<U>&& other)
+    {
+        this->refs_mutex = other.get_raw_mutex();
+        this->inner = other.get();
+        other.leak();
+    }
+
+
+    RcPtr(RcPtr&& other)
     {
         this->refs_mutex = other.get_raw_mutex();
         this->inner = other.get();
@@ -103,7 +143,12 @@ public:
 
     void leak() { this->inner = nullptr; this->refs_mutex = nullptr; }
 
-    Mutex<unsigned long>* get_raw_mutex() { return this->refs_mutex; }
+    uint64_t count() {
+        auto refs = refs_mutex->lock();
+        return *refs;
+    }
+
+    Mutex<uint64_t>* get_raw_mutex() const { return this->refs_mutex; }
 
     ~RcPtr()
     {
@@ -129,7 +174,7 @@ public:
 private:
     explicit RcPtr(int a, int b);
     T* inner;
-    Mutex<unsigned long>* refs_mutex;
+    Mutex<uint64_t>* refs_mutex;
 };
 
 template <typename T>
@@ -141,6 +186,7 @@ RcPtr<T>::RcPtr(int a, int b)
     this->refs_mutex = nullptr;
 }
 
+/*
 template<typename T, size_t N>
 class RcPtr<T[N]> {
 public:
@@ -260,6 +306,7 @@ private:
     Mutex<unsigned long>* refs_mutex;
 };
 
+ */
 template<typename T, typename U>
 bool operator==(RcPtr<T> const& lhs, RcPtr<U> const& rhs) noexcept {
     return lhs.get() == rhs.get();

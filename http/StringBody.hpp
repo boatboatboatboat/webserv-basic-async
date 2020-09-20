@@ -9,10 +9,11 @@
 
 namespace http {
 
-class StringBody: public ioruntime::IAsyncRead {
+class StringBody : public ioruntime::IAsyncRead {
 public:
-    explicit StringBody(std::string  body);
-    PollResult<ssize_t> poll_read(char* buffer, size_t size, Waker&& waker) override;
+    explicit StringBody(std::string body);
+    auto poll_read(char* buffer, size_t size, Waker&& waker) -> PollResult<ssize_t> override;
+
 private:
     std::string body;
     size_t written {};

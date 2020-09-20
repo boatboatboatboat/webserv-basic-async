@@ -6,7 +6,7 @@
 
 namespace utils {
 
-size_t strlen(const char* s) {
+auto strlen(const char* s) -> size_t {
     size_t l;
     for (l = 0; s[l]; l += 1)
         continue;

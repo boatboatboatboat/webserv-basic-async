@@ -5,15 +5,27 @@
 #ifndef WEBSERV_HTTPRESPONSE_HPP
 #define WEBSERV_HTTPRESPONSE_HPP
 
+#include "../net/Socket.hpp"
 #include "DefaultPageBody.hpp"
 #include "HttpHeader.hpp"
 #include "HttpRequest.hpp"
 #include "HttpRfcConstants.hpp"
 #include "HttpStatus.hpp"
 #include "HttpVersion.hpp"
-#include "../net/Socket.hpp"
 #include <map>
 #include <string>
+
+// Get the max size of the buffer to store a chunked transfer size in
+static inline constexpr auto get_max_num_size(size_t s) -> size_t
+{
+    // gets the length of a number in hex notation, + 1
+    size_t n = 0;
+    do {
+        n += 1;
+        s /= 16;
+    } while (s);
+    return n + 1;
+}
 
 namespace http {
 
@@ -22,11 +34,12 @@ class HttpResponse;
 class HttpResponseBuilder {
 public:
     HttpResponseBuilder();
-    HttpResponseBuilder& version(HttpVersion version);
-    HttpResponseBuilder& status(HttpStatus status);
-    HttpResponseBuilder& header(HttpHeaderName name, HttpHeaderValue value);
-    HttpResponseBuilder& body(BoxPtr<ioruntime::IAsyncRead>&& body);
-    HttpResponse build();
+    auto version(HttpVersion version) -> HttpResponseBuilder&;
+    auto status(HttpStatus status) -> HttpResponseBuilder&;
+    auto header(HttpHeaderName name, const HttpHeaderValue& value) -> HttpResponseBuilder&;
+    auto body(BoxPtr<ioruntime::IAsyncRead>&& body) -> HttpResponseBuilder&;
+    auto body(BoxPtr<ioruntime::IAsyncRead>&& body, size_t content_length) -> HttpResponseBuilder&;
+    auto build() -> HttpResponse;
 
 private:
     std::map<HttpHeaderName, HttpHeaderValue> _headers;
@@ -37,15 +50,18 @@ private:
 
 class HttpResponse {
 public:
-
     HttpResponse();
-    explicit HttpResponse(std::map<HttpHeaderName, HttpHeaderValue>&& response_headers, HttpStatus status, BoxPtr<ioruntime::IAsyncRead>&& response_body);
+    explicit HttpResponse(
+        std::map<HttpHeaderName, HttpHeaderValue>&& response_headers,
+        HttpStatus status,
+        BoxPtr<ioruntime::IAsyncRead>&& response_body);
     HttpResponse(HttpResponse&& other) noexcept;
 
-    HttpResponse& operator=(HttpResponse&& other) noexcept;
+    auto operator=(HttpResponse&& other) noexcept -> HttpResponse&;
     virtual ~HttpResponse();
-    PollResult<void> poll_respond(net::Socket& socket, Waker&& waker);
-    bool write_response(net::Socket& socket, Waker&& waker);
+    auto poll_respond(net::Socket& socket, Waker&& waker) -> PollResult<void>;
+    auto write_response(net::Socket& socket, Waker&& waker) -> bool;
+
 private:
     enum State {
         WriteStatusVersion,
@@ -60,11 +76,18 @@ private:
         WriteHeaderCRLF,
         WriteSeperatorCLRF,
         ReadBody,
-        WriteBody
+        WriteBody,
+        WriteChunkedBodySize,
+        WriteChunkedBodyCLRF1,
+        WriteChunkedBody,
+        WriteChunkedBodyCLRF2,
+        WriteChunkedBodyEof
     };
-    char buf[128] { };
+    char buf[8192] {};
+    char num[get_max_num_size(sizeof(buf))] {};
     State state { WriteStatusVersion };
     std::string_view current;
+    std::string_view body_view;
     ssize_t written { 0 };
     std::map<HttpHeaderName, HttpHeaderValue> response_headers;
     std::map<HttpHeaderName, HttpHeaderValue>::const_iterator header_it;
@@ -74,6 +97,5 @@ private:
 };
 
 }
-
 
 #endif //WEBSERV_HTTPRESPONSE_HPP

@@ -37,7 +37,7 @@ private:
         int unique;
     };
     typedef std::multimap<int, CallbackInfo> Listeners;
-    static bool fire_listeners_for(int fd, fd_set& selected, Mutex<Listeners>& listeners);
+    static auto fire_listeners_for(int fd, fd_set& selected, Mutex<Listeners>& listeners) -> bool;
     void register_callback(int fd, BoxFunctor&& x, Mutex<Listeners>& listeners, Mutex<fd_set>& set, bool once, int unique);
 
     Mutex<fd_set> read_fds = Mutex(fd_set {});

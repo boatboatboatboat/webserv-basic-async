@@ -8,6 +8,7 @@
 #include "cstr.hpp"
 #include "mem_zero.hpp"
 #include <string>
+#include "span.hpp"
 
 void dbg_puts(std::string const& printme);
 

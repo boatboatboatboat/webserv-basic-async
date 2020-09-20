@@ -16,7 +16,7 @@ public:
     virtual ~HttpParser();
 
     std::string getBody();
-    std::string getHeader(const std::string& name);
+    std::string getHeader(std::string_view name);
     std::map<std::string, std::string> getHeaders();
     std::string getMethod();
     std::string getURL();

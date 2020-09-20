@@ -31,11 +31,11 @@ public:
 
     ~MutexGuard();
 
-    T& operator*();
+    auto operator*() -> T&;
 
-    T* operator->();
+    auto operator->() -> T*;
 
-    T& get();
+    auto get() -> T&;
 
 private:
     Mutex<T>& mutex;
@@ -62,26 +62,26 @@ public:
 
     Mutex(const Mutex&) = delete;
     Mutex& operator=(Mutex const&) = delete;
-    Mutex(Mutex&& other);
+    Mutex(Mutex&& other) noexcept ;
     Mutex& operator=(Mutex&&) = default;
 
     explicit Mutex(T&& inner);
 
     template <typename... Args>
-    static Mutex<T> make(Args&&... args);
+    static auto make(Args&&... args) -> Mutex<T>;
 
     ~Mutex();
 
-    MutexGuard<T> lock();
+    auto lock() -> MutexGuard<T>;
 
 #ifdef DEBUG_MUTEX
     MutexGuard<T> dbglock(const char* fin, int line, const char* fun);
 #endif
 
 private:
-    pthread_mutex_t& get_inner_mutex();
+    auto get_inner_mutex() -> pthread_mutex_t&;
 
-    T& get_inner_type();
+    auto get_inner_type() -> T&;
 
     pthread_mutex_t inner_mutex;
 #ifdef DEBUG_MUTEX_CANARY
@@ -127,10 +127,10 @@ public:
     Mutex(const Mutex&) = delete;
     Mutex& operator=(Mutex const&) = delete;
 
-    MutexGuard<void> lock();
+    auto lock() -> MutexGuard<void>;
 
 private:
-    pthread_mutex_t& get_inner_mutex();
+    auto get_inner_mutex() -> pthread_mutex_t&;
 
     pthread_mutex_t inner_mutex;
 };

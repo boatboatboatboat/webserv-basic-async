@@ -16,7 +16,7 @@ namespace ioruntime {
 class FdStringReadFuture : public IFuture<void> {
 public:
     explicit FdStringReadFuture(FileDescriptor&& fd, std::string& str);
-    futures::PollResult<void> poll(futures::Waker&& waker) override;
+    auto poll(futures::Waker&& waker) -> futures::PollResult<void> override;
 private:
     FileDescriptor fd;
     std::string& str;

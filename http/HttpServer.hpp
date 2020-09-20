@@ -47,7 +47,7 @@ private:
 
 public:
     HttpServer() = delete;
-    explicit HttpServer(uint16_t port, RH fn);
+    explicit HttpServer(net::IpAddress address, uint16_t port, RH fn);
     PollResult<void> poll(Waker&& waker) override;
     static void handle_connection(net::TcpStream& stream);
     static void handle_exception(std::exception& e);

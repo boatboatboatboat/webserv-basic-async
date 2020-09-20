@@ -11,7 +11,7 @@ DefaultPageBody::DefaultPageBody(HttpStatus code)
 {
 }
 
-PollResult<ssize_t> DefaultPageBody::poll_read(char* buffer, size_t size, Waker&& waker)
+auto DefaultPageBody::poll_read(char* buffer, size_t size, Waker&& waker) -> PollResult<ssize_t>
 {
     char buf[16];
     std::string_view str;

@@ -6,6 +6,7 @@
 #include "../utils/utils.hpp"
 #include "GlobalIoEventHandler.hpp"
 #include <sys/select.h>
+#include "GlobalTimeoutEventHandler.hpp"
 
 namespace ioruntime {
 IoEventHandler::IoEventHandler()
@@ -36,10 +37,9 @@ void IoEventHandler::reactor_step()
         utils::memcpy(special_selected, *fds);
     }
 
-    // TODO: timeout event handler should have some influence over the select timeout
     struct timeval tv {
-        .tv_sec = 1,
-        .tv_usec = 0
+        .tv_sec = 0,
+        .tv_usec = GlobalTimeoutEventHandler::is_clocks_empty() ? 5000 : 0
     };
 
     int max;
@@ -49,7 +49,6 @@ void IoEventHandler::reactor_step()
     }
 
     int selected = select(max + 1, &read_selected, &write_selected, &special_selected, &tv);
-
     if (selected > 0) {
         {
             std::map<int, bool> fds;
@@ -115,7 +114,8 @@ void IoEventHandler::register_reader_callback(int fd, BoxFunctor&& x, bool once,
 }
 
 void IoEventHandler::register_writer_callback(int fd, BoxFunctor&& x, bool once, int unique)
-{    {
+{
+    {
         auto fds = write_fd_in_use.lock();
         auto pair = fds->find(fd);
         if (pair == fds->end()) {

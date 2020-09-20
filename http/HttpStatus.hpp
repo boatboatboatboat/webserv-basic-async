@@ -5,8 +5,8 @@
 #ifndef WEBSERV_HTTPSTATUS_HPP
 #define WEBSERV_HTTPSTATUS_HPP
 
-#include <string>
 #include <iostream>
+#include <string>
 
 namespace http {
 
@@ -575,6 +575,35 @@ inline const HttpStatus HTTP_STATUS_IM_A_TEAPOT { 418, "I'm a teapot" };
 
 */
 inline const HttpStatus HTTP_STATUS_UPGRADE_REQUIRED { 426, "Upgrade Required" };
+
+/*
+The 431 status code indicates that the server is unwilling to process
+   the request because its header fields are too large.  The request MAY
+   be resubmitted after reducing the size of the request header fields.
+
+   It can be used both when the set of request header fields in total is
+   too large, and when a single header field is at fault.  In the latter
+   case, the response representation SHOULD specify which header field
+   was too large.
+
+   For example:
+
+   HTTP/1.1 431 Request Header Fields Too Large
+   Content-Type: text/html
+
+   <html>
+      <head>
+         <title>Request Header Fields Too Large</title>
+      </head>
+      <body>
+         <h1>Request Header Fields Too Large</h1>
+         <p>The "Example" header was too large.</p>
+      </body>
+   </html>
+
+   Responses with the 431 status code MUST NOT be stored by a cache.
+*/
+inline const HttpStatus HTTP_STATUS_REQUEST_HEADER_FIELDS_TOO_LARGE { 431, "Request Header Fields Too Large" };
 
 /*
    The 500 (Internal Server Error) status code indicates that the server

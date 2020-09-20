@@ -21,7 +21,7 @@ using ioruntime::GlobalIoEventHandler;
 
 namespace net {
 
-ssize_t Socket::read(char* buffer, size_t size)
+auto Socket::read(char* buffer, size_t size) -> ssize_t
 {
     // shhh don't tell anyone
     if (fcntl(descriptor, F_SETFL, O_NONBLOCK) < 0)
@@ -34,7 +34,7 @@ ssize_t Socket::read(char* buffer, size_t size)
     return recv(descriptor, buffer, size, 0);
 #endif
 }
-ssize_t Socket::write(const char* buffer, size_t size)
+auto Socket::write(const char* buffer, size_t size) -> ssize_t
 {
     // shhh don't tell anyone
     if (fcntl(descriptor, F_SETFL, O_NONBLOCK) < 0)
@@ -68,7 +68,7 @@ Socket::Socket()
 {
 }
 
-Socket net::Socket::uninitialized()
+auto net::Socket::uninitialized() -> Socket
 {
     return Socket();
 }

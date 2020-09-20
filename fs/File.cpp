@@ -5,6 +5,7 @@
 #include "File.hpp"
 
 #include <fcntl.h>
+#include <sys/stat.h>
 
 fs::File::File(FileDescriptor&& fd):
     FileDescriptor(std::move(fd))
@@ -12,7 +13,7 @@ fs::File::File(FileDescriptor&& fd):
 
 }
 
-fs::File fs::File::open_no_traversal(std::string const& path)
+auto fs::File::open_no_traversal(std::string const& path) -> fs::File
 {
     std::string no_traversal = path;
 
@@ -26,24 +27,56 @@ fs::File fs::File::open_no_traversal(std::string const& path)
     int fd = ::open(path.c_str(), O_RDONLY);
 
     if (fd == -1) {
-        throw std::runtime_error(strerror(errno));
+        if (errno == ENOENT) {
+            throw std::invalid_argument("No such file or directory");
+        }
+        DBGPRINT(strerror(errno));
+        throw std::system_error(errno, std::system_category());
     }
 
     return fs::File::from_raw_fd(fd);
 }
 
-fs::File fs::File::open(std::string const& path)
+auto fs::File::open(std::string const& path) -> fs::File
 {
     int fd = ::open(path.c_str(), O_RDONLY);
 
     if (fd == -1) {
-        throw std::runtime_error(strerror(errno));
+        if (errno == ENOENT) {
+            throw std::invalid_argument("No such file or directory");
+        }
+        throw std::system_error(errno, std::system_category());
     }
 
     return fs::File::from_raw_fd(fd);
 }
 
-fs::File fs::File::from_raw_fd(int fd)
+auto fs::File::from_raw_fd(int fd) -> fs::File
 {
+    struct stat sbuf {};
+
+    if (fstat(fd, &sbuf)) {
+        ::close(fd);
+        throw std::system_error(errno, std::system_category());
+    }
+
+    // this is a file class
+    // we only accept files
+    if (!S_ISREG(sbuf.st_mode)) {
+        ::close(fd);
+        throw std::invalid_argument("Is directory");
+    }
+
     return fs::File(FileDescriptor(fd));
+}
+
+auto fs::File::size() -> size_t
+{
+    struct stat sbuf {};
+
+    if (fstat(get_descriptor(), &sbuf)) {
+        throw std::system_error(errno, std::system_category());
+    }
+
+    return sbuf.st_size;
 }

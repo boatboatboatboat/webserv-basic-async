@@ -28,10 +28,11 @@ HttpResponse::HttpResponse(std::map<HttpHeaderName, HttpHeaderValue>&& response_
     if (this->response_body.get() == nullptr) {
         // fixme: _body is BoxPtr which is allocated, memory alloc error can't recover properly
         this->response_body = BoxPtr<DefaultPageBody>::make(status);
+        this->response_headers.insert(std::make_pair(http::header::TRANSFER_ENCODING, "chunked"));
     }
 }
 
-bool HttpResponse::write_response(net::Socket& socket, Waker&& waker)
+auto HttpResponse::write_response(net::Socket& socket, Waker&& waker) -> bool
 {
     auto str = current.data() + written;
     auto len = current.length() - written;
@@ -54,7 +55,7 @@ bool HttpResponse::write_response(net::Socket& socket, Waker&& waker)
     return false;
 }
 
-PollResult<void> HttpResponse::poll_respond(net::Socket& socket, Waker&& waker)
+auto HttpResponse::poll_respond(net::Socket& socket, Waker&& waker) -> PollResult<void>
 {
     TRACEPRINT("responder state: " << state);
     switch (state) {
@@ -94,26 +95,63 @@ PollResult<void> HttpResponse::poll_respond(net::Socket& socket, Waker&& waker)
         current = HTTP_CRLF;
     } break;
     case ReadBody: {
+        auto is_chunked = false;
+        if (response_headers.contains(http::header::TRANSFER_ENCODING)) {
+            // FIXME: bad chunked check
+            if (response_headers[http::header::TRANSFER_ENCODING].find("chunked") != std::string::npos) {
+                is_chunked = true;
+            }
+        }
+
         auto poll_result = response_body->poll_read(buf, sizeof(buf), Waker(waker));
         if (poll_result.is_pending())
             return PollResult<void>::pending();
         if (poll_result.get() == 0) {
-            INFOPRINT("end of body");
-            return PollResult<void>::ready();
+            if (is_chunked) {
+                current = "0\r\n\r\n";
+                state = WriteChunkedBodyEof;
+            } else {
+                TRACEPRINT("end of body");
+                return PollResult<void>::ready();
+            }
         }
-        current = std::string_view(buf, poll_result.get());
-        state = WriteBody;
+        body_view = std::string_view(buf, poll_result.get());
+        current = body_view;
+        if (is_chunked) {
+            state = WriteChunkedBodySize;
+            // FIXME: sprintf
+            std::sprintf(num, "%zx", body_view.length());
+        } else {
+            state = WriteBody;
+        }
         return poll_respond(socket, std::move(waker));
     } break;
     case WriteBody: {
-    //    current = buf;
+        // current is already set in previous step
+    } break;
+    case WriteChunkedBodySize: {
+        current = num;
+    } break;
+    case WriteChunkedBodyCLRF1: {
+        current = HTTP_CRLF;
+    } break;
+    case WriteChunkedBody: {
+        current = body_view;
+    } break;
+    case WriteChunkedBodyCLRF2: {
+        current = HTTP_CRLF;
+    } break;
+    case WriteChunkedBodyEof: {
+        // do nothing
     } break;
     }
-
     if (write_response(socket, Waker(waker))) {
-        if (state != WriteHeaderCRLF && state != WriteBody) {
+        if (state == WriteChunkedBodyEof) {
+            return PollResult<void>::ready();
+        }
+        if (state != WriteHeaderCRLF && state != WriteBody && state != WriteChunkedBodyCLRF2) {
             state = static_cast<State>(static_cast<int>(state) + 1);
-        } else if (state == WriteBody) {
+        } else if (state == WriteBody || state == WriteChunkedBodyCLRF2) {
             state = ReadBody;
         } else if (state == WriteHeaderCRLF) {
             ++header_it;
@@ -135,14 +173,14 @@ HttpResponse::HttpResponse(HttpResponse&& other) noexcept
 {
 }
 
-HttpResponse& HttpResponse::operator=(HttpResponse&& other) noexcept
+auto HttpResponse::operator=(HttpResponse&& other) noexcept -> HttpResponse&
 {
     if (&other == this) {
         return *this;
     }
 
     this->state = other.state;
-    this->current = std::move(other.current);
+    this->current = other.current;
     this->response_headers = std::move(other.response_headers);
     this->header_it = other.header_it;
     this->response_status = other.response_status;
@@ -151,25 +189,32 @@ HttpResponse& HttpResponse::operator=(HttpResponse&& other) noexcept
     return *this;
 }
 
-HttpResponseBuilder& HttpResponseBuilder::status(HttpStatus status)
+auto HttpResponseBuilder::status(HttpStatus status) -> HttpResponseBuilder&
 {
     _status = status;
     return *this;
 }
 
-HttpResponseBuilder& HttpResponseBuilder::header(HttpHeaderName name, HttpHeaderValue value)
+auto HttpResponseBuilder::header(HttpHeaderName name, const HttpHeaderValue& value) -> HttpResponseBuilder&
 {
     _headers.insert(std::pair<HttpHeaderName, HttpHeaderValue>(name, value));
     return *this;
 }
 
-HttpResponseBuilder& HttpResponseBuilder::body(BoxPtr<ioruntime::IAsyncRead>&& body)
+auto HttpResponseBuilder::body(BoxPtr<ioruntime::IAsyncRead>&& body) -> HttpResponseBuilder&
 {
     _body = std::move(body);
+    header(http::header::TRANSFER_ENCODING, "chunked");
     return *this;
 }
 
-HttpResponse HttpResponseBuilder::build()
+auto HttpResponseBuilder::body(BoxPtr<ioruntime::IAsyncRead>&& body, size_t content_length) -> HttpResponseBuilder&
+{
+    _body = std::move(body);
+    return header(http::header::CONTENT_LENGTH, std::to_string(content_length));
+}
+
+auto HttpResponseBuilder::build() -> HttpResponse
 {
     return HttpResponse(std::move(_headers), _status, std::move(_body));
 }
@@ -180,7 +225,7 @@ HttpResponseBuilder::HttpResponseBuilder()
 {
 }
 
-HttpResponseBuilder& HttpResponseBuilder::version(HttpVersion version)
+auto HttpResponseBuilder::version(HttpVersion version) -> HttpResponseBuilder&
 {
     _version = version;
     return *this;

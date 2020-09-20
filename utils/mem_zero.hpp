@@ -10,7 +10,7 @@
 namespace utils {
 
 void ft_bzero(void* string, size_t length);
-void *ft_memset(void* string, int c, size_t length);
+auto ft_memset(void* string, int c, size_t length) -> void *;
 
 template<typename T>
 void memset(T& t, int c)

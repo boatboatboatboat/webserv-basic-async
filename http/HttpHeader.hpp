@@ -11,13 +11,13 @@
 namespace http {
 
 using HttpHeaderName = std::string_view;
-using HttpHeaderValue = std::string_view;
+using HttpHeaderValue = std::string;
 
 class HttpHeader {
 public:
     HttpHeaderName name;
     HttpHeaderValue value;
-    bool operator==(HttpHeader const& other) const;
+    auto operator==(HttpHeader const& other) const -> bool;
 };
 
 namespace header {
@@ -34,6 +34,7 @@ namespace header {
     inline constexpr HttpHeaderName ORIGIN { "Origin" };
     inline constexpr HttpHeaderName UPGRADE { "Upgrade" };
     inline constexpr HttpHeaderName USER_AGENT { "User-Agent" };
+    inline constexpr HttpHeaderName TRANSFER_ENCODING { "Transfer-Encoding" };
 }
 
 }

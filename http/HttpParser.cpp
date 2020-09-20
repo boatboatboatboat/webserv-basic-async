@@ -6,6 +6,7 @@
 
 namespace http {
 
+// FIXME: throwable global ctor
 static std::string lineTerminator = "\r\n";
 
 static std::string toStringToken(std::string::iterator& it, std::string& str, std::string& token)
@@ -74,9 +75,9 @@ std::map<std::string, std::string> HttpParser::getHeaders()
     return this->headers;
 }
 
-std::string HttpParser::getHeader(const std::string& name)
+std::string HttpParser::getHeader(std::string_view name)
 {
-    std::string local_name = name;
+    std::string local_name(name);
 
     utils::toLower(local_name);
     if (!hasHeader(local_name))

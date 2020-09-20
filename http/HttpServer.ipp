@@ -14,8 +14,8 @@ using ioruntime::GlobalRuntime;
 namespace http {
 
 template <typename RH>
-HttpServer<RH>::HttpServer(uint16_t port, RH fn)
-    : listener(net::TcpListener(port).for_each<net::TcpListener>(handle_connection, handle_exception))
+HttpServer<RH>::HttpServer(net::IpAddress address, uint16_t port, RH fn)
+    : listener(net::TcpListener(address, port).for_each<net::TcpListener>(handle_connection, handle_exception))
 {
     // If we don't pass RH as a parameter,
     // we would have to write HttpServer<decltype(SOME_LAMBDA)>(PORT)
@@ -114,7 +114,6 @@ HttpServer<RH>::HttpConnectionFuture::HttpConnectionFuture(net::TcpStream&& pstr
 template <typename RH>
 HttpServer<RH>::HttpConnectionFuture::~HttpConnectionFuture() {
     if (parser.stream != nullptr) {
-        DBGPRINT("HttpConnectionFuture: connection finished");
     }
 }
 

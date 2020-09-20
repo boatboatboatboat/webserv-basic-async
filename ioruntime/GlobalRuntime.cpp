@@ -5,6 +5,7 @@
 #include "GlobalRuntime.hpp"
 
 namespace ioruntime {
+// FIXME: Global ctor can throw
 Mutex<Runtime*> GlobalRuntime::runtime(nullptr);
 
 void GlobalRuntime::set_runtime(ioruntime::Runtime* new_runtime)
@@ -13,7 +14,7 @@ void GlobalRuntime::set_runtime(ioruntime::Runtime* new_runtime)
     *guard = new_runtime;
 }
 
-Mutex<Runtime*>* GlobalRuntime::get()
+auto GlobalRuntime::get() -> Mutex<Runtime*>*
 {
     return &runtime;
 }
