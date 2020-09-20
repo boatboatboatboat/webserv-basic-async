@@ -5,13 +5,18 @@
 #ifndef WEBSERV_OPTIONAL_HPP
 #define WEBSERV_OPTIONAL_HPP
 
+#include "../utils/mem_copy.hpp"
 #include <algorithm>
 
 namespace option {
 
-struct nullopt_t {};
-constexpr nullopt_t nullopt {};
+struct nullopt_t {
+    explicit constexpr nullopt_t(int) {}
+};
+constexpr nullopt_t nullopt(0);
 
+// NOT std::optional!
+// optional datatype
 template <typename T>
 class optional {
 private:
@@ -19,14 +24,65 @@ private:
     union {
         T t;
     };
-
+    constexpr void t_set(const T& a) {
+        if (some) {
+            t = a;
+        } else {
+            new(&t) T(a);
+        }
+    }
+    constexpr void t_set(T&& a) {
+        if (some) {
+            t = std::move(a);
+        } else {
+            new(&t) T(std::move(a));
+        }
+    }
 public:
-    optional()
+    constexpr optional()
         : some(false)
     {
     }
-    optional(const nullopt_t)
+    constexpr optional(const nullopt_t)
         : some(false)
+    {
+    }
+    constexpr optional(optional const& other)
+    {
+        some = false;
+        if (other.some)
+            t_set(std::move(other.t));
+        some = other.some;
+    }
+    constexpr optional(optional&& other)
+    {
+        some = false;
+        if (other.some)
+            t_set(std::move(other.t));
+        some = other.some;
+        other.reset();
+    }
+    template <typename U>
+    optional(optional<U> const& other)
+    {
+        some = false;
+        if (other.some)
+            t_set(std::move(other.t));
+        some = other.some;
+    }
+    template <typename U>
+    optional(optional<U>&& other)
+    {
+        some = false;
+        if (other.some)
+            t_set(std::move(other.t));
+        some = other.some;
+        other.reset();
+    }
+    template <typename U = T>
+    optional(U&& value)
+        : some(true)
+        , t(std::forward<U>(value))
     {
     }
     ~optional()
@@ -34,11 +90,6 @@ public:
         reset();
     }
     static auto none() -> optional { return optional(); }
-    optional(T&& t)
-        : some(true)
-        , t(std::move(t))
-    {
-    }
     void reset() noexcept
     {
         if (some)
@@ -104,15 +155,36 @@ public:
     constexpr auto operator=(const optional& other) -> optional&
     {
         reset();
-        t = other.t;
+        if (other.some)
+            t_set(other.t);
         some = other.some;
         return *this;
     }
     constexpr auto operator=(optional&& other) noexcept -> optional&
     {
         reset();
+        if (other.some)
+            t_set(std::move(other.t));
         some = other.some;
-        t = std::move(other.t);
+        other.reset();
+        return *this;
+    }
+    template <class U>
+    auto operator=(const optional<U>& other) -> optional&
+    {
+        reset();
+        if (other.some)
+            t_set(other.t);
+        some = other.some;
+        return *this;
+    }
+    template <class U>
+    auto operator=(optional<U>&& other) -> optional&
+    {
+        reset();
+        if (other.some)
+            t_set(std::move(other.t));
+        some = other.some;
         other.reset();
         return *this;
     }
@@ -120,28 +192,22 @@ public:
     auto operator=(U&& value) -> optional&
     {
         reset();
+        t_set(std::move(value));
         some = true;
-        t = std::forward<U>(value);
-        return *this;
-    }
-    template <class U>
-    auto operator=(const optional<U>& other) -> optional&
-    {
-        reset();
-        some = other.some;
-        t = other.t;
-        return *this;
-    }
-    template <class U>
-    auto operator=(optional<U>&& other) -> optional&
-    {
-        reset();
-        some = other.some;
-        t = std::move(other.t);
-        other.reset();
         return *this;
     }
 };
+
+//template <typename T>
+//constexpr auto make_optional(T&& v) -> optional<T>
+//{
+//    return optional<T>(std::forward<T>(v));
+//}
+template <typename T, typename... Args>
+constexpr auto make_optional(Args&&... args) -> optional<T>
+{
+    return optional<T>(std::forward<Args>(args)...);
+}
 
 }
 
