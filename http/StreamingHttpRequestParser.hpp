@@ -15,13 +15,92 @@
 #include <vector>
 
 using futures::PollResult;
-using std::string_view;
 using std::map;
+using std::string;
+using std::string_view;
 using std::vector;
 using utils::span;
-using std::string;
 
 namespace http {
+
+class StreamingHttpRequest;
+
+class StreamingHttpRequestBuilder {
+public:
+    StreamingHttpRequestBuilder() = default;
+    auto method(HttpMethod method) -> StreamingHttpRequestBuilder&;
+    auto uri(string uri) -> StreamingHttpRequestBuilder&;
+    auto version(HttpVersion version) -> StreamingHttpRequestBuilder&;
+    auto status(HttpStatus status) -> StreamingHttpRequestBuilder&;
+    auto header(string header_name, string header_value) -> StreamingHttpRequestBuilder&;
+    auto body(vector<uint8_t> body) -> StreamingHttpRequestBuilder&;
+    auto build() && -> StreamingHttpRequest;
+
+private:
+    HttpMethod _method;
+    string _uri;
+    HttpVersion _version;
+    HttpStatus _status;
+    map<string, string> _headers;
+    vector<uint8_t> _body;
+};
+
+class StreamingHttpRequest {
+public:
+    StreamingHttpRequest(
+        HttpMethod method,
+        string uri,
+        HttpVersion version,
+        HttpStatus status,
+        map<string, string> headers,
+        vector<uint8_t> body);
+    auto get_method() -> HttpMethod const&;
+    auto get_uri() -> string const&;
+    auto get_version() -> HttpVersion const&;
+    auto get_status() -> HttpStatus const&;
+    auto get_headers() -> map<string, string> const&;
+    auto get_body() -> vector<uint8_t> const&;
+
+private:
+    HttpMethod method;
+    string uri;
+    HttpVersion version;
+    HttpStatus status;
+    map<string, string> headers;
+    vector<uint8_t> body;
+};
+
+class RequestLineParser {
+public:
+    auto try_parse(std::string_view view) -> bool;
+
+private:
+    static inline auto is_method_valid(std::string_view method) -> bool;
+    static inline auto is_uri_valid(std::string_view method) -> bool;
+    static inline auto is_version_valid(std::string_view method) -> bool;
+    enum State {
+        Method,
+        Space1,
+        Uri,
+        Space2,
+        Version,
+        Clrf
+    } state
+        = Method;
+    std::string method;
+    std::string uri;
+    std::string version;
+};
+
+class HeaderLineParser {
+public:
+private:
+};
+
+class BodyParser {
+public:
+private:
+};
 
 class StreamingHttpRequestParser {
 public:
@@ -40,33 +119,13 @@ public:
     string_view get_reason() const;
 
 private:
-    class RequestLineParser {
-    public:
-        auto try_parse(std::string_view view) -> bool;
-    private:
-        static inline auto is_method_valid(std::string_view method) -> bool;
-        static inline auto is_uri_valid(std::string_view method) -> bool;
-        static inline auto is_version_valid(std::string_view method) -> bool;
-        enum State {
-            Method,
-            Space1,
-            Uri,
-            Space2,
-            Version,
-            Clrf
-        } state = Method;
-        std::string method;
-        std::string uri;
-        std::string version;
-    };
-    class HeaderLineParser {
-    public:
-    private:
-    };
-    class BodyParser {
-    public:
-    private:
-    };
+    enum Tag {
+        None,
+        RequestLine,
+        HeaderLine,
+        Body
+    } tag
+        = None;
     union {
         RequestLineParser request_line_parser;
         HeaderLineParser header_line_parser;
@@ -78,15 +137,8 @@ private:
         AbsPath,
         Authority
     } uri_type;
-    HttpMethod method;
-    string uri;
-    HttpVersion version;
-    HttpStatus status;
-    string reason;
-    string header;
-    map<string, string> headers;
-    vector<uint8_t> body;
-
+    void next_parser();
+    StreamingHttpRequestBuilder request;
 };
 
 }
