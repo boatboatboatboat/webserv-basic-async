@@ -24,6 +24,15 @@ private:
     union {
         T t;
     };
+
+    // We need a custom setter for ``t``,
+    // because (move) assignment constructors assume ``t`` is initialized.
+    // However we disabled ctor on ``t`` (so ``t`` can be uninitialized).
+    //
+    // We can however call the regular move/copy constructors by using a
+    // placement new.
+
+    // Set the value of t, checking for uninitialized t
     constexpr void t_set(const T& a) {
         if (some) {
             t = a;
@@ -31,6 +40,7 @@ private:
             new(&t) T(a);
         }
     }
+    // Set the value of t, checking for uninitialized t
     constexpr void t_set(T&& a) {
         if (some) {
             t = std::move(a);

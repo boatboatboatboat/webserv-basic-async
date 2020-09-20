@@ -183,15 +183,9 @@ auto recursive_locations(json::Json const& cfg) -> optional<table<Regex, Locatio
             throw std::runtime_error("final field is not a boolean");
         }
 
-        // fuck C++
-        auto y =LocationConfig(
-            recursive_locations(obj),
-            final,
-        base_config_from_json(obj));
-
         locations.emplace_back(
             std::make_pair(
-                Regex(name), move(y)));
+                Regex(name), LocationConfig(recursive_locations(obj), final, base_config_from_json(obj))));
     }
 
     // fixes c++ bug
