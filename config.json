@@ -1,9 +1,11 @@
 {
-    "workers": 0,
+    "workers": 4,
     "http": {
         "servers": [
             {
-                "names": ["localhost"],
+                "names": [
+                    "localhost"
+                ],
                 "listen": [
                     "127.0.0.1:1234"
                 ],
@@ -19,7 +21,7 @@
                         ],
                         "autoindex": true
                     },
-                    "^/dirtest": {
+                    "^/dirtest/?": {
                         "root": "/home/boat/CLionProjects/webserv-basic-async2/ioruntime",
                         "index": [
                             "index.html",
@@ -27,9 +29,9 @@
                         ],
                         "locations": {
                             "\\.cpp$": {
-                                "include": true,
+                                "final": true,
                                 "root": "/",
-                                "binary": "/usr/bin/php-cgi"
+                                "cgi-binary": "/usr/bin/php-cgi"
                             }
                         },
                         "allowed_methods": [

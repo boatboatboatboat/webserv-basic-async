@@ -56,7 +56,7 @@ auto ServerConfig::get_bind_addresses() const -> optional<vector<tuple<IpAddress
 }
 
 ServerConfig::ServerConfig(optional<vector<string>>&& server_names, optional<vector<tuple<IpAddress, uint16_t>>>&& bind_addresses, optional<table<Regex, LocationConfig>>&& locations, BaseConfig&& bc)
-    : LocationConfig(std::move(locations), std::move(bc))
+    : LocationConfig(std::move(locations), std::nullopt, std::move(bc))
     , server_names(std::move(server_names))
     , bind_addresses(std::move(bind_addresses))
 {
@@ -92,10 +92,15 @@ RootConfig::RootConfig(optional<uint64_t> worker_count, HttpConfig&& config)
     , http_config(std::move(config))
 {
 }
-LocationConfig::LocationConfig(optional<table<Regex, LocationConfig>>&& locations, BaseConfig&& base)
+LocationConfig::LocationConfig(optional<table<Regex, LocationConfig>>&& locations, optional<bool> final, BaseConfig&& base)
     : BaseConfig(std::move(base))
     , locations(std::move(locations))
+    , final(final)
 {
+}
+auto LocationConfig::is_final() const -> bool
+{
+    return final && *final;
 }
 
 optional<RootConfig> RootConfigSingleton::rc = std::nullopt;

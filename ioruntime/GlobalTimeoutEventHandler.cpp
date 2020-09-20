@@ -23,4 +23,9 @@ void GlobalTimeoutEventHandler::register_timeout_real(uint64_t ms, BoxFunctor&& 
     event_handler->register_timeout_real(ms, std::move(callback));
 }
 
+bool GlobalTimeoutEventHandler::is_clocks_empty()
+{
+    return event_handler->is_clocks_empty();
+}
+
 }

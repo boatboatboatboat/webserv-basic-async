@@ -118,10 +118,12 @@ auto FileDescriptor::get_descriptor() const -> int
 {
     return descriptor;
 }
+
 auto FileDescriptor::read(char* buffer, size_t size) -> ssize_t
 {
     return ::read(descriptor, buffer, size);
 }
+
 auto FileDescriptor::write(const char* buffer, size_t size) -> ssize_t
 {
     return ::write(descriptor, buffer, size);

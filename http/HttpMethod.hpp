@@ -12,14 +12,14 @@ namespace http {
 using HttpMethod = std::string_view;
 
 namespace method {
-    inline constexpr HttpMethod CONNECT = "CONNECT";
-    inline constexpr HttpMethod DELETE = "DELETE";
-    inline constexpr HttpMethod GET = "GET";
-    inline constexpr HttpMethod HEAD = "HEAD";
-    inline constexpr HttpMethod OPTIONS = "OPTIONS";
-    inline constexpr HttpMethod PATCH = "PATCH";
-    inline constexpr HttpMethod POST = "POST";
-    inline constexpr HttpMethod PUT = "PUT";
+    constexpr HttpMethod CONNECT = "CONNECT";
+    constexpr HttpMethod DELETE = "DELETE";
+    constexpr HttpMethod GET = "GET";
+    constexpr HttpMethod HEAD = "HEAD";
+    constexpr HttpMethod OPTIONS = "OPTIONS";
+    constexpr HttpMethod PATCH = "PATCH";
+    constexpr HttpMethod POST = "POST";
+    constexpr HttpMethod PUT = "PUT";
 }
 
 }

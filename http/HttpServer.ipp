@@ -114,7 +114,6 @@ HttpServer<RH>::HttpConnectionFuture::HttpConnectionFuture(net::TcpStream&& pstr
 template <typename RH>
 HttpServer<RH>::HttpConnectionFuture::~HttpConnectionFuture() {
     if (parser.stream != nullptr) {
-        DBGPRINT("HttpConnectionFuture: connection finished");
     }
 }
 

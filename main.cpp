@@ -59,7 +59,10 @@ auto base_config_from_json(json::Json const& config) -> BaseConfig
 
     // set root field
     if (config["root"].is_string()) {
-        config_root = optional<string> { config["root"].string_value() };
+        auto root = config["root"].string_value();
+        if (!root.ends_with('/'))
+            root += '/';
+        config_root = optional<string> { std::move(root) };
     } else if (!config["root"].is_null()) {
         throw std::runtime_error("http.servers[?].root is not a string");
     }
@@ -170,11 +173,20 @@ auto recursive_locations(json::Json const& cfg) -> optional<table<Regex, Locatio
     table<Regex, LocationConfig> locations;
 
     for (auto& [name, obj] : cfg["locations"].object_items()) {
+        optional<bool> final = std::nullopt;
+
+        if (obj["final"].is_bool()) {
+            final = optional { obj["final"].bool_value() };
+        } else if (!obj["final"].is_null()) {
+            throw std::runtime_error("final field is not a boolean");
+        }
+
         locations.emplace_back(
             std::make_pair(
                 Regex(name),
                 LocationConfig(
                     recursive_locations(obj),
+                    final,
                     base_config_from_json(obj))));
     }
     return locations.empty() ? std::nullopt : optional { locations };
@@ -335,7 +347,8 @@ void match_location_i(LocationConfig const& cfg, const char *& path, vector<Loca
     }
     if (lout != nullptr) {
         DBGPRINT("Location matched: [" << std::string_view(path, len) << "] from (" << path << ")");
-        path += len;
+        if (!lout->is_final())
+            path += len;
         DBGPRINT("Path adjusted: (" << path << ")");
         // TODO: this should probably be a tuple<string, LocationConfig> to not match twice
         abcd.push_back(lout);
