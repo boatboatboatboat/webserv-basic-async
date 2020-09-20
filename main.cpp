@@ -42,6 +42,8 @@ using ioruntime::Runtime;
 using ioruntime::RuntimeBuilder;
 using ioruntime::TimeoutEventHandler;
 using ioruntime::TimeoutFuture;
+using option::make_optional;
+using std::move;
 using std::pair;
 
 auto base_config_from_json(json::Json const& config) -> BaseConfig
@@ -50,19 +52,19 @@ auto base_config_from_json(json::Json const& config) -> BaseConfig
         throw std::runtime_error("config is not an object");
     }
 
-    optional<string> config_root = std::nullopt;
-    optional<vector<string>> config_index_pages = std::nullopt;
-    optional<map<uint16_t, string>> config_error_pages = std::nullopt;
-    optional<bool> config_use_cgi = std::nullopt;
-    optional<vector<HttpMethod>> config_allowed_methods = std::nullopt;
-    optional<bool> config_autoindex = std::nullopt;
+    optional<string> config_root;
+    optional<vector<string>> config_index_pages;
+    optional<map<uint16_t, string>> config_error_pages;
+    optional<bool> config_use_cgi;
+    optional<vector<HttpMethod>> config_allowed_methods;
+    optional<bool> config_autoindex;
 
     // set root field
     if (config["root"].is_string()) {
         auto root = config["root"].string_value();
         if (!root.ends_with('/'))
             root += '/';
-        config_root = optional<string> { std::move(root) };
+        config_root = std::move(root);
     } else if (!config["root"].is_null()) {
         throw std::runtime_error("http.servers[?].root is not a string");
     }
@@ -79,12 +81,12 @@ auto base_config_from_json(json::Json const& config) -> BaseConfig
                 throw std::runtime_error("http.servers[?].index_pages[?] is not a string");
             }
         }
-        config_index_pages = optional<vector<string>> { converted_pages };
+        config_index_pages = converted_pages;
     } else if (config["index_pages"].is_string()) {
         vector<string> converted_pages;
 
         converted_pages.push_back(config["index_pages"].string_value());
-        config_index_pages = optional<vector<string>> { converted_pages };
+        config_index_pages = converted_pages;
     } else if (!config["index_pages"].is_null()) {
         throw std::runtime_error("http.servers[?].index_pages is not an array or string");
     }
@@ -105,14 +107,14 @@ auto base_config_from_json(json::Json const& config) -> BaseConfig
             error_pages.insert(std::pair<uint16_t, string>(code, page.string_value()));
         }
 
-        config_error_pages = optional<map<uint16_t, string>> { error_pages };
+        config_error_pages = error_pages;
     } else if (!config["error_pages"].is_null()) {
         throw std::runtime_error("http.servers[?].error_pages is not a map");
     }
 
     // set use cgi
     if (config["use_cgi"].is_bool()) {
-        config_use_cgi = optional<bool> { config["use_cgi"].bool_value() };
+        config_use_cgi = config["use_cgi"].bool_value();
     } else if (!config["use_cgi"].is_null()) {
         throw std::runtime_error("http.servers[?].use_cgi is not a boolean");
     }
@@ -147,25 +149,25 @@ auto base_config_from_json(json::Json const& config) -> BaseConfig
             }
         }
 
-        config_allowed_methods = optional<vector<HttpMethod>> { methods };
+        config_allowed_methods = methods;
     } else if (!config["allowed_methods"].is_null()) {
         throw std::runtime_error("http.servers[?].allowed_methods is not an array");
     }
 
     // set autoindex
     if (config["autoindex"].is_bool()) {
-        config_autoindex = optional<bool> { config["autoindex"].bool_value() };
+        config_autoindex = config["autoindex"].bool_value();
     } else if (!config["autoindex"].is_null()) {
         throw std::runtime_error("http.servers[?].autoindex is not a boolean");
     }
 
     return BaseConfig(
-        config_root,
-        config_index_pages,
-        config_error_pages,
-        config_use_cgi,
-        config_allowed_methods,
-        config_autoindex);
+        move(config_root),
+        move(config_index_pages),
+        move(config_error_pages),
+        move(config_use_cgi),
+        move(config_allowed_methods),
+        move(config_autoindex));
 }
 
 auto recursive_locations(json::Json const& cfg) -> optional<table<Regex, LocationConfig>>
@@ -173,23 +175,32 @@ auto recursive_locations(json::Json const& cfg) -> optional<table<Regex, Locatio
     table<Regex, LocationConfig> locations;
 
     for (auto& [name, obj] : cfg["locations"].object_items()) {
-        optional<bool> final = std::nullopt;
+        optional<bool> final = option::nullopt;
 
         if (obj["final"].is_bool()) {
-            final = optional { obj["final"].bool_value() };
+            final = obj["final"].bool_value();
         } else if (!obj["final"].is_null()) {
             throw std::runtime_error("final field is not a boolean");
         }
 
+        // fuck C++
+        auto y =LocationConfig(
+            recursive_locations(obj),
+            final,
+        base_config_from_json(obj));
+
         locations.emplace_back(
             std::make_pair(
-                Regex(name),
-                LocationConfig(
-                    recursive_locations(obj),
-                    final,
-                    base_config_from_json(obj))));
+                Regex(name), move(y)));
     }
-    return locations.empty() ? std::nullopt : optional { locations };
+
+    // fixes c++ bug
+    optional<typeof(locations)> a;
+
+    if (!locations.empty()) {
+        a = locations;
+    }
+    return a;
 }
 
 auto config_from_json(json::Json const& config) -> RootConfig
@@ -197,7 +208,7 @@ auto config_from_json(json::Json const& config) -> RootConfig
     if (!config["http"].is_object())
         throw std::runtime_error("http field is null or not an object");
 
-    optional<uint64_t> worker_count = std::nullopt;
+    optional<uint64_t> worker_count = option::nullopt;
 
     if (config["workers"].is_number()) {
         int64_t workers = static_cast<int64_t>(config["workers"].number_value());
@@ -205,7 +216,7 @@ auto config_from_json(json::Json const& config) -> RootConfig
         if (workers < 0) {
             throw std::runtime_error("worker count is negative");
         }
-        worker_count = optional<uint64_t> { workers };
+        worker_count = (uint64_t)workers;
     }
     TRACEPRINT("workers: " << worker_count.value_or(0));
 
@@ -215,7 +226,7 @@ auto config_from_json(json::Json const& config) -> RootConfig
         for (auto& server : config["http"]["servers"].array_items()) {
             auto base = base_config_from_json(server);
 
-            optional<vector<string>> server_names = std::nullopt;
+            optional<vector<string>> server_names = option::nullopt;
 
             if (server["names"].is_array()) {
                 vector<string> names;
@@ -226,12 +237,12 @@ auto config_from_json(json::Json const& config) -> RootConfig
                     }
                     names.push_back(name.string_value());
                 }
-                server_names = std::optional { names };
+                server_names = names;
             } else if (!server["names"].is_null()) {
                 throw std::runtime_error("names is not an array");
             }
 
-            optional<vector<tuple<IpAddress, uint16_t>>> bind_addresses = std::nullopt;
+            optional<vector<tuple<IpAddress, uint16_t>>> bind_addresses = option::nullopt;
 
             if (server["listen"].is_array()) {
                 vector<tuple<IpAddress, uint16_t>> binds;
@@ -273,12 +284,12 @@ auto config_from_json(json::Json const& config) -> RootConfig
                     }
                 }
 
-                bind_addresses = std::optional { binds };
+                bind_addresses = binds;
             } else if (!server["bind_addresses"].is_null()) {
                 throw std::runtime_error("bind_addresses is not an array");
             }
 
-            optional<table<Regex, LocationConfig>> locations = std::nullopt;
+            optional<table<Regex, LocationConfig>> locations;
 
             if (server["locations"].is_object()) {
                 locations = recursive_locations(server);
@@ -286,12 +297,12 @@ auto config_from_json(json::Json const& config) -> RootConfig
                 throw std::runtime_error("server.location is not a map");
             }
 
-            servers.emplace_back(std::move(server_names), std::move(bind_addresses), std::move(locations), std::move(base));
+            servers.emplace_back(move(server_names), move(bind_addresses), move(locations), std::move(base));
         }
 
         auto base = base_config_from_json(config["http"]);
 
-        return RootConfig(worker_count, HttpConfig(std::move(servers), std::move(base)));
+        return RootConfig(move(worker_count), HttpConfig(move(servers), move(base)));
     } else {
         throw std::runtime_error("http.servers field is null or not an array");
     }
@@ -327,7 +338,7 @@ auto match_server(string_view host, vector<ServerConfig> const& servers) -> Serv
 }
 
 // regex requires C-strings, we can't use string_view
-void match_location_i(LocationConfig const& cfg, const char *& path, vector<LocationConfig const*>& abcd)
+void match_location_i(LocationConfig const& cfg, const char*& path, vector<LocationConfig const*>& abcd)
 {
     LocationConfig const* lout = nullptr;
     ptrdiff_t len = -1;
@@ -357,13 +368,20 @@ void match_location_i(LocationConfig const& cfg, const char *& path, vector<Loca
     // return lout == nullptr ? std::nullopt : std::optional { lout };
 }
 
-auto match_location(LocationConfig const& cfg, http::HttpRequest& req) -> optional<tuple<vector<LocationConfig const*>, string>> {
+auto match_location(LocationConfig const& cfg, http::HttpRequest& req) -> optional<tuple<vector<LocationConfig const*>, string>>
+{
     vector<LocationConfig const*> location_list;
     auto path = req.getPath();
     auto* path_cstr = path.c_str();
 
     match_location_i(cfg, path_cstr, location_list);
-    return location_list.empty() ? std::nullopt : optional { tuple { location_list, string(path_cstr) } };
+
+    // workaround for C++ bug
+    optional<tuple<vector<LocationConfig const*>, string>> x;
+    if (!location_list.empty()) {
+        x = tuple { location_list, string(path_cstr) };
+    }
+    return x;
 }
 
 auto match_base_config(RootConfig const& rcfg, http::HttpRequest& req) -> tuple<BaseConfig, string>
@@ -375,12 +393,12 @@ auto match_base_config(RootConfig const& rcfg, http::HttpRequest& req) -> tuple<
     auto const& lcfg_o = match_location(scfg, req);
     auto matched_path = req.getPath();
 
-    optional<string> root = std::nullopt;
-    optional<vector<string>> index_pages = std::nullopt;
-    optional<map<uint16_t, string>> error_pages = std::nullopt;
-    optional<bool> use_cgi = std::nullopt;
-    optional<vector<HttpMethod>> allowed_methods = std::nullopt;
-    optional<bool> autoindex = std::nullopt;
+    optional<string> root;
+    optional<vector<string>> index_pages;
+    optional<map<uint16_t, string>> error_pages;
+    optional<bool> use_cgi;
+    optional<vector<HttpMethod>> allowed_methods;
+    optional<bool> autoindex;
 
     if (lcfg_o) {
         auto& [lcfg_v, lcfg_p] = *lcfg_o;
@@ -446,7 +464,16 @@ auto match_base_config(RootConfig const& rcfg, http::HttpRequest& req) -> tuple<
     if (!autoindex && hcfg.get_autoindex()) {
         autoindex = hcfg.get_autoindex();
     }
-    return tuple { BaseConfig(root, index_pages, error_pages, use_cgi, allowed_methods, autoindex), matched_path };
+    return tuple {
+        BaseConfig(
+            move(root),
+            move(index_pages),
+            move(error_pages),
+            move(use_cgi),
+            move(allowed_methods),
+            move(autoindex)),
+        matched_path
+    };
 }
 
 auto main() -> int

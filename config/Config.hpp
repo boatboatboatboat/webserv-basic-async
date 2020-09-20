@@ -13,13 +13,14 @@
 #include <map>
 #include <string>
 #include <vector>
+#include "../option/optional.hpp"
 
 using std::map;
-using std::optional;
 using std::pair;
 using std::string;
 using std::tuple;
 using std::vector;
+using option::optional;
 
 template <typename K, typename V>
 using table = vector<pair<K, V>>;

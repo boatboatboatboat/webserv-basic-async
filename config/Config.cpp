@@ -4,6 +4,8 @@
 
 #include "Config.hpp"
 
+using option::make_optional;
+
 #include <utility>
 
 auto BaseConfig::get_root() const -> optional<string> const&
@@ -56,7 +58,7 @@ auto ServerConfig::get_bind_addresses() const -> optional<vector<tuple<IpAddress
 }
 
 ServerConfig::ServerConfig(optional<vector<string>>&& server_names, optional<vector<tuple<IpAddress, uint16_t>>>&& bind_addresses, optional<table<Regex, LocationConfig>>&& locations, BaseConfig&& bc)
-    : LocationConfig(std::move(locations), std::nullopt, std::move(bc))
+    : LocationConfig(std::move(locations), option::nullopt, std::move(bc))
     , server_names(std::move(server_names))
     , bind_addresses(std::move(bind_addresses))
 {
@@ -88,7 +90,7 @@ auto RootConfig::get_http_config() const -> HttpConfig const&
 }
 
 RootConfig::RootConfig(optional<uint64_t> worker_count, HttpConfig&& config)
-    : worker_count(worker_count)
+    : worker_count(std::move(worker_count))
     , http_config(std::move(config))
 {
 }
@@ -103,7 +105,7 @@ auto LocationConfig::is_final() const -> bool
     return final && *final;
 }
 
-optional<RootConfig> RootConfigSingleton::rc = std::nullopt;
+optional<RootConfig> RootConfigSingleton::rc = option::nullopt;
 
 auto RootConfigSingleton::get() -> RootConfig const&
 {
@@ -112,5 +114,5 @@ auto RootConfigSingleton::get() -> RootConfig const&
 
 void RootConfigSingleton::set(RootConfig&& rcv)
 {
-    rc = std::optional { std::move(rcv) };
+    rc = std::move(rcv);
 }
