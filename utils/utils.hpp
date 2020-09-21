@@ -142,6 +142,17 @@ inline std::vector<std::string> split(const std::string& source, char delimiter)
 
     return strings;
 }
+
+inline auto bswap32(uint32_t x) -> uint32_t
+{
+    return ((((x)&0xff000000u) >> 24u) | (((x)&0x00ff0000u) >> 8u) | (((x)&0x0000ff00u) << 8u) | (((x)&0x000000ffu) << 24u));
+}
+
+inline auto bswap32(int32_t x) -> int32_t
+{
+    return ((((x)&0xff000000) >> 24) | (((x)&0x00ff0000) >> 8) | (((x)&0x0000ff00) << 8) | (((x)&0x000000ff) << 24));
+}
+
 }
 
 #endif //WEBSERV_UTIL_HPP
