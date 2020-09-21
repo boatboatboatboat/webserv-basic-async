@@ -96,7 +96,8 @@ auto HttpResponse::poll_respond(net::Socket& socket, Waker&& waker) -> PollResul
     } break;
     case ReadBody: {
         auto is_chunked = false;
-        if (response_headers.contains(http::header::TRANSFER_ENCODING)) {
+        // if response_headers.contains(http::header::TRANSFER_ENCODING)
+        if (std::any_of(response_headers.begin(), response_headers.end(), [](auto& i) { return i.first == http::header::TRANSFER_ENCODING; })) {
             // FIXME: bad chunked check
             if (response_headers[http::header::TRANSFER_ENCODING].find("chunked") != std::string::npos) {
                 is_chunked = true;
