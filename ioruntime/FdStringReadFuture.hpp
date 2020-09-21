@@ -17,6 +17,7 @@ class FdStringReadFuture : public IFuture<void> {
 public:
     explicit FdStringReadFuture(FileDescriptor&& fd, std::string& str);
     auto poll(futures::Waker&& waker) -> futures::PollResult<void> override;
+
 private:
     FileDescriptor fd;
     std::string& str;

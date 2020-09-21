@@ -25,7 +25,8 @@ private:
     enum State {
         Reading,
         Writing
-    } state = Reading;
+    } state
+        = Reading;
     size_t written = 0;
     char buffer[64] {};
     std::string message;
@@ -37,7 +38,7 @@ class TcpStream {
 
 public:
     explicit TcpStream(int fd, SocketAddr address);
-    TcpStream(TcpStream&& other) noexcept ;
+    TcpStream(TcpStream&& other) noexcept;
     ~TcpStream() = default;
     TcpStreamResponseFuture respond(std::string (*fp)(std::string& str)) &&;
 

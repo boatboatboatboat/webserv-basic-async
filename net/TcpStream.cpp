@@ -81,9 +81,9 @@ auto TcpStream::uninitialized() -> TcpStream
     return TcpStream();
 }
 
-TcpStream::TcpStream(TcpStream&& other) noexcept:
-    socket(std::move(other.socket)),
-    address(other.address)
+TcpStream::TcpStream(TcpStream&& other) noexcept
+    : socket(std::move(other.socket))
+    , address(other.address)
 {
 }
 

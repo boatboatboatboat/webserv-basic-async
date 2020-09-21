@@ -4,24 +4,24 @@
 
 #ifndef WEBSERV_UTIL_HPP
 #define WEBSERV_UTIL_HPP
-#include "mem_copy.hpp"
 #include "cstr.hpp"
+#include "mem_copy.hpp"
 #include "mem_zero.hpp"
-#include <string>
 #include "span.hpp"
+#include <string>
 
 void dbg_puts(std::string const& printme);
 
 #ifdef SAFEPRINT_LINE_INFO
 #ifdef __linux__
 
-#define LINE_INFO      __func__ << " " << __FILE__ << ":" << __LINE__ \
-                                << " " << std::to_string(gettid())    \
-                                << " "
+#define LINE_INFO __func__ << " " << __FILE__ << ":" << __LINE__ \
+                           << " " << std::to_string(gettid())    \
+                           << " "
 #elif __APPLE__
 
-#define LINE_INFO  __func__ << " " << __FILE__ << ":" << __LINE__ \
-                                << " "
+#define LINE_INFO __func__ << " " << __FILE__ << ":" << __LINE__ \
+                           << " "
 
 #endif
 
@@ -31,14 +31,14 @@ void dbg_puts(std::string const& printme);
 
 #endif
 
-#define SAFEPRINT(x)                         \
-    do {                                     \
-        try {                                \
-            std::stringstream __out__;       \
+#define SAFEPRINT(x)                           \
+    do {                                       \
+        try {                                  \
+            std::stringstream __out__;         \
             __out__ << LINE_INFO << x << "\n"; \
-            dbg_puts(__out__.str());         \
-        } catch (...) {                      \
-        }                                    \
+            dbg_puts(__out__.str());           \
+        } catch (...) {                        \
+        }                                      \
     } while (0)
 
 #if LOG_DEBUG || LOG_TRACE

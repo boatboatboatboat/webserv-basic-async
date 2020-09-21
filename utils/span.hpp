@@ -9,41 +9,50 @@
 
 namespace utils {
 
-template<typename T>
+template <typename T>
 class span {
     T* m_ptr;
     size_t m_len;
 
 public:
     span(T* ptr, std::size_t len) noexcept
-        : m_ptr {ptr}, m_len {len}
-    {}
+        : m_ptr { ptr }
+        , m_len { len }
+    {
+    }
 
-    T& operator[](ssize_t i) noexcept {
+    T& operator[](ssize_t i) noexcept
+    {
         return *m_ptr[i];
     }
 
-    T const& operator[](ssize_t i) const noexcept {
+    T const& operator[](ssize_t i) const noexcept
+    {
         return *m_ptr[i];
     }
 
-    [[nodiscard]] size_t size() const noexcept {
+    [[nodiscard]] size_t size() const noexcept
+    {
         return m_len;
     }
 
-    T* begin() noexcept {
+    T* begin() noexcept
+    {
         return m_ptr;
     }
 
-    T* end() noexcept {
+    T* end() noexcept
+    {
         return m_ptr + m_len;
     }
 
-    T* rbegin() noexcept {
+    T* rbegin() noexcept
+    {
         return m_ptr + m_len - 1;
     }
 
-    T* rend() noexcept {
+    T* rend() noexcept
+    {
         return m_ptr - 1;
     }
 };

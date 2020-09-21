@@ -7,15 +7,15 @@
 
 namespace net {
 
-SocketAddr::SocketAddr(sockaddr_in addr):
-    tag(IpV4),
-    addr_v4(addr)
+SocketAddr::SocketAddr(sockaddr_in addr)
+    : tag(IpV4)
+    , addr_v4(addr)
 {
 }
 
-SocketAddr::SocketAddr(sockaddr_in6 addr):
-    tag(IpV6),
-    addr_v6(addr)
+SocketAddr::SocketAddr(sockaddr_in6 addr)
+    : tag(IpV6)
+    , addr_v6(addr)
 {
 }
 
@@ -92,7 +92,7 @@ auto operator<<(std::ostream& os, const net::SocketAddr& sa) -> std::ostream&
                 else
                     os << "::";
                 pdouble = false;
-                continue ;
+                continue;
             } else {
                 os << __builtin_bswap16(ip[idx]);
             }

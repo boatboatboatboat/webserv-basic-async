@@ -3,11 +3,11 @@
 //
 
 #include "../ioruntime/GlobalRuntime.hpp"
+#include "../net/TcpListener.hpp"
+#include "../net/TcpStream.hpp"
 #include "HttpHeader.hpp"
 #include "HttpResponse.hpp"
 #include "HttpServer.hpp"
-#include "../net/TcpListener.hpp"
-#include "../net/TcpStream.hpp"
 
 using ioruntime::GlobalRuntime;
 
@@ -37,8 +37,9 @@ void HttpServer<RH>::handle_connection(net::TcpStream& stream)
     GlobalRuntime::spawn(HttpConnectionFuture(std::move(stream)));
 }
 
-template<typename RH>
-void HttpServer<RH>::handle_exception(std::exception& e) {
+template <typename RH>
+void HttpServer<RH>::handle_exception(std::exception& e)
+{
     (void)e;
     TRACEPRINT("HttpServer: " << e.what());
 }
@@ -59,9 +60,9 @@ PollResult<void> HttpServer<RH>::HttpConnectionFuture::poll(Waker&& waker)
                 } catch (std::exception& e) {
                     WARNPRINT("request handler error: " << e.what());
                     res = HttpResponseBuilder()
-                        .status(HTTP_STATUS_INTERNAL_SERVER_ERROR)
-                        .header(http::header::CONTENT_TYPE, "text/html; charset=utf8")
-                        .build();
+                              .status(HTTP_STATUS_INTERNAL_SERVER_ERROR)
+                              .header(http::header::CONTENT_TYPE, "text/html; charset=utf8")
+                              .build();
                 }
                 return poll(std::move(waker));
             }
@@ -72,17 +73,17 @@ PollResult<void> HttpServer<RH>::HttpConnectionFuture::poll(Waker&& waker)
                 state = Respond;
                 // FIXME: gateway timeout requires connection header
                 res = HttpResponseBuilder()
-                    .status(HTTP_STATUS_GATEWAY_TIMEOUT)
-                    .build();
+                          .status(HTTP_STATUS_GATEWAY_TIMEOUT)
+                          .build();
                 WARNPRINT("Request timed out");
                 return poll(std::move(waker));
             }
         } catch (std::exception& e) {
             state = Respond;
             res = HttpResponseBuilder()
-                .status(HTTP_STATUS_INTERNAL_SERVER_ERROR)
-                .header(http::header::CONTENT_TYPE, "text/html; charset=utf8")
-                .build();
+                      .status(HTTP_STATUS_INTERNAL_SERVER_ERROR)
+                      .header(http::header::CONTENT_TYPE, "text/html; charset=utf8")
+                      .build();
             return poll(std::move(waker));
         }
         return PollResult<void>::pending();
@@ -112,7 +113,8 @@ HttpServer<RH>::HttpConnectionFuture::HttpConnectionFuture(net::TcpStream&& pstr
 }
 
 template <typename RH>
-HttpServer<RH>::HttpConnectionFuture::~HttpConnectionFuture() {
+HttpServer<RH>::HttpConnectionFuture::~HttpConnectionFuture()
+{
     if (parser.stream != nullptr) {
     }
 }

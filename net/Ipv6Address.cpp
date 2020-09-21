@@ -46,7 +46,7 @@ auto operator<<(std::ostream& os, const net::Ipv6Address& sa) -> std::ostream&
             else
                 os << "::";
             pdouble = false;
-            continue ;
+            continue;
         } else {
             os << __builtin_bswap16(ip[idx]);
         }

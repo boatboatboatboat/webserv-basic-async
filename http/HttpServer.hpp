@@ -17,7 +17,6 @@ using futures::ForEachFuture;
 using futures::IFuture;
 using ioruntime::TimeoutFuture;
 using net::TcpStream;
-using ioruntime::TimeoutFuture;
 
 namespace http {
 template <typename RH>

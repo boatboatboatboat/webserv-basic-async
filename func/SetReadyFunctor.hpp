@@ -5,9 +5,9 @@
 #ifndef WEBSERV_FUNC_SETREADYFUNCTOR_HPP
 #define WEBSERV_FUNC_SETREADYFUNCTOR_HPP
 
-#include "Functor.hpp"
-#include "../mutex/mutex.hpp"
 #include "../boxed/RcPtr.hpp"
+#include "../mutex/mutex.hpp"
+#include "Functor.hpp"
 
 using boxed::RcPtr;
 using mutex::Mutex;

@@ -11,7 +11,7 @@
 namespace option {
 
 struct nullopt_t {
-    explicit constexpr nullopt_t(int) {}
+    explicit constexpr nullopt_t(int) { }
 };
 constexpr nullopt_t nullopt(0);
 
@@ -33,21 +33,24 @@ private:
     // placement new.
 
     // Set the value of t, checking for uninitialized t
-    constexpr void t_set(const T& a) {
+    constexpr void t_set(const T& a)
+    {
         if (some) {
             t = a;
         } else {
-            new(&t) T(a);
+            new (&t) T(a);
         }
     }
     // Set the value of t, checking for uninitialized t
-    constexpr void t_set(T&& a) {
+    constexpr void t_set(T&& a)
+    {
         if (some) {
             t = std::move(a);
         } else {
-            new(&t) T(std::move(a));
+            new (&t) T(std::move(a));
         }
     }
+
 public:
     constexpr optional()
         : some(false)

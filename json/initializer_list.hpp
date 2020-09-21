@@ -9,26 +9,33 @@
 
 namespace lib {
 /// initializer_list
-template<class RESERVED>
+template <class RESERVED>
 class initializer_list {
 public:
     typedef RESERVED value_type;
-    typedef const RESERVED &reference;
-    typedef const RESERVED &const_reference;
+    typedef const RESERVED& reference;
+    typedef const RESERVED& const_reference;
     typedef size_t size_type;
-    typedef const RESERVED *iterator;
-    typedef const RESERVED *const_iterator;
+    typedef const RESERVED* iterator;
+    typedef const RESERVED* const_iterator;
+
 private:
     iterator M_array;
     size_type M_len;
 
     // The compiler can call a private constructor.
     constexpr initializer_list(const_iterator _a, size_type _l)
-        : M_array(_a), M_len(_l) {}
+        : M_array(_a)
+        , M_len(_l)
+    {
+    }
 
 public:
     constexpr initializer_list() noexcept
-        : M_array(nullptr), M_len(0) {}
+        : M_array(nullptr)
+        , M_len(0)
+    {
+    }
 
     // Number of elements.
     [[nodiscard]] constexpr size_type
@@ -48,8 +55,8 @@ public:
  *          the initializer_list.
  *  @param  _ils  Initializer list.
  */
-template<class _Tp>
-constexpr const _Tp *
+template <class _Tp>
+constexpr const _Tp*
 begin(initializer_list<_Tp> _ils) noexcept { return _ils.begin(); }
 
 /**
@@ -57,8 +64,8 @@ begin(initializer_list<_Tp> _ils) noexcept { return _ils.begin(); }
  *          of the initializer_list.
  *  @param  _ils  Initializer list.
  */
-template<class _Tp>
-constexpr const _Tp *
+template <class _Tp>
+constexpr const _Tp*
 end(initializer_list<_Tp> _ils) noexcept { return _ils.end(); }
 }
 

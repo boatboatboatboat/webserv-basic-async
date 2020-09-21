@@ -28,7 +28,6 @@ public:
         }
     }
 
-
     explicit RcPtr(T&& other)
     {
         this->refs_mutex = new Mutex<uint64_t>(1);
@@ -51,7 +50,7 @@ public:
     }
 
     //template<Derived<T> U>
-    template<typename U>
+    template <typename U>
     RcPtr(RcPtr<U> const& other)
     {
         {
@@ -62,7 +61,8 @@ public:
         this->inner = const_cast<T*>(other.get());
     }
 
-    RcPtr(RcPtr const& other) {
+    RcPtr(RcPtr const& other)
+    {
         {
             auto refs = other.get_raw_mutex()->lock();
             *refs += 1;
@@ -72,7 +72,7 @@ public:
     }
 
     //template<Derived<T> U>
-    template<typename U>
+    template <typename U>
     RcPtr& operator=(RcPtr<U> const& other)
     {
         {
@@ -96,7 +96,7 @@ public:
     }
 
     //template<Derived<T> U>
-    template<typename U>
+    template <typename U>
     RcPtr& operator=(RcPtr<U>&& other)
     {
         this->refs_mutex = other.get_raw_mutex();
@@ -113,14 +113,13 @@ public:
         return *this;
     }
 
-    template<typename U>
+    template <typename U>
     RcPtr(RcPtr<U>&& other)
     {
         this->refs_mutex = other.get_raw_mutex();
         this->inner = other.get();
         other.leak();
     }
-
 
     RcPtr(RcPtr&& other)
     {
@@ -141,9 +140,14 @@ public:
 
     const T* get() const { return this->inner; }
 
-    void leak() { this->inner = nullptr; this->refs_mutex = nullptr; }
+    void leak()
+    {
+        this->inner = nullptr;
+        this->refs_mutex = nullptr;
+    }
 
-    uint64_t count() {
+    uint64_t count()
+    {
         auto refs = refs_mutex->lock();
         return *refs;
     }
@@ -307,17 +311,18 @@ private:
 };
 
  */
-template<typename T, typename U>
-bool operator==(RcPtr<T> const& lhs, RcPtr<U> const& rhs) noexcept {
+template <typename T, typename U>
+bool operator==(RcPtr<T> const& lhs, RcPtr<U> const& rhs) noexcept
+{
     return lhs.get() == rhs.get();
 }
 
-template<typename T, typename U>
-bool operator!=(RcPtr<T> const& lhs, RcPtr<U> const& rhs) noexcept {
+template <typename T, typename U>
+bool operator!=(RcPtr<T> const& lhs, RcPtr<U> const& rhs) noexcept
+{
     return !(lhs == rhs);
 }
 
 } // namespace boxed
-
 
 #endif // WEBSERV_RCPTR_HPP

@@ -12,8 +12,8 @@ using ioruntime::GlobalIoEventHandler;
 
 namespace net {
 
-TcpListener::TcpListener(IpAddress ip, in_port_t port):
-    addr(sockaddr_in {})
+TcpListener::TcpListener(IpAddress ip, in_port_t port)
+    : addr(sockaddr_in {})
 {
     int protocol_specifier;
     int sockaddr_size;

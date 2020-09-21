@@ -5,13 +5,13 @@
 #ifndef WEBSERV_IORUNTIME_TIMEOUTFUTURE_HPP
 #define WEBSERV_IORUNTIME_TIMEOUTFUTURE_HPP
 
+#include "../boxed/RcPtr.hpp"
 #include "../futures/IFuture.hpp"
 #include "../mutex/mutex.hpp"
-#include "../boxed/RcPtr.hpp"
 
+using boxed::RcPtr;
 using futures::IFuture;
 using mutex::Mutex;
-using boxed::RcPtr;
 
 namespace ioruntime {
 
@@ -20,6 +20,7 @@ public:
     static TimeoutFuture dead_timer();
     explicit TimeoutFuture(uint64_t ms);
     futures::PollResult<void> poll(futures::Waker&& waker) override;
+
 private:
     TimeoutFuture();
     bool dead = false;

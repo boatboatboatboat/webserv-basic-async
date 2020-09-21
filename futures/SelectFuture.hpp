@@ -14,12 +14,13 @@ class SelectFuture : public IFuture<Ret> {
 public:
     SelectFuture(FutX&& x, FutY&& y);
     PollResult<Ret> poll(Waker&& waker) override;
+
 private:
     FutX x;
     FutY y;
 };
 
-template<typename Ret, typename FutX, typename FutY>
+template <typename Ret, typename FutX, typename FutY>
 static SelectFuture<Ret, FutX, FutY> select(FutX&& x, FutY&& y);
 
 }

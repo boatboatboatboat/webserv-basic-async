@@ -18,13 +18,15 @@ PollResult<Ret> SelectFuture<Ret, FutX, FutY>::poll(Waker&& waker)
     }
 }
 template <typename Ret, typename FutX, typename FutY>
-SelectFuture<Ret, FutX, FutY>::SelectFuture(FutX&& x, FutY&& y):
-    x(std::move(x)), y(std::move(y))
+SelectFuture<Ret, FutX, FutY>::SelectFuture(FutX&& x, FutY&& y)
+    : x(std::move(x))
+    , y(std::move(y))
 {
 }
 
-template<typename Ret, typename FutX, typename FutY>
-static SelectFuture<Ret, FutX, FutY> select(FutX&& x, FutY&& y) {
+template <typename Ret, typename FutX, typename FutY>
+static SelectFuture<Ret, FutX, FutY> select(FutX&& x, FutY&& y)
+{
     return SelectFuture<Ret, FutX, FutY>(std::forward<FutX>(x), std::forward<FutY>(y));
 }
 

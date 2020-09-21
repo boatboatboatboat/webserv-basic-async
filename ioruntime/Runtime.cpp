@@ -21,7 +21,8 @@ void Runtime::register_handler(BoxPtr<IEventHandler>&& handler, HandlerType ht =
     case Timeout: {
         GlobalTimeoutEventHandler::set(dynamic_cast<TimeoutEventHandler*>(handlers.back().get()));
     } break;
-    default: break;
+    default:
+        break;
     }
 }
 
