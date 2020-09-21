@@ -5,10 +5,16 @@
 #include "StreamingHttpRequestParser.hpp"
 
 #include "HttpMethod.hpp"
+#include <algorithm>
+#include <map>
+#include <queue>
 #include <utility>
+#include <vector>
 
 bool http::StreamingHttpRequestParser::parse(char* buffer, size_t size)
 {
+    (void)buffer;
+    (void)size;
     return false;
 }
 
@@ -32,20 +38,21 @@ void http::StreamingHttpRequestParser::next_parser()
     }
 }
 
-constexpr std::array<http::HttpMethod, 8> VALID_METHODS = {
-    http::method::CONNECT,
-    http::method::DELETE,
-    http::method::GET,
-    http::method::HEAD,
-    http::method::OPTIONS,
-    http::method::PATCH,
-    http::method::POST,
-    http::method::PUT,
-};
-
 auto http::RequestLineParser::is_method_valid(std::string_view method) -> bool
 {
-    return std::any_of(VALID_METHODS.begin(), VALID_METHODS.end(), [&](auto real) { return real.starts_with(method); });
+    constexpr http::HttpMethod VALID_METHODS[8] = {
+        http::method::CONNECT,
+        http::method::DELETE,
+        http::method::GET,
+        http::method::HEAD,
+        http::method::OPTIONS,
+        http::method::PATCH,
+        http::method::POST,
+        http::method::PUT,
+    };
+    auto methods = span(VALID_METHODS, 8);
+
+    return std::any_of(methods.begin(), methods.end(), [&](auto real) { return real.starts_with(method); });
 }
 
 auto http::RequestLineParser::is_uri_valid(std::string_view uri) -> bool
@@ -53,6 +60,7 @@ auto http::RequestLineParser::is_uri_valid(std::string_view uri) -> bool
     size_t i = 0;
     for (char c : uri) {
         i += 1;
+        (void)c;
     }
     return false;
 }
