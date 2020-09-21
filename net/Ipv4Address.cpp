@@ -3,6 +3,7 @@
 //
 
 #include "Ipv4Address.hpp"
+#include "../utils/utils.hpp"
 #include <iostream>
 
 auto net::Ipv4Address::get_ip_bytes() const -> uint32_t
@@ -47,7 +48,7 @@ net::Ipv4Address::Ipv4Address(string_view str)
         }
         x |= c;
     }
-    ip = __bswap_constant_32(x);
+    ip = utils::bswap32(x);
 }
 
 auto operator<<(std::ostream& os, const net::Ipv4Address& sa) -> std::ostream&
