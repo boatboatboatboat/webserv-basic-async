@@ -55,6 +55,51 @@ public:
     {
         return m_ptr - 1;
     }
+
+    auto cbegin() const noexcept -> T const*
+    {
+        return m_ptr;
+    }
+
+    auto cend() const noexcept -> T const*
+    {
+        return m_ptr + m_len;
+    }
+
+    [[nodiscard]] auto front() -> T&
+    {
+        return *m_ptr;
+    }
+
+    [[nodiscard]] auto back() -> T&
+    {
+        return m_ptr[m_len];
+    }
+
+    [[nodiscard]] auto data() -> T*
+    {
+        return m_ptr;
+    }
+
+    [[nodiscard]] auto size_bytes() const -> std::size_t
+    {
+        return m_len * sizeof(T);
+    }
+
+    [[nodiscard]] auto empty() const -> std::size_t
+    {
+        return m_len == 0;
+    }
+
+    [[nodiscard]] auto first(size_t count) const -> span<T>
+    {
+        return span<T>(m_ptr, count);
+    }
+
+    [[nodiscard]] auto last(size_t count) const -> span<T>
+    {
+        return span<T>(m_ptr + m_len - count, count);
+    }
 };
 
 }
