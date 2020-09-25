@@ -5,6 +5,8 @@
 #ifndef WEBSERV_FUTURES_STREAMPOLLRESULT_HPP
 #define WEBSERV_FUTURES_STREAMPOLLRESULT_HPP
 
+#include "../option/optional.hpp"
+
 namespace futures {
 template <typename T>
 class StreamPollResult {
@@ -14,10 +16,8 @@ public:
         Finished };
     StreamPollResult() = delete;
     static StreamPollResult<T> pending();
-    static StreamPollResult<T> pending(T&& uninitialized);
     static StreamPollResult<T> ready(T&& result);
     static StreamPollResult<T> finished();
-    static StreamPollResult<T> finished(T&& uninitialized);
     [[nodiscard]] Status get_status() const;
     T& get();
 
@@ -25,7 +25,7 @@ private:
     StreamPollResult(Status status, T&& inner);
     explicit StreamPollResult(Status status);
     Status _status;
-    T _result;
+    optional<T> _result;
 };
 }
 
