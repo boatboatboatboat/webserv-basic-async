@@ -5,7 +5,11 @@
 #ifndef WEBSERV_POLLRESULT_HPP
 #define WEBSERV_POLLRESULT_HPP
 
+#include "../option/optional.hpp"
+
 namespace futures {
+
+using option::optional;
 
 template <typename T>
 class PollResult {
@@ -23,7 +27,7 @@ private:
     PollResult(Status status, T&& inner);
     explicit PollResult(Status status);
     Status _status;
-    T _result;
+    optional<T> _result;
 };
 
 template <>
