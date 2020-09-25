@@ -100,7 +100,7 @@ auto TcpListener::poll_next(Waker&& waker) -> StreamPollResult<TcpStream>
         BoxFunctor cb = BoxFunctor(new SetReadyFunctor(RcPtr(connection_ready)));
         GlobalIoEventHandler::register_reader_callback(descriptor, std::move(cb), true);
         GlobalIoEventHandler::register_reader_callback(descriptor, waker.boxed(), true, 1);
-        return StreamPollResult<TcpStream>::pending(TcpStream::uninitialized());
+        return StreamPollResult<TcpStream>::pending();
     }
 }
 
