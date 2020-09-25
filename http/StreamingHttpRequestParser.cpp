@@ -1,3 +1,4 @@
+/*
 //
 // Created by boat on 13-09-20.
 //
@@ -11,10 +12,9 @@
 #include <utility>
 #include <vector>
 
-bool http::StreamingHttpRequestParser::parse(char* buffer, size_t size)
+bool http::StreamingHttpRequestParser::parse(span<uint8_t> incoming)
 {
-    (void)buffer;
-    (void)size;
+    (void)incoming;
     return false;
 }
 
@@ -38,22 +38,6 @@ void http::StreamingHttpRequestParser::next_parser()
     }
 }
 
-auto http::RequestLineParser::is_method_valid(std::string_view method) -> bool
-{
-    constexpr http::HttpMethod VALID_METHODS[8] = {
-        http::method::CONNECT,
-        http::method::DELETE,
-        http::method::GET,
-        http::method::HEAD,
-        http::method::OPTIONS,
-        http::method::PATCH,
-        http::method::POST,
-        http::method::PUT,
-    };
-    auto methods = span(VALID_METHODS, 8);
-
-    return std::any_of(methods.begin(), methods.end(), [&](auto real) { return real.starts_with(method); });
-}
 
 auto http::RequestLineParser::is_uri_valid(std::string_view uri) -> bool
 {
@@ -152,3 +136,4 @@ auto http::StreamingHttpRequest::get_body() -> vector<uint8_t> const&
 {
     return body;
 }
+*/
