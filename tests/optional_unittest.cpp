@@ -53,7 +53,7 @@ TEST(OptionalTests, optional_value_none_error)
 TEST(OptionalTests, optional_value_some)
 {
     EXPECT_NO_THROW({
-        auto x = optional { 1 };
+        optional<int> x = 1;
 
         EXPECT_EQ(x.value(), 1);
     });
@@ -61,7 +61,7 @@ TEST(OptionalTests, optional_value_some)
 
 TEST(OptionalTests, optional_deref)
 {
-    auto x = optional { 1 };
+    optional<int> x = 1;
 
     EXPECT_EQ(*x, 1);
 }

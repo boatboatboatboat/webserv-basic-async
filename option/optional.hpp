@@ -42,12 +42,12 @@ private:
         }
     }
     // Set the value of t, checking for uninitialized t
-    constexpr void t_set(T&& a)
+    constexpr void t_move(T&& a)
     {
         if (some) {
-            t = std::move(a);
+            t = std::forward<T>(a);
         } else {
-            new (&t) T(std::move(a));
+            new (&t) T(std::forward<T>(a));
         }
     }
 
@@ -63,15 +63,15 @@ public:
     constexpr optional(optional const& other)
     {
         some = false;
-        if (other.some)
-            t_set(std::move(other.t));
+        if (other.has_value())
+            t_set(other.value());
         some = other.some;
     }
     constexpr optional(optional&& other)
     {
         some = false;
-        if (other.some)
-            t_set(std::move(other.t));
+        if (other.has_value())
+            t_move(std::move(other.value()));
         some = other.some;
         other.reset();
     }
@@ -79,17 +79,17 @@ public:
     optional(optional<U> const& other)
     {
         some = false;
-        if (other.some)
-            t_set(std::move(other.t));
-        some = other.some;
+        if (other.has_value())
+            t_set(other.value());
+        some = other.has_value();
     }
     template <typename U>
     optional(optional<U>&& other)
     {
         some = false;
-        if (other.some)
-            t_set(std::move(other.t));
-        some = other.some;
+        if (other.has_value())
+            t_move(std::move(other.value()));
+        some = other.has_value();
         other.reset();
     }
     template <typename U = T>
@@ -168,17 +168,17 @@ public:
     constexpr auto operator=(const optional& other) -> optional&
     {
         reset();
-        if (other.some)
-            t_set(other.t);
-        some = other.some;
+        if (other.has_value())
+            t_set(other.value());
+        some = other.has_value();
         return *this;
     }
     constexpr auto operator=(optional&& other) noexcept -> optional&
     {
         reset();
-        if (other.some)
-            t_set(std::move(other.t));
-        some = other.some;
+        if (other.has_value())
+            t_move(std::move(other.value()));
+        some = other.has_value();
         other.reset();
         return *this;
     }
@@ -186,18 +186,18 @@ public:
     auto operator=(const optional<U>& other) -> optional&
     {
         reset();
-        if (other.some)
-            t_set(other.t);
-        some = other.some;
+        if (other.has_value())
+            t_set(other.value());
+        some = other.has_value();
         return *this;
     }
     template <class U>
     auto operator=(optional<U>&& other) -> optional&
     {
         reset();
-        if (other.some)
-            t_set(std::move(other.t));
-        some = other.some;
+        if (other.has_value())
+            t_move(std::move(other.value()));
+        some = other.has_value();
         other.reset();
         return *this;
     }
@@ -205,7 +205,7 @@ public:
     auto operator=(U&& value) -> optional&
     {
         reset();
-        t_set(std::move(value));
+        t_move(std::move(value));
         some = true;
         return *this;
     }
