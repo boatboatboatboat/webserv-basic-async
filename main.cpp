@@ -3,6 +3,7 @@
 #include <iostream>
 #include <netinet/in.h>
 
+#include "args/Args.hpp"
 #include "config/Config.hpp"
 #include "fs/File.hpp"
 #include "futures/ForEachFuture.hpp"
@@ -473,13 +474,46 @@ auto match_base_config(RootConfig const& rcfg, http::StreamingHttpRequest& req) 
     };
 }
 
-auto main() -> int
+auto main(int argc, const char** argv) -> int
 {
     // ignore SIGPIPE,
     // a dos attack can cause so many SIGPIPEs (to the point of 30k queued),
     // that all threads are preoccupied with running the signal handler
     signal(SIGPIPE, SIG_IGN);
     try {
+
+        std::string config_file_path = "./config.json";
+
+        {
+            args::Args arguments(argc, argv);
+
+            // let's just hardcode it instead of using getopt
+            auto it = arguments.begin();
+            it += 1;
+            while (it != arguments.end()) {
+                if (*it == "--help" || *it == "-h") {
+                    std::cout
+                        << "usage: webserv [--config config_file_path]"
+                    << std::endl;
+                    return 0;
+                } else if (*it == "--config" || *it == "-c") {
+                    ++it;
+                    if (it == arguments.end()) {
+                        throw std::runtime_error("expected config file after parameter");
+                    } else {
+                        // TODO: change working directory to config_file_path's parent directory
+                        config_file_path = *it;
+                    }
+                } else {
+                    ERRORPRINT("unknown argument: '" << *it << "'");
+                    std::cout
+                        << "usage: webserv [-c config_file_path]"
+                        << std::endl;
+                    return 1;
+                }
+                ++it;
+            }
+        }
 
         json::Json config;
         std::string error;
@@ -492,7 +526,7 @@ auto main() -> int
             rt.globalize();
 
             std::string config_str;
-            GlobalRuntime::spawn(ioruntime::FdStringReadFuture(fs::File::open("config.json"), config_str));
+            GlobalRuntime::spawn(ioruntime::FdStringReadFuture(fs::File::open(config_file_path), config_str));
             rt.naive_run();
 
             config = json::Json::parse(config_str, error);
