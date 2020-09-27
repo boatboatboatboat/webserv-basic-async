@@ -19,7 +19,7 @@ public:
     [[nodiscard]] static auto ready(T&& result) -> PollResult<T>;
     [[nodiscard]] auto is_ready() const -> bool;
     [[nodiscard]] auto is_pending() const -> bool;
-    auto get() -> T;
+    auto get() -> T&;
 
 private:
     enum Status { Pending,
