@@ -83,4 +83,14 @@ auto StreamingHttpRequest::get_body() const -> vector<uint8_t> const&
     return _body;
 }
 
+auto StreamingHttpRequest::get_header(string_view name) const -> optional<string_view>
+{
+    auto const& val = std::find_if(_headers.begin(), _headers.end(), [=](auto& field_pair) { return name == field_pair.first; });
+    if (val == _headers.end()) {
+        return option::nullopt;
+    } else {
+        return optional<string_view>(val->second);
+    }
+}
+
 }

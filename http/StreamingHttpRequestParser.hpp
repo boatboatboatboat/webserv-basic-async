@@ -2,6 +2,8 @@
 // Created by boat on 13-09-20.
 //
 
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "EndlessLoop"
 #ifndef WEBSERV_HTTP_STREAMINGHTTPREQUESTPARSER_HPP
 #define WEBSERV_HTTP_STREAMINGHTTPREQUESTPARSER_HPP
 
@@ -60,6 +62,7 @@ public:
     [[nodiscard]] auto get_uri() const -> Uri const&;
     [[nodiscard]] auto get_version() const -> HttpVersion const&;
     [[nodiscard]] auto get_headers() const -> map<string, string> const&;
+    [[nodiscard]] auto get_header(string_view name) const -> optional<string_view>;
     [[nodiscard]] auto get_body() const -> vector<uint8_t> const&;
 
 private:
@@ -92,54 +95,76 @@ inline auto get_method(const string_view possible_method) -> optional<http::Http
     return optional<http::HttpMethod>::none();
 }
 
-class StreamingHttpRequestParser {
+inline auto method_has_body(const string_view possible_method) -> bool
+{
+    return possible_method == http::method::POST
+        || possible_method == http::method::PUT
+        || possible_method == http::method::PATCH
+        || possible_method == http::method::DELETE;
+}
+
+class StreamingHttpRequestParser : public IFuture<StreamingHttpRequest> {
 public:
-    class RequestUriExceededBuffer : public std::runtime_error {
+    class ParserError : public std::runtime_error {
+    public:
+        explicit ParserError(const char* w)
+            : std::runtime_error(w)
+        {
+        }
+    };
+    class RequestUriExceededBuffer : public ParserError {
     public:
         RequestUriExceededBuffer()
-            : std::runtime_error("Request URI exceeded buffer limit")
+            : ParserError("Request URI exceeded buffer limit")
         {
         }
     };
-    class BodyExceededLimit : public std::runtime_error {
+    class BodyExceededLimit : public ParserError {
     public:
         BodyExceededLimit()
-            : std::runtime_error("Body exceeded limit")
+            : ParserError("Body exceeded limit")
         {
         }
     };
-    class GenericExceededBuffer : public std::runtime_error {
+    class GenericExceededBuffer : public ParserError {
     public:
         GenericExceededBuffer()
-            : std::runtime_error("Exceeded buffer limit")
+            : ParserError("Exceeded buffer limit")
         {
         }
     };
-    class InvalidMethod : public std::runtime_error {
+    class InvalidMethod : public ParserError {
     public:
         InvalidMethod()
-            : std::runtime_error("Invalid HTTP method")
+            : ParserError("Invalid HTTP method")
         {
         }
     };
-    class InvalidVersion : public std::runtime_error {
+    class InvalidVersion : public ParserError {
     public:
         InvalidVersion()
-            : std::runtime_error("Invalid HTTP version")
+            : ParserError("Invalid HTTP version")
         {
         }
     };
-    class MalformedHeader : public std::runtime_error {
+    class MalformedHeader : public ParserError {
     public:
         MalformedHeader()
-            : std::runtime_error("Malformed HTTP header")
+            : ParserError("Malformed HTTP header")
         {
         }
     };
-    class UnexpectedEof : public std::runtime_error {
+    class UnexpectedEof : public ParserError {
     public:
         UnexpectedEof()
-            : std::runtime_error("Unexpected end of request")
+            : ParserError("Unexpected end of request")
+        {
+        }
+    };
+    class UndeterminedLength : public ParserError {
+    public:
+        UndeterminedLength()
+            : ParserError("Undetermined length of body")
         {
         }
     };
@@ -150,9 +175,37 @@ public:
     {
     }
 
-    auto poll_parse(Waker&& waker) -> PollResult<StreamingHttpRequest>
+    StreamingHttpRequestParser(StreamingHttpRequestParser&& other) noexcept
+        : character_head(other.character_head)
+        , character_max(other.character_max)
+        , buffer_limit(other.buffer_limit)
+        , body_limit(other.body_limit)
+        , source(other.source)
+        , buffer(std::move(other.buffer))
+        , builder(std::move(other.builder))
     {
-        auto poll_result = poll_character(std::move(waker));
+        utils::memcpy(character_buffer, other.character_buffer);
+        other.moved = true;
+    }
+
+    StreamingHttpRequestParser(StreamingHttpRequestParser&& other, IAsyncRead& new_stream) noexcept
+        : character_head(other.character_head)
+        , character_max(other.character_max)
+        , buffer_limit(other.buffer_limit)
+        , body_limit(other.body_limit)
+        , source(new_stream)
+        , buffer(std::move(other.buffer))
+        , builder(std::move(other.builder))
+    {
+        utils::memcpy(character_buffer, other.character_buffer);
+        other.moved = true;
+    }
+
+    auto poll(Waker&& waker) -> PollResult<StreamingHttpRequest> override
+    {
+        if (moved)
+            return PollResult<StreamingHttpRequest>::pending();
+        auto poll_result = poll_character(Waker(waker));
         using Status = StreamPollResult<uint8_t>::Status;
 
         switch (poll_result.get_status()) {
@@ -167,9 +220,13 @@ public:
             case ReadVersion:
             case HeaderLine: {
                 matched = result == '\n' && !buffer.empty() && buffer.back() == '\r';
-                if (matched) { buffer.pop_back(); }
+                if (matched) {
+                    buffer.pop_back();
+                }
             } break;
-            default:
+            case Body: {
+                matched = true;
+            }
                 break;
             }
             if (state == Body && buffer.size() == body_limit) {
@@ -181,7 +238,7 @@ public:
                     throw GenericExceededBuffer();
                 }
             }
-            if (!matched) {
+            if (!matched || state == Body) {
                 buffer.push_back(result);
             }
             if (matched) {
@@ -190,6 +247,7 @@ public:
                 case ReadMethod: {
                     auto method = get_method(str_in_buf);
                     if (method) {
+                        current_method = *method;
                         builder.method(string_view(*method));
                     } else {
                         throw InvalidMethod();
@@ -216,7 +274,10 @@ public:
                 } break;
                 case HeaderLine: {
                     if (str_in_buf.empty()) {
-                            state = Body;
+                        if (!method_has_body(current_method)) {
+                            return PollResult<StreamingHttpRequest>::ready(std::move(builder).build());
+                        }
+                        state = Body;
                     } else {
                         auto separator = str_in_buf.find(':');
 
@@ -233,25 +294,43 @@ public:
                         while (field_value.back() == ' ' || field_value.back() == '\t') {
                             field_value.remove_suffix(1);
                         }
+
+                        if (utils::str_eq_case_insensitive(field_name, "Content-Length")) {
+                            auto length = utils::string_to_uint64(field_value);
+
+                            if (length) {
+                                content_length = *length;
+                            } else {
+                                throw MalformedHeader();
+                            }
+                        }
+
                         builder.header(string(field_name), string(field_value));
                     }
                     buffer.clear();
                 } break;
                 case Body: {
+                    if (content_length) {
+                        // CL
+                        if (buffer.size() == *content_length) {
+                            builder.body(std::move(buffer));
+                            return PollResult<StreamingHttpRequest>::ready(std::move(builder).build());
+                        }
+                    } else {
+                        // TCE
+                        throw UndeterminedLength();
+                    }
                 } break;
                 }
             }
-            return PollResult<StreamingHttpRequest>::pending();
+            return poll(std::move(waker));
         } break;
         case Status::Pending: {
             return PollResult<StreamingHttpRequest>::pending();
         } break;
         case Status::Finished: {
-            if (state != Body) {
-                throw UnexpectedEof();
-            }
-            builder.body(std::move(buffer));
-            return PollResult<StreamingHttpRequest>::ready(std::move(builder).build());
+            // All EOFs are unexpected, we want either TCE or CL
+            throw UnexpectedEof();
         } break;
         }
     };
@@ -294,11 +373,16 @@ private:
     size_t character_max = 0;
     size_t buffer_limit;
     size_t body_limit;
+    HttpMethod current_method;
+    optional<uint64_t> content_length;
     IAsyncRead& source;
     vector<uint8_t> buffer;
     StreamingHttpRequestBuilder builder;
+    bool moved = false;
 };
 
 }
 
 #endif //WEBSERV_HTTP_STREAMINGHTTPREQUESTPARSER_HPP
+
+#pragma clang diagnostic pop
