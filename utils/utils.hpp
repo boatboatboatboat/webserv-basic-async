@@ -16,6 +16,8 @@ void dbg_puts(std::string const& printme);
 #ifdef SAFEPRINT_LINE_INFO
 #ifdef __linux__
 
+#include <unistd.h>
+
 #define LINE_INFO __func__ << " " << __FILE__ << ":" << __LINE__ \
                            << " " << std::to_string(gettid())    \
                            << " "
