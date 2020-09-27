@@ -45,7 +45,11 @@ private:
     constexpr void t_move(T&& a)
     {
         if (some) {
-            t = std::forward<T>(a);
+            // FUCK C++ FUCK C++ FUCK C++ FUCK C++
+            // this is a hacky fix around C++ recognizing a fucking lvalue = rvalue as lvalue = lvalue
+            // note: this very much fucks up assignment operators, so if they have side effects you're screwed :-)
+            t.~T();
+            new (&t) T(std::forward<T>(a));
         } else {
             new (&t) T(std::forward<T>(a));
         }
