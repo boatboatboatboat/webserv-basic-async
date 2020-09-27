@@ -6,7 +6,8 @@
 
 namespace mutex {
 
-MutexGuard<void>::MutexGuard(Mutex<void>& mutex): mutex(mutex)
+MutexGuard<void>::MutexGuard(Mutex<void>& mutex)
+    : mutex(mutex)
 {
     pthread_mutex_lock(&mutex.inner_mutex);
 }

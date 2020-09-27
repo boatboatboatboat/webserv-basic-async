@@ -18,7 +18,7 @@ class ForEachFuture : public IFuture<void> {
 public:
     explicit ForEachFuture(St&& stream, void (*function)(Fp&));
     explicit ForEachFuture(St&& stream, void (*function)(Fp&), void (*_eh)(std::exception& e));
-    ForEachFuture(ForEachFuture&& other) noexcept ;
+    ForEachFuture(ForEachFuture&& other) noexcept;
     ~ForEachFuture() override = default;
     auto poll(Waker&& waker) -> PollResult<void> override;
 
@@ -37,8 +37,7 @@ ForEachFuture<St, Fp>::ForEachFuture(St&& stream, void (*function)(Fp&))
 }
 
 template <typename St, typename Fp>
-auto
-ForEachFuture<St, Fp>::poll(Waker&& waker) -> PollResult<void>
+auto ForEachFuture<St, Fp>::poll(Waker&& waker) -> PollResult<void>
 {
     try {
         auto result = _stream.poll_next(std::move(waker));
@@ -66,7 +65,7 @@ ForEachFuture<St, Fp>::poll(Waker&& waker) -> PollResult<void>
 }
 
 template <typename St, typename Fp>
-ForEachFuture<St, Fp>::ForEachFuture(ForEachFuture&& other)noexcept
+ForEachFuture<St, Fp>::ForEachFuture(ForEachFuture&& other) noexcept
     : _stream(std::move(other._stream))
     , _function(other._function)
     , _eh(other._eh)
@@ -74,7 +73,8 @@ ForEachFuture<St, Fp>::ForEachFuture(ForEachFuture&& other)noexcept
 }
 
 template <typename St, typename Fp>
-ForEachFuture<St, Fp>::ForEachFuture(St&& stream, void (*function)(Fp&), void (*_eh)(std::exception&)): _stream(std::move(stream))
+ForEachFuture<St, Fp>::ForEachFuture(St&& stream, void (*function)(Fp&), void (*_eh)(std::exception&))
+    : _stream(std::move(stream))
     , _function(function)
     , _eh(_eh)
 {

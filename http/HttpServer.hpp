@@ -12,12 +12,12 @@
 #include "../net/TcpStream.hpp"
 #include "HttpResponse.hpp"
 #include "ParserFuture.hpp"
+#include "StreamingHttpRequestParser.hpp"
 
 using futures::ForEachFuture;
 using futures::IFuture;
 using ioruntime::TimeoutFuture;
 using net::TcpStream;
-using ioruntime::TimeoutFuture;
 
 namespace http {
 template <typename RH>
@@ -29,7 +29,7 @@ private:
         ~HttpConnectionFuture() override;
         HttpConnectionFuture(HttpConnectionFuture&& other) noexcept;
         explicit HttpConnectionFuture(net::TcpStream&& stream);
-        PollResult<void> poll(Waker&& waker) override;
+        auto poll(Waker&& waker) -> PollResult<void> override;
 
     private:
         enum State {
@@ -37,10 +37,10 @@ private:
             Respond
         };
         State state = Listen;
-        HttpRequest req;
+        optional<StreamingHttpRequest> req;
         HttpResponse res;
         net::TcpStream stream;
-        ParserFuture parser;
+        optional<StreamingHttpRequestParser> parser;
         TimeoutFuture timeout;
         RH handler;
     };

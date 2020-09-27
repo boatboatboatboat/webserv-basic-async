@@ -9,42 +9,96 @@
 
 namespace utils {
 
-template<typename T>
+template <typename T>
 class span {
     T* m_ptr;
     size_t m_len;
 
 public:
     span(T* ptr, std::size_t len) noexcept
-        : m_ptr {ptr}, m_len {len}
-    {}
+        : m_ptr { ptr }
+        , m_len { len }
+    {
+    }
 
-    T& operator[](ssize_t i) noexcept {
+    T& operator[](ssize_t i) noexcept
+    {
         return *m_ptr[i];
     }
 
-    T const& operator[](ssize_t i) const noexcept {
+    T const& operator[](ssize_t i) const noexcept
+    {
         return *m_ptr[i];
     }
 
-    [[nodiscard]] size_t size() const noexcept {
+    [[nodiscard]] size_t size() const noexcept
+    {
         return m_len;
     }
 
-    T* begin() noexcept {
+    T* begin() noexcept
+    {
         return m_ptr;
     }
 
-    T* end() noexcept {
+    T* end() noexcept
+    {
         return m_ptr + m_len;
     }
 
-    T* rbegin() noexcept {
+    T* rbegin() noexcept
+    {
         return m_ptr + m_len - 1;
     }
 
-    T* rend() noexcept {
+    T* rend() noexcept
+    {
         return m_ptr - 1;
+    }
+
+    auto cbegin() const noexcept -> T const*
+    {
+        return m_ptr;
+    }
+
+    auto cend() const noexcept -> T const*
+    {
+        return m_ptr + m_len;
+    }
+
+    [[nodiscard]] auto front() -> T&
+    {
+        return *m_ptr;
+    }
+
+    [[nodiscard]] auto back() -> T&
+    {
+        return m_ptr[m_len];
+    }
+
+    [[nodiscard]] auto data() -> T*
+    {
+        return m_ptr;
+    }
+
+    [[nodiscard]] auto size_bytes() const -> std::size_t
+    {
+        return m_len * sizeof(T);
+    }
+
+    [[nodiscard]] auto empty() const -> std::size_t
+    {
+        return m_len == 0;
+    }
+
+    [[nodiscard]] auto first(size_t count) const -> span<T>
+    {
+        return span<T>(m_ptr, count);
+    }
+
+    [[nodiscard]] auto last(size_t count) const -> span<T>
+    {
+        return span<T>(m_ptr + m_len - count, count);
     }
 };
 

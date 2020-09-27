@@ -7,8 +7,8 @@
 
 namespace net {
 
-IpAddress::IpAddress(Tag tag, uint64_t ip, uint64_t ip2):
-    tag(tag)
+IpAddress::IpAddress(Tag tag, uint64_t ip, uint64_t ip2)
+    : tag(tag)
 {
     if (tag == Ipv4) {
         in_v4 = Ipv4Address(ip);
@@ -17,14 +17,14 @@ IpAddress::IpAddress(Tag tag, uint64_t ip, uint64_t ip2):
     }
 }
 
-IpAddress::IpAddress(Ipv4Address ip):
-    tag(Ipv4)
+IpAddress::IpAddress(Ipv4Address ip)
+    : tag(Ipv4)
 {
     in_v4 = ip;
 }
 
-IpAddress::IpAddress(Ipv6Address ip):
-    tag(Ipv6)
+IpAddress::IpAddress(Ipv6Address ip)
+    : tag(Ipv6)
 {
     in_v6 = ip;
 }
@@ -100,7 +100,8 @@ auto IpAddress::from_str(std::string_view str) -> IpAddress
 
 }
 
-auto operator<<(std::ostream& os, const net::IpAddress& sa) -> std::ostream& {
+auto operator<<(std::ostream& os, const net::IpAddress& sa) -> std::ostream&
+{
     if (sa.is_v4()) {
         os << sa.get_v4();
     } else if (sa.is_v6()) {

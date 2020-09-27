@@ -13,11 +13,12 @@ namespace http {
 static const char* DEFAULT_PAGE_START = "<html><head><title>webserv</title></head><body><h1 style=\"text-align:center;\">";
 static const char* DEFAULT_PAGE_END = "</h1><hr><p style=\"text-align:center;\">webserv</p></body></html>";
 
-class DefaultPageBody: public ioruntime::IAsyncRead {
+class DefaultPageBody : public ioruntime::IAsyncRead {
 public:
     DefaultPageBody() = delete;
     explicit DefaultPageBody(HttpStatus code);
     PollResult<ssize_t> poll_read(char* buffer, size_t size, Waker&& waker) override;
+
 private:
     enum State {
         PageStart,

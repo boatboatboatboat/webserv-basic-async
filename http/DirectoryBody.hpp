@@ -9,13 +9,16 @@
 #include <dirent.h>
 #include <string>
 
+using std::string_view;
+
 namespace http {
 
-class DirectoryBody: public ioruntime::IAsyncRead {
+class DirectoryBody : public ioruntime::IAsyncRead {
 public:
-    explicit DirectoryBody(std::string const& str, std::string const& real_pathstr);
+    explicit DirectoryBody(string_view str, string_view real_pathstr);
     ~DirectoryBody() override;
     auto poll_read(char* buffer, size_t size, Waker&& waker) -> PollResult<ssize_t> override;
+
 private:
     inline static constexpr std::string_view PAGE_START = "<html><head><title>";
     inline static constexpr std::string_view PAGE_START2 = "</title></head><body><h1>Index of ";
@@ -37,7 +40,8 @@ private:
         FileName,
         FileEnd,
         PageEnd
-    } state = PageStart;
+    } state
+        = PageStart;
     DIR* dir;
     std::string path;
     std::string real_path;

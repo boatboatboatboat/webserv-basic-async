@@ -243,7 +243,8 @@ TEST(IpAddressTests, ipaddr_v4_cmp_aton7)
     EXPECT_EQ(ip.get_ip_bytes(), rip.s_addr);
 }
 
-TEST(IpAddressTests, ipaddr_v6_cmp_aton1) {
+TEST(IpAddressTests, ipaddr_v6_cmp_aton1)
+{
     const char* cip = "::";
     Ipv6Address ip(cip);
     in6_addr oip = ip.get_ip_posix();
@@ -257,8 +258,8 @@ TEST(IpAddressTests, ipaddr_v6_cmp_aton1) {
     EXPECT_STREQ(real, ours);
 }
 
-
-TEST(IpAddressTests, ipaddr_v6_cmp_aton2) {
+TEST(IpAddressTests, ipaddr_v6_cmp_aton2)
+{
     const char* cip = "::1";
     Ipv6Address ip(cip);
     in6_addr oip = ip.get_ip_posix();
@@ -272,7 +273,8 @@ TEST(IpAddressTests, ipaddr_v6_cmp_aton2) {
     EXPECT_STREQ(real, ours);
 }
 
-TEST(IpAddressTests, ipaddr_v6_cmp_aton3) {
+TEST(IpAddressTests, ipaddr_v6_cmp_aton3)
+{
     const char* cip = "1::1";
     Ipv6Address ip(cip);
     in6_addr oip = ip.get_ip_posix();
@@ -286,7 +288,8 @@ TEST(IpAddressTests, ipaddr_v6_cmp_aton3) {
     EXPECT_STREQ(real, ours);
 }
 
-TEST(IpAddressTests, ipaddr_str_v6_1) {
+TEST(IpAddressTests, ipaddr_str_v6_1)
+{
     const char* cip = "1::1";
     auto ip = IpAddress::from_str(cip);
     EXPECT_TRUE(ip.is_v6());

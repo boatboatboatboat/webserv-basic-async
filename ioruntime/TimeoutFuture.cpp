@@ -17,7 +17,7 @@ futures::PollResult<void> ioruntime::TimeoutFuture::poll(futures::Waker&& waker)
     }
     auto finished = timed_out->lock();
     if (*finished) {
-        INFOPRINT("TF complete");
+        TRACEPRINT("TF complete");
         return futures::PollResult<void>::ready();
     } else {
         return futures::PollResult<void>::pending();

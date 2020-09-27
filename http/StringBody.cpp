@@ -8,8 +8,9 @@
 
 namespace http {
 
-StringBody::StringBody(std::string body)
-    : body(std::move(body))
+StringBody::StringBody(std::string body, bool stream_like)
+    : stream_like(stream_like)
+    , body(std::move(body))
 {
 }
 
@@ -19,7 +20,14 @@ PollResult<ssize_t> StringBody::poll_read(char* buffer, size_t size, Waker&& wak
     memcpy(buffer, body.c_str() + written, left_to_write);
     written += left_to_write;
     waker();
-    return PollResult<ssize_t>::ready(left_to_write);
+    if (stream_like) {
+        if (left_to_write)
+            return PollResult<ssize_t>::ready(left_to_write);
+        else
+            return PollResult<ssize_t>::pending();
+    } else {
+        return PollResult<ssize_t>::ready(left_to_write);
+    }
 }
 
 }

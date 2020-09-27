@@ -4,7 +4,9 @@
 
 #include "FdStringReadFuture.hpp"
 
-ioruntime::FdStringReadFuture::FdStringReadFuture(FileDescriptor&& fd, std::string& str): fd(std::move(fd)), str(str)
+ioruntime::FdStringReadFuture::FdStringReadFuture(FileDescriptor&& fd, std::string& str)
+    : fd(std::move(fd))
+    , str(str)
 {
 }
 

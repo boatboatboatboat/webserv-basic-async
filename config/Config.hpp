@@ -7,20 +7,20 @@
 
 #include "../http/HttpMethod.hpp"
 #include "../net/IpAddress.hpp"
+#include "../option/optional.hpp"
 #include "../regex/Regex.hpp"
 #include <algorithm>
 #include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
-#include "../option/optional.hpp"
 
+using option::optional;
 using std::map;
 using std::pair;
 using std::string;
 using std::tuple;
 using std::vector;
-using option::optional;
 
 template <typename K, typename V>
 using table = vector<pair<K, V>>;

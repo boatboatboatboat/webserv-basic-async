@@ -183,15 +183,9 @@ auto recursive_locations(json::Json const& cfg) -> optional<table<Regex, Locatio
             throw std::runtime_error("final field is not a boolean");
         }
 
-        // fuck C++
-        auto y =LocationConfig(
-            recursive_locations(obj),
-            final,
-        base_config_from_json(obj));
-
         locations.emplace_back(
             std::make_pair(
-                Regex(name), move(y)));
+                Regex(name), LocationConfig(recursive_locations(obj), final, base_config_from_json(obj))));
     }
 
     // fixes c++ bug
@@ -368,11 +362,11 @@ void match_location_i(LocationConfig const& cfg, const char*& path, vector<Locat
     // return lout == nullptr ? std::nullopt : std::optional { lout };
 }
 
-auto match_location(LocationConfig const& cfg, http::HttpRequest& req) -> optional<tuple<vector<LocationConfig const*>, string>>
+auto match_location(LocationConfig const& cfg, http::StreamingHttpRequest& req) -> optional<tuple<vector<LocationConfig const*>, string>>
 {
     vector<LocationConfig const*> location_list;
-    auto path = req.getPath();
-    auto* path_cstr = path.c_str();
+    auto path = req.get_uri().get_pqf()->get_path_escaped().value();
+    auto* path_cstr = path.data(); // path happens to point to string
 
     match_location_i(cfg, path_cstr, location_list);
 
@@ -384,14 +378,17 @@ auto match_location(LocationConfig const& cfg, http::HttpRequest& req) -> option
     return x;
 }
 
-auto match_base_config(RootConfig const& rcfg, http::HttpRequest& req) -> tuple<BaseConfig, string>
+auto match_base_config(RootConfig const& rcfg, http::StreamingHttpRequest& req) -> tuple<BaseConfig, string>
 {
-    auto host = req.getHeader(http::header::HOST);
+    // FIXME: this could be a lot cleaner
+    auto host = req.get_header(http::header::HOST).value_or("");
 
     auto const& hcfg = rcfg.get_http_config();
     auto const& scfg = match_server(host, hcfg.get_servers());
     auto const& lcfg_o = match_location(scfg, req);
-    auto matched_path = req.getPath();
+    auto matched_path = req.get_uri().get_pqf()->get_path().value();
+
+    DBGPRINT("mpath " << matched_path );
 
     optional<string> root;
     optional<vector<string>> index_pages;
@@ -472,7 +469,7 @@ auto match_base_config(RootConfig const& rcfg, http::HttpRequest& req) -> tuple<
             move(use_cgi),
             move(allowed_methods),
             move(autoindex)),
-        matched_path
+        string(matched_path)
     };
 }
 
@@ -530,11 +527,13 @@ auto main() -> int
             auto bind_addresses = server.get_bind_addresses();
             if (bind_addresses.has_value()) {
                 for (auto& [address, port] : *bind_addresses) {
-                    GlobalRuntime::spawn(HttpServer(address, port, [](http::HttpRequest& req) {
+                    GlobalRuntime::spawn(HttpServer(address, port, [](http::StreamingHttpRequest& req) {
                         auto const& cfg = RootConfigSingleton::get();
-                        auto host = req.getHeader(http::header::HOST);
-                        auto method = req.getMethod();
-                        auto path = req.getPath();
+                        auto host = req.get_header(http::header::HOST);
+                        auto method = req.get_method();
+                        auto& uri = req.get_uri();
+
+                        auto path = uri.get_pqf()->get_path_escaped().value();
 
                         auto builder = HttpResponseBuilder();
                         builder.status(http::HTTP_STATUS_NOT_FOUND);
@@ -566,8 +565,7 @@ auto main() -> int
                             auto const& root = bcfg.get_root();
 
                             if (root) {
-                                auto search_path = *root + matched_path;
-                                DBGPRINT("Search path: " << search_path);
+                                auto search_path = string(*root).append(matched_path);
                                 try {
                                     auto file = BoxPtr(fs::File::open_no_traversal(search_path));
                                     auto file_size = file->size();

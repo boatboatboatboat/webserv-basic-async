@@ -6,16 +6,15 @@
 #include "../ioruntime/GlobalIoEventHandler.hpp"
 #include <sys/socket.h>
 
-
 #include <fcntl.h>
 
-class FunnyFunctor: public Functor {
+class FunnyFunctor : public Functor {
 public:
-    void operator()() override {
+    void operator()() override
+    {
         INFOPRINT("Funny call");
     }
 };
-
 
 using ioruntime::GlobalIoEventHandler;
 

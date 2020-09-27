@@ -21,6 +21,7 @@ public:
     void register_timeout_real(uint64_t ms, BoxFunctor&& callback);
     static uint64_t get_time_ms();
     bool is_clocks_empty();
+
 private:
     Mutex<std::multimap<uint64_t, CallbackInfo>> clocks_mutex;
 };

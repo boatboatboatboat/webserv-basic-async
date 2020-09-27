@@ -9,7 +9,8 @@ using boxed::RcPtr;
 
 namespace {
 
-TEST(RcPtrTests, UniqueLike) {
+TEST(RcPtrTests, UniqueLike)
+{
     RcPtr<int> x = RcPtr<int>::make(1);
 
     EXPECT_EQ(x.count(), 1UL);

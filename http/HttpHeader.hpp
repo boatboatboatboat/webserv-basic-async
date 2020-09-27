@@ -7,7 +7,6 @@
 
 #include <string>
 
-
 namespace http {
 
 using HttpHeaderName = std::string_view;

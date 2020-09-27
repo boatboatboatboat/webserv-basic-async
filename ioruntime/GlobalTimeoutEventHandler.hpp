@@ -15,10 +15,10 @@ public:
     static void register_timeout(uint64_t ms, BoxFunctor&& callback);
     static void register_timeout_real(uint64_t ms, BoxFunctor&& callback);
     static bool is_clocks_empty();
+
 private:
     static TimeoutEventHandler* event_handler;
 };
-
 
 }
 

@@ -11,7 +11,7 @@
 namespace option {
 
 struct nullopt_t {
-    explicit constexpr nullopt_t(int) {}
+    explicit constexpr nullopt_t(int) { }
 };
 constexpr nullopt_t nullopt(0);
 
@@ -24,20 +24,37 @@ private:
     union {
         T t;
     };
-    constexpr void t_set(const T& a) {
+
+    // We need a custom setter for ``t``,
+    // because (move) assignment constructors assume ``t`` is initialized.
+    // However we disabled ctor on ``t`` (so ``t`` can be uninitialized).
+    //
+    // We can however call the regular move/copy constructors by using a
+    // placement new.
+
+    // Set the value of t, checking for uninitialized t
+    constexpr void t_set(const T& a)
+    {
         if (some) {
             t = a;
         } else {
-            new(&t) T(a);
+            new (&t) T(a);
         }
     }
-    constexpr void t_set(T&& a) {
+    // Set the value of t, checking for uninitialized t
+    constexpr void t_move(T&& a)
+    {
         if (some) {
-            t = std::move(a);
+            // FUCK C++ FUCK C++ FUCK C++ FUCK C++
+            // this is a hacky fix around C++ recognizing a fucking lvalue = rvalue as lvalue = lvalue
+            // note: this very much fucks up assignment operators, so if they have side effects you're screwed :-)
+            t.~T();
+            new (&t) T(std::forward<T>(a));
         } else {
-            new(&t) T(std::move(a));
+            new (&t) T(std::forward<T>(a));
         }
     }
+
 public:
     constexpr optional()
         : some(false)
@@ -50,15 +67,15 @@ public:
     constexpr optional(optional const& other)
     {
         some = false;
-        if (other.some)
-            t_set(std::move(other.t));
+        if (other.has_value())
+            t_set(other.value());
         some = other.some;
     }
     constexpr optional(optional&& other)
     {
         some = false;
-        if (other.some)
-            t_set(std::move(other.t));
+        if (other.has_value())
+            t_move(std::move(other.value()));
         some = other.some;
         other.reset();
     }
@@ -66,17 +83,17 @@ public:
     optional(optional<U> const& other)
     {
         some = false;
-        if (other.some)
-            t_set(std::move(other.t));
-        some = other.some;
+        if (other.has_value())
+            t_set(other.value());
+        some = other.has_value();
     }
     template <typename U>
     optional(optional<U>&& other)
     {
         some = false;
-        if (other.some)
-            t_set(std::move(other.t));
-        some = other.some;
+        if (other.has_value())
+            t_move(std::move(other.value()));
+        some = other.has_value();
         other.reset();
     }
     template <typename U = T>
@@ -155,17 +172,17 @@ public:
     constexpr auto operator=(const optional& other) -> optional&
     {
         reset();
-        if (other.some)
-            t_set(other.t);
-        some = other.some;
+        if (other.has_value())
+            t_set(other.value());
+        some = other.has_value();
         return *this;
     }
     constexpr auto operator=(optional&& other) noexcept -> optional&
     {
         reset();
-        if (other.some)
-            t_set(std::move(other.t));
-        some = other.some;
+        if (other.has_value())
+            t_move(std::move(other.value()));
+        some = other.has_value();
         other.reset();
         return *this;
     }
@@ -173,18 +190,18 @@ public:
     auto operator=(const optional<U>& other) -> optional&
     {
         reset();
-        if (other.some)
-            t_set(other.t);
-        some = other.some;
+        if (other.has_value())
+            t_set(other.value());
+        some = other.has_value();
         return *this;
     }
     template <class U>
     auto operator=(optional<U>&& other) -> optional&
     {
         reset();
-        if (other.some)
-            t_set(std::move(other.t));
-        some = other.some;
+        if (other.has_value())
+            t_move(std::move(other.value()));
+        some = other.has_value();
         other.reset();
         return *this;
     }
@@ -192,7 +209,7 @@ public:
     auto operator=(U&& value) -> optional&
     {
         reset();
-        t_set(std::move(value));
+        t_move(std::move(value));
         some = true;
         return *this;
     }

@@ -46,8 +46,8 @@ auto PollResult<T>::is_pending() const -> bool
 }
 
 template <typename T>
-auto PollResult<T>::get() -> T
+auto PollResult<T>::get() -> T&
 {
-    return _result;
+    return *_result;
 }
 }

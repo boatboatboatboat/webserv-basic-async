@@ -4,8 +4,8 @@
 
 #include "Ipv6Address.hpp"
 #include "../utils/mem_zero.hpp"
+#include <arpa/inet.h>
 #include <iostream>
-#include <libnet.h>
 #include <netinet/in.h>
 
 auto net::Ipv6Address::get_ip_posix() const -> in6_addr
@@ -46,7 +46,7 @@ auto operator<<(std::ostream& os, const net::Ipv6Address& sa) -> std::ostream&
             else
                 os << "::";
             pdouble = false;
-            continue ;
+            continue;
         } else {
             os << __builtin_bswap16(ip[idx]);
         }

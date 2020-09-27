@@ -1,7 +1,7 @@
 #include "HttpRequest.hpp"
+#include "../net/TcpStream.hpp"
 #include "../utils/utils.hpp"
 #include "HttpResponse.hpp"
-#include "../net/TcpStream.hpp"
 #include <algorithm>
 #include <sstream>
 #include <vector>

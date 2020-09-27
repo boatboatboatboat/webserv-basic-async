@@ -5,7 +5,11 @@
 #ifndef WEBSERV_POLLRESULT_HPP
 #define WEBSERV_POLLRESULT_HPP
 
+#include "../option/optional.hpp"
+
 namespace futures {
+
+using option::optional;
 
 template <typename T>
 class PollResult {
@@ -15,7 +19,7 @@ public:
     [[nodiscard]] static auto ready(T&& result) -> PollResult<T>;
     [[nodiscard]] auto is_ready() const -> bool;
     [[nodiscard]] auto is_pending() const -> bool;
-    auto get() -> T;
+    auto get() -> T&;
 
 private:
     enum Status { Pending,
@@ -23,7 +27,7 @@ private:
     PollResult(Status status, T&& inner);
     explicit PollResult(Status status);
     Status _status;
-    T _result;
+    optional<T> _result;
 };
 
 template <>

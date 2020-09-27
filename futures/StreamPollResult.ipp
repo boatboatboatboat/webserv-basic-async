@@ -38,7 +38,7 @@ StreamPollResult<T>::ready(T&& result)
 template <typename T>
 T& StreamPollResult<T>::get()
 {
-    return _result;
+    return *_result;
 }
 template <typename T>
 StreamPollResult<T>
@@ -52,17 +52,6 @@ typename StreamPollResult<T>::Status
 StreamPollResult<T>::get_status() const
 {
     return _status;
-}
-template <typename T>
-StreamPollResult<T> StreamPollResult<T>::pending(T&& uninitialized)
-{
-    return StreamPollResult<T>(Pending, std::move(uninitialized));
-}
-
-template <typename T>
-StreamPollResult<T> StreamPollResult<T>::finished(T&& uninitialized)
-{
-    return StreamPollResult<T>(Finished, std::move(uninitialized));
 }
 
 }

@@ -4,24 +4,25 @@
 
 #ifndef WEBSERV_UTIL_HPP
 #define WEBSERV_UTIL_HPP
-#include "mem_copy.hpp"
+#include "../option/optional.hpp"
 #include "cstr.hpp"
+#include "mem_copy.hpp"
 #include "mem_zero.hpp"
-#include <string>
 #include "span.hpp"
+#include <string>
 
 void dbg_puts(std::string const& printme);
 
 #ifdef SAFEPRINT_LINE_INFO
 #ifdef __linux__
 
-#define LINE_INFO      __func__ << " " << __FILE__ << ":" << __LINE__ \
-                                << " " << std::to_string(gettid())    \
-                                << " "
+#define LINE_INFO __func__ << " " << __FILE__ << ":" << __LINE__ \
+                           << " " << std::to_string(gettid())    \
+                           << " "
 #elif __APPLE__
 
-#define LINE_INFO  __func__ << " " << __FILE__ << ":" << __LINE__ \
-                                << " "
+#define LINE_INFO __func__ << " " << __FILE__ << ":" << __LINE__ \
+                           << " "
 
 #endif
 
@@ -31,14 +32,14 @@ void dbg_puts(std::string const& printme);
 
 #endif
 
-#define SAFEPRINT(x)                         \
-    do {                                     \
-        try {                                \
-            std::stringstream __out__;       \
+#define SAFEPRINT(x)                           \
+    do {                                       \
+        try {                                  \
+            std::stringstream __out__;         \
             __out__ << LINE_INFO << x << "\n"; \
-            dbg_puts(__out__.str());         \
-        } catch (...) {                      \
-        }                                    \
+            dbg_puts(__out__.str());           \
+        } catch (...) {                        \
+        }                                      \
     } while (0)
 
 #if LOG_DEBUG || LOG_TRACE
@@ -142,6 +143,45 @@ inline std::vector<std::string> split(const std::string& source, char delimiter)
 
     return strings;
 }
+
+inline auto bswap32(uint32_t x) -> uint32_t
+{
+    return ((((x)&0xff000000u) >> 24u) | (((x)&0x00ff0000u) >> 8u) | (((x)&0x0000ff00u) << 8u) | (((x)&0x000000ffu) << 24u));
+}
+
+inline auto bswap32(int32_t x) -> int32_t
+{
+    return ((((x)&0xff000000) >> 24) | (((x)&0x00ff0000) >> 8) | (((x)&0x0000ff00) << 8) | (((x)&0x000000ff) << 24));
+}
+
+inline auto str_eq_case_insensitive(std::string_view a, std::string_view b) -> bool {
+    if (a.length() != b.length())
+        return false;
+    while (!a.empty() && tolower(a.front()) == tolower(b.front())) {
+        a.remove_prefix(1);
+        b.remove_prefix(1);
+    }
+    return a.empty();
+}
+
+inline auto string_to_uint64(std::string_view n) -> option::optional<uint64_t> {
+    uint64_t num = 0;
+
+    while (!n.empty()) {
+        if (!isdigit(n.front())) {
+            return option::nullopt;
+        }
+        uint64_t ofc = num;
+        num *= 10;
+        if (num < ofc) {
+            return option::nullopt;
+        }
+        num += n.front() - '0';
+        n.remove_prefix(1);
+    }
+    return num;
+}
+
 }
 
 #endif //WEBSERV_UTIL_HPP

@@ -62,7 +62,7 @@ public:
 
     Mutex(const Mutex&) = delete;
     Mutex& operator=(Mutex const&) = delete;
-    Mutex(Mutex&& other) noexcept ;
+    Mutex(Mutex&& other) noexcept;
     Mutex& operator=(Mutex&&) = default;
 
     explicit Mutex(T&& inner);
@@ -96,6 +96,7 @@ private:
 public:
     static const uint64_t TOP_CANARY_VAL = 0x0123456789ABCDEF;
     volatile uint64_t TOP_CANARY = TOP_CANARY_VAL;
+
 private:
 #endif
     T inner_type;
@@ -103,6 +104,7 @@ private:
 public:
     static const uint64_t BOT_CANARY_VAL = 0xFEDCBA9876543210;
     volatile uint64_t BOT_CANARY = BOT_CANARY_VAL;
+
 private:
 #endif
 #ifdef DEBUG_MUTEX

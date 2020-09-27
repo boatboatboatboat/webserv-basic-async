@@ -18,6 +18,7 @@ public:
     explicit Ipv6Address(uint64_t b1, uint64_t b2);
     explicit Ipv6Address(string_view str);
     [[nodiscard]] auto get_ip_posix() const -> in6_addr;
+
 private:
     in6_addr ip {};
 };

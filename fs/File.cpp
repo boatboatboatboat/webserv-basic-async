@@ -7,10 +7,9 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
-fs::File::File(FileDescriptor&& fd):
-    FileDescriptor(std::move(fd))
+fs::File::File(FileDescriptor&& fd)
+    : FileDescriptor(std::move(fd))
 {
-
 }
 
 auto fs::File::open_no_traversal(std::string const& path) -> fs::File
@@ -53,7 +52,8 @@ auto fs::File::open(std::string const& path) -> fs::File
 
 auto fs::File::from_raw_fd(int fd) -> fs::File
 {
-    struct stat sbuf {};
+    struct stat sbuf {
+    };
 
     if (fstat(fd, &sbuf)) {
         ::close(fd);
@@ -72,7 +72,8 @@ auto fs::File::from_raw_fd(int fd) -> fs::File
 
 auto fs::File::size() -> size_t
 {
-    struct stat sbuf {};
+    struct stat sbuf {
+    };
 
     if (fstat(get_descriptor(), &sbuf)) {
         throw std::system_error(errno, std::system_category());

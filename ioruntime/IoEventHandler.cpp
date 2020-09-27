@@ -5,8 +5,8 @@
 #include "IoEventHandler.hpp"
 #include "../utils/utils.hpp"
 #include "GlobalIoEventHandler.hpp"
-#include <sys/select.h>
 #include "GlobalTimeoutEventHandler.hpp"
+#include <sys/select.h>
 
 namespace ioruntime {
 IoEventHandler::IoEventHandler()
@@ -50,51 +50,9 @@ void IoEventHandler::reactor_step()
 
     int selected = select(max + 1, &read_selected, &write_selected, &special_selected, &tv);
     if (selected > 0) {
-        {
-            std::map<int, bool> fds;
-            {
-                auto fds_guard = read_fd_in_use.lock();
-                fds = *fds_guard;
-            }
-            for (auto& fd_pair : fds) {
-                auto fd = fd_pair.first;
-                if (!fire_listeners_for(fd, read_selected, read_listeners)) {
-#ifdef DEBUG_CHECK_IEH_FD_LEAKS
-                    DBGPRINT("possible file dscriptor leak: " << fd);
-#endif
-                }
-            }
-        }
-        {
-            std::map<int, bool> fds;
-            {
-                auto fds_guard = write_fd_in_use.lock();
-                fds = *fds_guard;
-            }
-            for (auto& fd_pair : fds) {
-                auto fd = fd_pair.first;
-                if (!fire_listeners_for(fd, write_selected, write_listeners)) {
-#ifdef DEBUG_CHECK_IEH_FD_LEAKS
-                    DBGPRINT("possible file dscriptor leak: " << fd);
-#endif
-                }
-            }
-        }
-        {
-            std::map<int, bool> fds;
-            {
-                auto fds_guard = special_fd_in_use.lock();
-                fds = *fds_guard;
-            }
-            for (auto& fd_pair : fds) {
-                auto fd = fd_pair.first;
-                if (!fire_listeners_for(fd, special_selected, special_listeners)) {
-#ifdef DEBUG_CHECK_IEH_FD_LEAKS
-                    DBGPRINT("possible file dscriptor leak: " << fd);
-#endif
-                }
-            }
-        }
+        safe_fire_listeners(read_fd_in_use, read_selected, read_listeners);
+        safe_fire_listeners(write_fd_in_use, write_selected, write_listeners);
+        safe_fire_listeners(special_fd_in_use, special_selected, special_listeners);
     } else if (selected < 0) {
         WARNPRINT("Select failed: " << strerror(errno));
     }
@@ -268,6 +226,23 @@ void IoEventHandler::register_callback(int fd,
     }
     listeners_locked->insert(std::pair<int, CallbackInfo>(fd,
         CallbackInfo { .once = once, .bf = std::move(x), .unique = unique }));
+}
+
+void IoEventHandler::safe_fire_listeners(Mutex<std::map<int, bool>>& fds_in_use, fd_set& selected, Mutex<Listeners>& listeners)
+{
+    std::map<int, bool> fds;
+    {
+        auto fds_guard = fds_in_use.lock();
+        fds = *fds_guard;
+    }
+    for (auto& fd_pair : fds) {
+        auto fd = fd_pair.first;
+        if (!fire_listeners_for(fd, selected, listeners)) {
+#ifdef DEBUG_CHECK_IEH_FD_LEAKS
+            DBGPRINT("possible file dscriptor leak: " << fd);
+#endif
+        }
+    }
 }
 
 } // namespace ioruntime

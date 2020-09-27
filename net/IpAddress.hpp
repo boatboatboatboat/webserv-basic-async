@@ -20,6 +20,7 @@ public:
     [[nodiscard]] auto is_v6() const -> bool;
     [[nodiscard]] auto get_v4() const -> Ipv4Address;
     [[nodiscard]] auto get_v6() const -> Ipv6Address;
+
 private:
     enum Tag {
         Ipv4,

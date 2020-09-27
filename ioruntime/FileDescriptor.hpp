@@ -7,9 +7,9 @@
 
 #include "../boxed/boxed.hpp"
 #include "../func/Functor.hpp"
+#include "../func/SetReadyFunctor.hpp"
 #include "IAsyncRead.hpp"
 #include "IAsyncWrite.hpp"
-#include "../func/SetReadyFunctor.hpp"
 
 using boxed::RcPtr;
 

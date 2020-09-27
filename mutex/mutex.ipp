@@ -256,8 +256,7 @@ auto Mutex<T>::get_inner_type() -> T&
 }
 template <typename T>
 template <typename... Args>
-auto
-Mutex<T>::make(Args&&... args) -> Mutex<T>
+auto Mutex<T>::make(Args&&... args) -> Mutex<T>
 {
     return Mutex<T>(T(std::forward<Args>(args)...));
 }

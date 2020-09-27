@@ -12,10 +12,11 @@ using ioruntime::IExecutor;
 namespace futures {
 void Waker::operator()()
 {
-    task->get_sender()->respawn(RcPtr(task));
+    if (task)
+        (*task)->get_sender()->respawn(RcPtr(*task));
 }
 
-RcPtr<Task>& Waker::get_task() { return task; }
+RcPtr<Task>& Waker::get_task() { return *task; }
 
 Waker::Waker(RcPtr<Task>&& future)
     : task(std::move(future))
@@ -23,12 +24,28 @@ Waker::Waker(RcPtr<Task>&& future)
 }
 
 Waker::Waker(Waker& other)
-    : task(other.task)
 {
+    if (other.task) {
+        task = RcPtr(*other.task);
+    } else {
+        task = option::nullopt;
+    }
 }
+
 BoxFunctor
 Waker::boxed()
 {
     return BoxPtr<Waker>(new Waker(*this));
 }
+
+Waker::Waker(dead_waker_t):
+    task(option::nullopt)
+{
+}
+
+auto Waker::dead() -> Waker
+{
+    return Waker(dead_waker);
+}
+
 } // namespace futures

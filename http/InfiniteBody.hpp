@@ -9,7 +9,7 @@
 
 using ioruntime::IAsyncRead;
 
-class InfiniteBody: public IAsyncRead {
+class InfiniteBody : public IAsyncRead {
 public:
     InfiniteBody() = default;
     PollResult<ssize_t> poll_read(char* buffer, size_t size, Waker&& waker) override;

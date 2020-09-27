@@ -115,4 +115,5 @@ Checks: >
 -hicpp-vararg,
 google-default-arguments,
 google-explicit-constructor,
-google-runtime-operator
+google-runtime-operator,
+-abseil-*
