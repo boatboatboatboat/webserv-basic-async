@@ -12,6 +12,9 @@
 using boxed::RcPtr;
 using futures::IFuture;
 
+typedef struct {} dead_waker_t;
+inline dead_waker_t dead_waker {};
+
 namespace futures {
 // Forward declarations
 // template<typename T> class IFuture;
@@ -22,14 +25,17 @@ class Waker : public Functor {
 public:
     Waker() = delete;
     Waker(Waker& waker);
-    ~Waker() = default;
+    ~Waker();
     Waker(RcPtr<Task>&& future);
     void operator()() override;
     RcPtr<Task>& get_task();
     BoxFunctor boxed();
 
+    static auto dead() -> Waker;
 private:
-    RcPtr<Task> task;
+    bool _dead = false;
+    union { RcPtr<Task> task; };
+    explicit Waker(dead_waker_t);
 };
 } // namespace futures
 
