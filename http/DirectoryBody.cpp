@@ -4,9 +4,9 @@
 
 #include "DirectoryBody.hpp"
 
-http::DirectoryBody::DirectoryBody(const std::string& str, std::string const& real_pathstr)
+http::DirectoryBody::DirectoryBody(string_view str, string_view real_pathstr)
 {
-    std::string no_traversal = str;
+    std::string no_traversal(str);
 
     // we're just on unix, we don't have to check the million windows cases
     auto pos = no_traversal.find("../");
