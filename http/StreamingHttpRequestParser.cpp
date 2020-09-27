@@ -1,139 +1,86 @@
-/*
 //
 // Created by boat on 13-09-20.
 //
 
 #include "StreamingHttpRequestParser.hpp"
 
-#include "HttpMethod.hpp"
-#include <algorithm>
-#include <map>
-#include <queue>
-#include <utility>
-#include <vector>
+namespace http {
 
-bool http::StreamingHttpRequestParser::parse(span<uint8_t> incoming)
-{
-    (void)incoming;
-    return false;
-}
-
-void http::StreamingHttpRequestParser::next_parser()
-{
-    switch (tag) {
-    case None: {
-        new (&request_line_parser) RequestLineParser();
-    } break;
-    case RequestLine: {
-        request_line_parser.~RequestLineParser();
-        new (&header_line_parser) HeaderLineParser();
-    } break;
-    case HeaderLine: {
-        header_line_parser.~HeaderLineParser();
-        new (&body_parser) BodyParser();
-    } break;
-    case Body: {
-        body_parser.~BodyParser();
-    } break;
-    }
-}
-
-
-auto http::RequestLineParser::is_uri_valid(std::string_view uri) -> bool
-{
-    size_t i = 0;
-    for (char c : uri) {
-        i += 1;
-        (void)c;
-    }
-    return false;
-}
-
-auto http::StreamingHttpRequestBuilder::method(http::HttpMethod method) -> http::StreamingHttpRequestBuilder&
+auto StreamingHttpRequestBuilder::method(HttpMethod method) -> StreamingHttpRequestBuilder&
 {
     _method = method;
     return *this;
 }
 
-auto http::StreamingHttpRequestBuilder::uri(string uri) -> http::StreamingHttpRequestBuilder&
+auto StreamingHttpRequestBuilder::uri(Uri&& uri) -> StreamingHttpRequestBuilder&
 {
     _uri = std::move(uri);
     return *this;
 }
 
-auto http::StreamingHttpRequestBuilder::version(http::HttpVersion version) -> http::StreamingHttpRequestBuilder&
+auto StreamingHttpRequestBuilder::version(HttpVersion version) -> StreamingHttpRequestBuilder&
 {
     _version = version;
     return *this;
 }
 
-auto http::StreamingHttpRequestBuilder::status(http::HttpStatus status) -> http::StreamingHttpRequestBuilder&
+auto StreamingHttpRequestBuilder::header(string&& header_name, string&& header_value) -> StreamingHttpRequestBuilder&
 {
-    _status = status;
+    _headers.emplace(header_name, header_value);
     return *this;
 }
 
-auto http::StreamingHttpRequestBuilder::header(string header_name, string header_value) -> http::StreamingHttpRequestBuilder&
-{
-    _headers.emplace(std::move(header_name), std::move(header_value));
-    return *this;
-}
-
-auto http::StreamingHttpRequestBuilder::body(vector<uint8_t> body) -> http::StreamingHttpRequestBuilder&
+auto StreamingHttpRequestBuilder::body(vector<uint8_t>&& body) -> StreamingHttpRequestBuilder&
 {
     _body = std::move(body);
     return *this;
 }
 
-auto http::StreamingHttpRequestBuilder::build() && -> http::StreamingHttpRequest
+auto StreamingHttpRequestBuilder::build() && -> StreamingHttpRequest
 {
-    using std::move;
+    if (!_uri) {
+        throw std::runtime_error("no uri set in builder");
+    }
     return StreamingHttpRequest(
         _method,
-        move(_uri),
+        std::move(*_uri),
         _version,
-        _status,
-        move(_headers),
-        move(_body));
+        std::move(_headers),
+        std::move(_body));
 }
 
-http::StreamingHttpRequest::StreamingHttpRequest(http::HttpMethod method, string uri, http::HttpVersion version, http::HttpStatus status, map<string, string> headers, vector<uint8_t> body)
-    : method(method)
-    , uri(std::move(uri))
-    , version(version)
-    , status(status)
-    , headers(std::move(headers))
-    , body(std::move(body))
+StreamingHttpRequest::StreamingHttpRequest(HttpMethod method, Uri uri, HttpVersion version, map<string, string> headers, vector<uint8_t> body)
+    : _method(method)
+    , _uri(std::move(uri))
+    , _version(version)
+    , _headers(std::move(headers))
+    , _body(std::move(body))
 {
 }
 
-auto http::StreamingHttpRequest::get_method() -> const http::HttpMethod&
+auto StreamingHttpRequest::get_method() const -> HttpMethod const&
 {
-    return method;
+    return _method;
 }
 
-auto http::StreamingHttpRequest::get_uri() -> string const&
+auto StreamingHttpRequest::get_uri() const -> Uri const&
 {
-    return uri;
+    return _uri;
 }
 
-auto http::StreamingHttpRequest::get_version() -> const http::HttpVersion&
+auto StreamingHttpRequest::get_version() const -> HttpVersion const&
 {
-    return version;
+    return _version;
 }
 
-auto http::StreamingHttpRequest::get_status() -> const http::HttpStatus&
+auto StreamingHttpRequest::get_headers() const -> map<string, string> const&
 {
-    return status;
+    return _headers;
 }
 
-auto http::StreamingHttpRequest::get_headers() -> map<string, string> const&
+auto StreamingHttpRequest::get_body() const -> vector<uint8_t> const&
 {
-    return headers;
+    return _body;
 }
 
-auto http::StreamingHttpRequest::get_body() -> vector<uint8_t> const&
-{
-    return body;
 }
-*/

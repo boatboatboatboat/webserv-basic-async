@@ -11,6 +11,7 @@
 #include "HttpMethod.hpp"
 #include "HttpStatus.hpp"
 #include "HttpVersion.hpp"
+#include "Uri.hpp"
 #include <map>
 #include <string>
 #include <vector>
@@ -18,6 +19,7 @@
 using futures::PollResult;
 using futures::StreamPollResult;
 using ioruntime::IAsyncRead;
+using option::optional;
 using std::map;
 using std::string;
 using std::string_view;
@@ -31,19 +33,17 @@ class StreamingHttpRequest;
 class StreamingHttpRequestBuilder {
 public:
     StreamingHttpRequestBuilder() = default;
-    auto method(HttpMethod&& method) -> StreamingHttpRequestBuilder&;
-    auto uri(string&& uri) -> StreamingHttpRequestBuilder&;
-    auto version(HttpVersion&& version) -> StreamingHttpRequestBuilder&;
-    auto status(HttpStatus&& status) -> StreamingHttpRequestBuilder&;
+    auto method(HttpMethod method) -> StreamingHttpRequestBuilder&;
+    auto uri(Uri&& uri) -> StreamingHttpRequestBuilder&;
+    auto version(HttpVersion version) -> StreamingHttpRequestBuilder&;
     auto header(string&& header_name, string&& header_value) -> StreamingHttpRequestBuilder&;
     auto body(vector<uint8_t>&& body) -> StreamingHttpRequestBuilder&;
     auto build() && -> StreamingHttpRequest;
 
 private:
     HttpMethod _method;
-    string _uri;
+    optional<Uri> _uri;
     HttpVersion _version;
-    HttpStatus _status;
     map<string, string> _headers;
     vector<uint8_t> _body;
 };
@@ -52,28 +52,25 @@ class StreamingHttpRequest {
 public:
     StreamingHttpRequest(
         HttpMethod method,
-        string uri,
+        Uri uri,
         HttpVersion version,
-        HttpStatus status,
         map<string, string> headers,
         vector<uint8_t> body);
-    auto get_method() -> HttpMethod const&;
-    auto get_uri() -> string const&;
-    auto get_version() -> HttpVersion const&;
-    auto get_status() -> HttpStatus const&;
-    auto get_headers() -> map<string, string> const&;
-    auto get_body() -> vector<uint8_t> const&;
+    [[nodiscard]] auto get_method() const -> HttpMethod const&;
+    [[nodiscard]] auto get_uri() const -> Uri const&;
+    [[nodiscard]] auto get_version() const -> HttpVersion const&;
+    [[nodiscard]] auto get_headers() const -> map<string, string> const&;
+    [[nodiscard]] auto get_body() const -> vector<uint8_t> const&;
 
 private:
-    HttpMethod method;
-    string uri;
-    HttpVersion version;
-    HttpStatus status;
-    map<string, string> headers;
-    vector<uint8_t> body;
+    HttpMethod _method;
+    Uri _uri;
+    HttpVersion _version;
+    map<string, string> _headers;
+    vector<uint8_t> _body;
 };
 
-inline auto is_method_valid(std::string_view method) -> bool
+inline auto get_method(const string_view possible_method) -> optional<http::HttpMethod>
 {
     constexpr http::HttpMethod VALID_METHODS[8] = {
         http::method::CONNECT,
@@ -87,17 +84,70 @@ inline auto is_method_valid(std::string_view method) -> bool
     };
     auto methods = span(VALID_METHODS, 8);
 
-    return std::any_of(methods.begin(), methods.end(), [&](auto real) { return real.starts_with(method); });
+    for (auto& method : methods) {
+        if (method == possible_method) {
+            return optional<http::HttpMethod>(method);
+        }
+    }
+    return optional<http::HttpMethod>::none();
 }
 
 class StreamingHttpRequestParser {
 public:
+    class RequestUriExceededBuffer : public std::runtime_error {
+    public:
+        RequestUriExceededBuffer()
+            : std::runtime_error("Request URI exceeded buffer limit")
+        {
+        }
+    };
+    class BodyExceededLimit : public std::runtime_error {
+    public:
+        BodyExceededLimit()
+            : std::runtime_error("Body exceeded limit")
+        {
+        }
+    };
+    class GenericExceededBuffer : public std::runtime_error {
+    public:
+        GenericExceededBuffer()
+            : std::runtime_error("Exceeded buffer limit")
+        {
+        }
+    };
+    class InvalidMethod : public std::runtime_error {
+    public:
+        InvalidMethod()
+            : std::runtime_error("Invalid HTTP method")
+        {
+        }
+    };
+    class InvalidVersion : public std::runtime_error {
+    public:
+        InvalidVersion()
+            : std::runtime_error("Invalid HTTP version")
+        {
+        }
+    };
+    class MalformedHeader : public std::runtime_error {
+    public:
+        MalformedHeader()
+            : std::runtime_error("Malformed HTTP header")
+        {
+        }
+    };
+    class UnexpectedEof : public std::runtime_error {
+    public:
+        UnexpectedEof()
+            : std::runtime_error("Unexpected end of request")
+        {
+        }
+    };
     explicit StreamingHttpRequestParser(IAsyncRead& source, size_t buffer_limit, size_t body_limit)
         : buffer_limit(buffer_limit)
         , body_limit(body_limit)
         , source(source)
     {
-        buffer.reserve(buffer_limit);
     }
 
     auto poll_parse(Waker&& waker) -> PollResult<StreamingHttpRequest>
@@ -112,57 +162,96 @@ public:
             switch (state) {
             case ReadMethod:
             case ReadUri: {
-                if (result == ' ') {
-                }
+                matched = result == ' ';
             } break;
             case ReadVersion:
             case HeaderLine: {
-
+                matched = result == '\n' && !buffer.empty() && buffer.back() == '\r';
+                if (matched) { buffer.pop_back(); }
             } break;
-            case Body: {
-
-            } break;
+            default:
+                break;
             }
-            if (result == '\n' && !buffer.empty() && buffer.back() == '\r') {
-                // lijntje gepakt
+            if (state == Body && buffer.size() == body_limit) {
+                throw BodyExceededLimit();
+            } else if (buffer.size() == buffer_limit) {
+                if (state == ReadUri) {
+                    throw RequestUriExceededBuffer();
+                } else {
+                    throw GenericExceededBuffer();
+                }
+            }
+            if (!matched) {
+                buffer.push_back(result);
+            }
+            if (matched) {
+                string_view str_in_buf(reinterpret_cast<const char*>(buffer.data()), buffer.size());
                 switch (state) {
-                case RequestLine: {
-                    std::string_view buf_view(reinterpret_cast<const char*>(buffer.data()), buffer.size());
-
-                    auto method_end = buf_view.find(' ');
-                    if (method_end == std::string::npos) {
-                        throw std::runtime_error("parser error, no first space");
+                case ReadMethod: {
+                    auto method = get_method(str_in_buf);
+                    if (method) {
+                        builder.method(string_view(*method));
+                    } else {
+                        throw InvalidMethod();
                     }
-                    auto method = std::string_view(buf_view.data(), method_end);
-                    if (!is_method_valid(method)) {
-                        throw std::runtime_error("invalid method");
+                    buffer.clear();
+                    state = ReadUri;
+                } break;
+                case ReadUri: {
+                    auto uri = Uri(str_in_buf);
+                    builder.uri(std::move(uri));
+                    buffer.clear();
+                    state = ReadVersion;
+                } break;
+                case ReadVersion: {
+                    if (str_in_buf == HTTP_VERSION_1_0.version_string) {
+                        builder.version(HTTP_VERSION_1_0);
+                    } else if (str_in_buf == HTTP_VERSION_1_1.version_string) {
+                        builder.version(HTTP_VERSION_1_1);
+                    } else {
+                        throw InvalidVersion();
                     }
-                    auto request_end = buf_view.rfind(' ');
-                    if (request_end == std::string::npos) {
-                        throw std::runtime_error("parser error, no second space");
-                    }
-                    auto request = std::string_view(buf_view.data() + method_end, request_end - method_end);
-                    auto version = std::string_view(buf_view.data() + request_end, buf_view.length() - request_end);
-
+                    buffer.clear();
+                    state = HeaderLine;
                 } break;
                 case HeaderLine: {
+                    if (str_in_buf.empty()) {
+                            state = Body;
+                    } else {
+                        auto separator = str_in_buf.find(':');
 
+                        if (separator == string_view::npos) {
+                            throw MalformedHeader();
+                        }
+
+                        auto field_name = str_in_buf.substr(0, separator);
+                        auto field_value = str_in_buf.substr(separator + 1);
+
+                        while (field_value.front() == ' ' || field_value.front() == '\t') {
+                            field_value.remove_prefix(1);
+                        }
+                        while (field_value.back() == ' ' || field_value.back() == '\t') {
+                            field_value.remove_suffix(1);
+                        }
+                        builder.header(string(field_name), string(field_value));
+                    }
+                    buffer.clear();
                 } break;
                 case Body: {
-
                 } break;
                 }
             }
-            buffer.push_back(poll_result.get());
-            if (buffer.size() >= buffer_limit) {
-                throw std::runtime_error("buffer exceeded limit");
-            }
+            return PollResult<StreamingHttpRequest>::pending();
         } break;
         case Status::Pending: {
             return PollResult<StreamingHttpRequest>::pending();
         } break;
         case Status::Finished: {
-
+            if (state != Body) {
+                throw UnexpectedEof();
+            }
+            builder.body(std::move(buffer));
+            return PollResult<StreamingHttpRequest>::ready(std::move(builder).build());
         } break;
         }
     };
@@ -185,9 +274,10 @@ public:
         character_head += 1;
         if (character_max == 0)
             return StreamPollResult<uint8_t>::finished();
+        uint8_t c = character_buffer[character_head - 1];
         if (character_head == character_max)
             character_head = 0;
-        return StreamPollResult<uint8_t>::ready(uint8_t(character_buffer[character_head - 1])); // LOL
+        return StreamPollResult<uint8_t>::ready(uint8_t(c)); // LOL
     }
 
 private:
@@ -208,89 +298,6 @@ private:
     vector<uint8_t> buffer;
     StreamingHttpRequestBuilder builder;
 };
-
-/*class RequestLineParser {
-public:
-    auto try_parse(std::string_view& view) -> bool {
-        switch (state) {
-        case Method: {
-            if (is_method_valid(view)) {}
-        } break;
-        }
-        return false;
-    };
-
-private:
-    static inline auto is_method_valid(std::string_view method) -> bool;
-    static inline auto is_uri_valid(std::string_view method) -> bool;
-    static inline auto is_version_valid(std::string_view method) -> bool;
-    inline auto take_method() -> bool;
-    inline auto take_uri() -> bool;
-    inline auto take_space() -> bool;
-    inline auto take_version() -> bool;
-    inline auto take_crlf() -> bool;
-    enum State {
-        Method,
-        Space1,
-        Uri,
-        Space2,
-        Version,
-        Clrf
-    } state
-        = Method;
-    HttpMethod method;
-    std::string uri;
-    std::string version;
-};
-
-class HeaderLineParser {
-public:
-private:
-};
-
-class BodyParser {
-public:
-private:
-};
-
-class StreamingHttpRequestParser {
-public:
-    StreamingHttpRequestParser();
-
-    virtual ~StreamingHttpRequestParser();
-    bool parse(span<uint8_t> incoming);
-
-    auto get_body() const -> span<uint8_t>;
-
-    string_view get_header(string_view name) const;
-    map<string, string> const& get_headers() const;
-    string_view get_method() const;
-    string_view get_url() const;
-    string_view get_version() const;
-    string_view get_status() const;
-    string_view get_reason() const;
-private:
-    enum Tag {
-        None,
-        RequestLine,
-        HeaderLine,
-        Body
-    } tag
-        = None;
-    union {
-        RequestLineParser request_line_parser;
-        HeaderLineParser header_line_parser;
-        BodyParser body_parser;
-    };
-    enum UriType {
-        Server,
-        AbsoluteUri,
-        AbsPath,
-        Authority
-    } uri_type;
-    void next_parser();
-    StreamingHttpRequestBuilder request;
-};*/
 
 }
 
