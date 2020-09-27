@@ -4,6 +4,7 @@
 
 #ifndef WEBSERV_UTIL_HPP
 #define WEBSERV_UTIL_HPP
+#include "../option/optional.hpp"
 #include "cstr.hpp"
 #include "mem_copy.hpp"
 #include "mem_zero.hpp"
@@ -151,6 +152,34 @@ inline auto bswap32(uint32_t x) -> uint32_t
 inline auto bswap32(int32_t x) -> int32_t
 {
     return ((((x)&0xff000000) >> 24) | (((x)&0x00ff0000) >> 8) | (((x)&0x0000ff00) << 8) | (((x)&0x000000ff) << 24));
+}
+
+inline auto str_eq_case_insensitive(std::string_view a, std::string_view b) -> bool {
+    if (a.length() != b.length())
+        return false;
+    while (!a.empty() && tolower(a.front()) == tolower(b.front())) {
+        a.remove_prefix(1);
+        b.remove_prefix(1);
+    }
+    return a.empty();
+}
+
+inline auto string_to_uint64(std::string_view n) -> option::optional<uint64_t> {
+    uint64_t num = 0;
+
+    while (!n.empty()) {
+        if (!isdigit(n.front())) {
+            return option::nullopt;
+        }
+        uint64_t ofc = num;
+        num *= 10;
+        if (num < ofc) {
+            return option::nullopt;
+        }
+        num += n.front() - '0';
+        n.remove_prefix(1);
+    }
+    return num;
 }
 
 }
