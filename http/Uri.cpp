@@ -269,7 +269,8 @@ PathQueryFragment::PathQueryFragment(string_view str)
     if (str.starts_with('/')) {
         str.remove_prefix(1);
 
-        string path, path_escaped;
+        string path_escaped = "/";
+        string path;
 
         while (!str.empty()) {
             auto c = str.front();

@@ -26,11 +26,11 @@ TEST(ShrpTests, shrp_basic_request)
     StreamingHttpRequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
-        auto res = parser.poll_parse(Waker::dead());
+        auto res = parser.poll(Waker::dead());
         if (res.is_ready()) {
             auto val = std::move(res.get());
             EXPECT_EQ(val.get_method(), method::GET);
-            EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "");
+            EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
             EXPECT_EQ(val.get_version().version_string, HTTP_VERSION_1_1.version_string);
             break;
         }
@@ -48,11 +48,11 @@ TEST(ShrpTests, shrp_basic_request_path)
     StreamingHttpRequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
-        auto res = parser.poll_parse(Waker::dead());
+        auto res = parser.poll(Waker::dead());
         if (res.is_ready()) {
             auto val = std::move(res.get());
             EXPECT_EQ(val.get_method(), method::GET);
-            EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "example.html");
+            EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/example.html");
             EXPECT_EQ(val.get_version().version_string, HTTP_VERSION_1_1.version_string);
             break;
         }
@@ -70,7 +70,7 @@ TEST(ShrpTests, shrp_request_asterisk)
     StreamingHttpRequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
-        auto res = parser.poll_parse(Waker::dead());
+        auto res = parser.poll(Waker::dead());
         if (res.is_ready()) {
             auto val = std::move(res.get());
             EXPECT_EQ(val.get_method(), method::OPTIONS);
@@ -92,7 +92,7 @@ TEST(ShrpTests, shrp_basic_authority)
     StreamingHttpRequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
-        auto res = parser.poll_parse(Waker::dead());
+        auto res = parser.poll(Waker::dead());
         if (res.is_ready()) {
             auto val = std::move(res.get());
             EXPECT_EQ(val.get_method(), method::CONNECT);
@@ -106,7 +106,7 @@ TEST(ShrpTests, shrp_basic_authority)
 
 TEST(ShrpTests, shrp_basic_post_with_body)
 {
-    const string request = "POST /form?inline=test HTTP/1.1\r\n\r\nHello, world!";
+    const string request = "POST /form?inline=test HTTP/1.1\r\nContent-Length: 13\r\n\r\nHello, world!";
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
@@ -115,11 +115,11 @@ TEST(ShrpTests, shrp_basic_post_with_body)
     StreamingHttpRequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
-        auto res = parser.poll_parse(Waker::dead());
+        auto res = parser.poll(Waker::dead());
         if (res.is_ready()) {
             auto val = std::move(res.get());
             EXPECT_EQ(val.get_method(), method::POST);
-            EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "form");
+            EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/form");
             EXPECT_EQ(val.get_uri().get_pqf().value().get_query().value(), "inline=test");
             EXPECT_EQ(val.get_version().version_string, HTTP_VERSION_1_1.version_string);
             EXPECT_EQ(
@@ -132,7 +132,7 @@ TEST(ShrpTests, shrp_basic_post_with_body)
 
 TEST(ShrpTests, shrp_body_limit)
 {
-    const string request = "POST /form?inline=test HTTP/1.1\r\n\r\nHello, world!";
+    const string request = "POST /form?inline=test HTTP/1.1\r\nContent-Length: 13\r\n\r\nHello, world!";
     const size_t buffer_limit = 8192;
     const size_t body_limit = 10;
 
@@ -142,7 +142,7 @@ TEST(ShrpTests, shrp_body_limit)
 
     EXPECT_THROW({
         while (true) {
-            auto res = parser.poll_parse(Waker::dead());
+            auto res = parser.poll(Waker::dead());
         }
     },
         StreamingHttpRequestParser::BodyExceededLimit);
@@ -160,7 +160,7 @@ TEST(ShrpTests, shrp_buffer_limit_uri)
 
     EXPECT_THROW({
         while (true) {
-            auto res = parser.poll_parse(Waker::dead());
+            auto res = parser.poll(Waker::dead());
         }
     },
         StreamingHttpRequestParser::RequestUriExceededBuffer);
@@ -178,7 +178,7 @@ TEST(ShrpTests, shrp_buffer_limit_generic)
 
     EXPECT_THROW({
         while (true) {
-            auto res = parser.poll_parse(Waker::dead());
+            auto res = parser.poll(Waker::dead());
         }
     },
         StreamingHttpRequestParser::GenericExceededBuffer);
@@ -195,11 +195,11 @@ TEST(ShrpTests, shrp_get_header)
     StreamingHttpRequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
-        auto res = parser.poll_parse(Waker::dead());
+        auto res = parser.poll(Waker::dead());
         if (res.is_ready()) {
             auto val = std::move(res.get());
             EXPECT_EQ(val.get_method(), method::GET);
-            EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "");
+            EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
             EXPECT_FALSE(val.get_uri().get_pqf().value().get_query());
             EXPECT_EQ(val.get_version().version_string, HTTP_VERSION_1_1.version_string);
             EXPECT_EQ(val.get_headers().size(), 1);
@@ -220,11 +220,11 @@ TEST(ShrpTests, shrp_get_header_n2)
     StreamingHttpRequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
-        auto res = parser.poll_parse(Waker::dead());
+        auto res = parser.poll(Waker::dead());
         if (res.is_ready()) {
             auto val = std::move(res.get());
             EXPECT_EQ(val.get_method(), method::GET);
-            EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "");
+            EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
             EXPECT_FALSE(val.get_uri().get_pqf().value().get_query());
             EXPECT_EQ(val.get_version().version_string, HTTP_VERSION_1_1.version_string);
             EXPECT_EQ(val.get_headers().size(), 2);
@@ -247,7 +247,7 @@ TEST(ShrpTests, shrp_header_buffer_limit)
 
     EXPECT_THROW({
         while (true) {
-            auto res = parser.poll_parse(Waker::dead());
+            auto res = parser.poll(Waker::dead());
         }
     },
         StreamingHttpRequestParser::GenericExceededBuffer);

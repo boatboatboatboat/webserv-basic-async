@@ -16,7 +16,7 @@ TEST(UriTests, uri_test_absolute_empty_path)
 
     EXPECT_EQ(uri.get_scheme().value().get(), "http");
     EXPECT_EQ(uri.get_authority().value().get_host(), "example.com");
-    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "");
+    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "/");
 }
 
 TEST(UriTests, uri_test_absolute_test_path)
@@ -25,7 +25,7 @@ TEST(UriTests, uri_test_absolute_test_path)
 
     EXPECT_EQ(uri.get_scheme().value().get(), "http");
     EXPECT_EQ(uri.get_authority().value().get_host(), "example.com");
-    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "test");
+    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "/test");
 }
 
 TEST(UriTests, uri_test_absolute_no_path)
@@ -45,7 +45,7 @@ TEST(UriTests, uri_test_absolute_path_query)
 
     EXPECT_EQ(uri.get_scheme().value().get(), "http");
     EXPECT_EQ(uri.get_authority().value().get_host(), "example.com");
-    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "path");
+    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "/path");
     EXPECT_EQ(uri.get_pqf().value().get_query().value(), "query");
     EXPECT_FALSE(uri.get_pqf().value().get_fragment().has_value());
 }
@@ -56,7 +56,7 @@ TEST(UriTests, uri_test_absolute_path_query_fragment)
 
     EXPECT_EQ(uri.get_scheme().value().get(), "http");
     EXPECT_EQ(uri.get_authority().value().get_host(), "example.com");
-    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "path");
+    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "/path");
     EXPECT_EQ(uri.get_pqf().value().get_query().value(), "query");
     EXPECT_EQ(uri.get_pqf().value().get_fragment().value(), "fragment");
 }
@@ -67,7 +67,7 @@ TEST(UriTests, uri_test_absolute_empty_path_query)
 
     EXPECT_EQ(uri.get_scheme().value().get(), "http");
     EXPECT_EQ(uri.get_authority().value().get_host(), "example.com");
-    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "");
+    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "/");
     EXPECT_EQ(uri.get_pqf().value().get_query().value(), "query");
     EXPECT_FALSE(uri.get_pqf().value().get_fragment().has_value());
 }
@@ -89,7 +89,7 @@ TEST(UriTests, uri_test_absolute_empty_path_fragment)
 
     EXPECT_EQ(uri.get_scheme().value().get(), "http");
     EXPECT_EQ(uri.get_authority().value().get_host(), "example.com");
-    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "");
+    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "/");
     EXPECT_FALSE(uri.get_pqf().value().get_query().has_value());
     EXPECT_EQ(uri.get_pqf().value().get_fragment().value(), "fragment");
 }
@@ -113,7 +113,7 @@ TEST(UriTests, uri_test_absolute_full)
     EXPECT_EQ(uri.get_authority().value().get_userinfo().value(), "username:password");
     EXPECT_EQ(uri.get_authority().value().get_host(), "example.com");
     EXPECT_EQ(uri.get_authority().value().get_port().value(), 1234);
-    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "this/is/a/path");
+    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "/this/is/a/path");
     EXPECT_EQ(uri.get_pqf().value().get_query().value(), "very=1&big=2&query=3");
     EXPECT_EQ(uri.get_pqf().value().get_fragment().value(), "fragment");
 }
@@ -126,7 +126,7 @@ TEST(UriTests, uri_test_absolute_full_lmao_this_is_valid)
     EXPECT_EQ(uri.get_authority().value().get_userinfo().value(), "&:!::");
     EXPECT_EQ(uri.get_authority().value().get_host(), "example.com");
     EXPECT_FALSE(uri.get_authority().value().get_port().has_value());
-    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "this/is/a/path");
+    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "/this/is/a/path");
     EXPECT_EQ(uri.get_pqf().value().get_query().value(), "??very=1&big=2&query=3");
     EXPECT_EQ(uri.get_pqf().value().get_fragment().value(), "fragment");
 }
@@ -135,8 +135,8 @@ TEST(UriTests, uri_test_absolute_escape)
 {
     auto uri = Uri("http://example.com/Hello%20World");
 
-    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "Hello%20World");
-    EXPECT_EQ(uri.get_pqf().value().get_path_escaped().value(), "Hello World");
+    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "/Hello%20World");
+    EXPECT_EQ(uri.get_pqf().value().get_path_escaped().value(), "/Hello World");
 }
 
 TEST(UriTests, uri_test_asterisk)
@@ -167,7 +167,7 @@ TEST(UriTests, uri_test_origin_empty)
     auto uri = Uri("/");
 
     EXPECT_EQ(uri.get_target_form(), Uri::OriginForm);
-    EXPECT_EQ(uri.get_pqf()->get_path().value(), "");
+    EXPECT_EQ(uri.get_pqf()->get_path().value(), "/");
 }
 
 
@@ -175,7 +175,7 @@ TEST(UriTests, uri_test_origin_path_query)
 {
     auto uri = Uri("/path?query");
 
-    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "path");
+    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "/path");
     EXPECT_EQ(uri.get_pqf().value().get_query().value(), "query");
     EXPECT_FALSE(uri.get_pqf().value().get_fragment().has_value());
 }
@@ -184,7 +184,7 @@ TEST(UriTests, uri_test_origin_path_query_fragment)
 {
     auto uri = Uri("/path?query#fragment");
 
-    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "path");
+    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "/path");
     EXPECT_EQ(uri.get_pqf().value().get_query().value(), "query");
     EXPECT_EQ(uri.get_pqf().value().get_fragment().value(), "fragment");
 }
@@ -193,7 +193,7 @@ TEST(UriTests, uri_test_origin_empty_path_query)
 {
     auto uri = Uri("/?query");
 
-    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "");
+    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "/");
     EXPECT_EQ(uri.get_pqf().value().get_query().value(), "query");
     EXPECT_FALSE(uri.get_pqf().value().get_fragment().has_value());
 }
@@ -202,7 +202,7 @@ TEST(UriTests, uri_test_origin_empty_path_fragment)
 {
     auto uri = Uri("/#fragment");
 
-    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "");
+    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "/");
     EXPECT_FALSE(uri.get_pqf().value().get_query().has_value());
     EXPECT_EQ(uri.get_pqf().value().get_fragment().value(), "fragment");
 }
@@ -211,7 +211,7 @@ TEST(UriTests, uri_test_origin_full)
 {
     auto uri = Uri("/this/is/a/path?very=1&big=2&query=3#fragment");
 
-    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "this/is/a/path");
+    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "/this/is/a/path");
     EXPECT_EQ(uri.get_pqf().value().get_query().value(), "very=1&big=2&query=3");
     EXPECT_EQ(uri.get_pqf().value().get_fragment().value(), "fragment");
 }
@@ -220,7 +220,7 @@ TEST(UriTests, uri_test_origin_full_lmao_this_is_valid)
 {
     auto uri = Uri("/this/is/a/path???very=1&big=2&query=3#fragment");
 
-    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "this/is/a/path");
+    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "/this/is/a/path");
     EXPECT_EQ(uri.get_pqf().value().get_query().value(), "??very=1&big=2&query=3");
     EXPECT_EQ(uri.get_pqf().value().get_fragment().value(), "fragment");
 }
@@ -229,8 +229,8 @@ TEST(UriTests, uri_test_origin_escape)
 {
     auto uri = Uri("/Hello%20World");
 
-    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "Hello%20World");
-    EXPECT_EQ(uri.get_pqf().value().get_path_escaped().value(), "Hello World");
+    EXPECT_EQ(uri.get_pqf().value().get_path().value(), "/Hello%20World");
+    EXPECT_EQ(uri.get_pqf().value().get_path_escaped().value(), "/Hello World");
 }
 
 }
