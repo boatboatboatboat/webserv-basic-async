@@ -25,7 +25,7 @@ class Waker : public Functor {
 public:
     Waker() = delete;
     Waker(Waker& waker);
-    ~Waker();
+    ~Waker() = default;
     Waker(RcPtr<Task>&& future);
     void operator()() override;
     RcPtr<Task>& get_task();
@@ -33,8 +33,7 @@ public:
 
     static auto dead() -> Waker;
 private:
-    bool _dead = false;
-    union { RcPtr<Task> task; };
+    optional<RcPtr<Task>> task;
     explicit Waker(dead_waker_t);
 };
 } // namespace futures
