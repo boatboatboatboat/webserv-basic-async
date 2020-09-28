@@ -34,6 +34,7 @@ class HttpResponse;
 class HttpResponseBuilder {
 public:
     HttpResponseBuilder();
+    ~HttpResponseBuilder() = default;
     auto version(HttpVersion version) -> HttpResponseBuilder&;
     auto status(HttpStatus status) -> HttpResponseBuilder&;
     auto header(HttpHeaderName name, const HttpHeaderValue& value) -> HttpResponseBuilder&;
@@ -85,15 +86,15 @@ private:
     };
     char buf[8192] {};
     char num[get_max_num_size(sizeof(buf))] {};
-    State state { WriteStatusVersion };
-    std::string_view current;
+    State _state { WriteStatusVersion };
+    std::string_view _current;
     std::string_view body_view;
     ssize_t written { 0 };
-    std::map<HttpHeaderName, HttpHeaderValue> response_headers;
-    std::map<HttpHeaderName, HttpHeaderValue>::const_iterator header_it;
-    HttpStatus response_status;
-    HttpVersion response_version;
-    BoxPtr<ioruntime::IAsyncRead> response_body;
+    std::map<HttpHeaderName, HttpHeaderValue> _response_headers;
+    std::map<HttpHeaderName, HttpHeaderValue>::const_iterator _header_it;
+    HttpStatus _response_status;
+    HttpVersion _response_version;
+    BoxPtr<ioruntime::IAsyncRead> _response_body;
 };
 
 }

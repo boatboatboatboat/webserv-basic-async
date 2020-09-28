@@ -1,6 +1,9 @@
 {
     "workers": 4,
     "http": {
+        "error_pages": {
+            "404": "./tests/404.html"
+        },
         "servers": [
             {
                 "names": [
@@ -11,7 +14,7 @@
                 ],
                 "locations": {
                     "^/": {
-                        "root": "/home/boat/CLionProjects/webserv-basic-async2/",
+                        "root": "/home/boat/CLionProjects/webserv-ssh/",
                         "index": [
                             "index.html",
                             "index.php"
@@ -22,7 +25,7 @@
                         "autoindex": true
                     },
                     "^/dirtest/?": {
-                        "root": "/home/boat/CLionProjects/webserv-basic-async2/ioruntime",
+                        "root": "/home/boat/CLionProjects/webserv-ssh/ioruntime",
                         "index": [
                             "index.html",
                             "index.php"

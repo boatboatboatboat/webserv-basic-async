@@ -20,7 +20,14 @@ using ioruntime::TimeoutFuture;
 using net::TcpStream;
 
 namespace http {
-template <typename RH>
+
+class ConnectionTimeout : public std::runtime_error {
+public:
+    ConnectionTimeout() : std::runtime_error("Connection timed out") {}
+private:
+};
+
+template <typename RH, typename EH>
 class HttpServer : public IFuture<void> {
 private:
     class HttpConnectionFuture : public IFuture<void> {
@@ -42,19 +49,21 @@ private:
         net::TcpStream stream;
         optional<StreamingHttpRequestParser> parser;
         TimeoutFuture timeout;
-        RH handler;
+        RH request_handler;
+        EH error_handler;
     };
 
 public:
     HttpServer() = delete;
-    explicit HttpServer(net::IpAddress address, uint16_t port, RH fn);
+    explicit HttpServer(net::IpAddress address, uint16_t port, RH rh, EH eh);
     PollResult<void> poll(Waker&& waker) override;
     static void handle_connection(net::TcpStream& stream);
     static void handle_exception(std::exception& e);
 
 private:
     ForEachFuture<net::TcpListener, net::TcpStream> listener;
-    static RH handler;
+    static RH request_handler;
+    static EH error_handler;
 };
 
 }

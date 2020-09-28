@@ -389,8 +389,6 @@ auto match_base_config(RootConfig const& rcfg, http::StreamingHttpRequest& req) 
     auto const& lcfg_o = match_location(scfg, req);
     auto matched_path = req.get_uri().get_pqf()->get_path().value();
 
-    DBGPRINT("mpath " << matched_path );
-
     optional<string> root;
     optional<vector<string>> index_pages;
     optional<map<uint16_t, string>> error_pages;
@@ -478,7 +476,7 @@ auto main(int argc, const char** argv) -> int
 {
     // ignore SIGPIPE,
     // a dos attack can cause so many SIGPIPEs (to the point of 30k queued),
-    // that all threads are preoccupied with running the signal handler
+    // that all threads are preoccupied with running the signal request_handler
     signal(SIGPIPE, SIG_IGN);
     try {
 
@@ -494,7 +492,7 @@ auto main(int argc, const char** argv) -> int
                 if (*it == "--help" || *it == "-h") {
                     std::cout
                         << "usage: webserv [--config config_file_path]"
-                    << std::endl;
+                        << std::endl;
                     return 0;
                 } else if (*it == "--config" || *it == "-c") {
                     ++it;
@@ -561,7 +559,8 @@ auto main(int argc, const char** argv) -> int
             auto bind_addresses = server.get_bind_addresses();
             if (bind_addresses.has_value()) {
                 for (auto& [address, port] : *bind_addresses) {
-                    GlobalRuntime::spawn(HttpServer(address, port, [](http::StreamingHttpRequest& req) {
+                    GlobalRuntime::spawn(HttpServer(
+                        address, port, [](http::StreamingHttpRequest& req) {
                         auto const& cfg = RootConfigSingleton::get();
                         auto host = req.get_header(http::header::HOST);
                         auto method = req.get_method();
@@ -608,28 +607,33 @@ auto main(int argc, const char** argv) -> int
                                     return builder.build();
                                 } catch (std::invalid_argument& e) {
                                     if (auto_index) {
-                                        try {
-                                            auto dir = BoxPtr<DirectoryBody>::make(search_path, path);
-                                            return HttpResponseBuilder()
-                                                .status(http::HTTP_STATUS_OK)
-                                                .body(std::move(dir))
-                                                .build();
-                                        } catch (std::invalid_argument& e) {
-                                            // we catch "no such file",
-                                            // but we allow other throws
-                                            // this way the server will throw 500 on an actual error
-                                        }
+                                        auto dir = BoxPtr<DirectoryBody>::make(search_path, path);
+                                        return HttpResponseBuilder()
+                                            .status(http::HTTP_STATUS_OK)
+                                            .body(std::move(dir))
+                                            .build();
+                                    } else {
+                                        throw fs::File::FileNotFound();
                                     }
-                                    return HttpResponseBuilder()
-                                        .status(http::HTTP_STATUS_NOT_FOUND)
-                                        .build();
                                 }
                             }
                         }
                         return HttpResponseBuilder()
                             .status(http::HTTP_STATUS_NOT_FOUND)
-                            .build();
-                    }));
+                            .build(); },
+                        [](http::HttpStatus& status) {
+                            auto const& cfg = RootConfigSingleton::get();
+                            auto errpages = cfg.get_http_config().get_error_pages();
+
+                            if (errpages) {
+                                auto related_page = errpages->find(status.code);
+
+                                if (related_page != errpages->end()) {
+                                    return BoxPtr<IAsyncRead>(BoxPtr<fs::File>(fs::File::open(related_page->second)));
+                                }
+                            }
+                            return BoxPtr<IAsyncRead>(BoxPtr<http::DefaultPageBody>::make(status));
+                        }));
                 }
             }
         }

@@ -88,7 +88,7 @@ auto TcpListener::poll_next(Waker&& waker) -> StreamPollResult<TcpStream>
             *is_ready = false;
             throw std::runtime_error(strerror(errno));
         }
-        DBGPRINT("Accepted TCP connection from " << client);
+        TRACEPRINT("Accepted TCP connection from " << client);
 
         *is_ready = false;
         BoxFunctor cb = BoxFunctor(new SetReadyFunctor(RcPtr(connection_ready)));
