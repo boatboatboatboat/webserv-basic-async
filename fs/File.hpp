@@ -13,6 +13,10 @@ using ioruntime::FileDescriptor;
 
 class File : public FileDescriptor {
 public:
+    class FileNotFound : public std::runtime_error {
+    public:
+        FileNotFound();
+    };
     File() = delete;
     static auto open(std::string const& path) -> File;
     static auto open_no_traversal(std::string const& path) -> File;
