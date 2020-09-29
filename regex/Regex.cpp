@@ -17,6 +17,9 @@ auto Regex::error(const char* message) -> int
 auto Regex::compile(const char* pattern) -> int
 {
     size_t len;
+#ifdef REGEX_DEBUGGER_STRING
+    _regex_debugger_string = std::string(pattern);
+#endif
 
     if (!pattern || !(len = utils::strlen(pattern)))
         return this->error("Pattern does not have a length");

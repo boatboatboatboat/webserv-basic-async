@@ -34,12 +34,13 @@ struct regex_comp {
 #define MAX_QUANTITY 1024
 #define MAX_PLUS_STAR 40000
 
-#define ENUMS                                                      \
-    X(NONE)                                                        \
-    X(BEGIN)                                                       \
-    X(END)                                                         \
-    X(QUANT)                                                       \
-    X(LQUANT) X(QMARK) X(LQMARK) X(STAR) X(LSTAR) X(PLUS) X(LPLUS) \
+#define ENUMS                                            \
+    X(NONE)                                              \
+    X(BEGIN)                                             \
+    X(END)                                               \
+    X(QUANT)                                             \
+    X(LQUANT)                                            \
+    X(QMARK) X(LQMARK) X(STAR) X(LSTAR) X(PLUS) X(LPLUS) \
         X(DOT) X(CHAR) X(CLASS) X(NCLASS) X(DIGIT) X(NDIGIT) X(ALPHA) X(NALPHA) X(SPACE) X(NSPACE)
 
 #define X(A) REGEX_##A,
@@ -49,6 +50,10 @@ enum { ENUMS };
 class Regex {
 private:
     regex_comp_t regex;
+
+#ifdef REGEX_DEBUGGER_STRING
+    std::string _regex_debugger_string;
+#endif
 
 protected:
     auto matchPattern(const regex_node_t* nodes, const char* text, const char* end) const -> const char*;
