@@ -147,4 +147,16 @@ auto FileDescriptor::close() && -> int
     return (0);
 }
 
+auto FileDescriptor::can_read() -> bool
+{
+    auto read_ready = ready_to_read->lock();
+    return *read_ready;
+}
+
+auto FileDescriptor::can_write() -> bool
+{
+    auto write_ready = ready_to_write->lock();
+    return *write_ready;
+}
+
 }

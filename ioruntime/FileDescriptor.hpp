@@ -25,6 +25,8 @@ public:
     virtual auto write(const char* buffer, size_t size) -> ssize_t;
     auto poll_read(char* buffer, size_t size, Waker&& waker) -> PollResult<ssize_t> override;
     auto poll_write(const char* buffer, size_t size, Waker&& waker) -> PollResult<ssize_t> override;
+    auto can_read() -> bool;
+    auto can_write() -> bool;
     auto close() && -> int;
     [[nodiscard]] auto get_descriptor() const -> int;
 
