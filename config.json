@@ -30,13 +30,22 @@
                         "locations": {
                             "\\.cpp$": {
                                 "final": true,
-                                "root": "/",
-                                "cgi": true
+                                "root": "/"
                             }
                         },
                         "allowed_methods": [
                             "GET"
                         ],
+                        "autoindex": true
+                    },
+                    "^/cgi/?": {
+                        "final": false,
+                        "root" : "/home/boat/CLionProjects/webserv-ssh/tests/cgi_test",
+                        "allowed_methods": [ "GET" ],
+                        "use_cgi": true,
+                        "locations": {
+                            ".+$": { "final": true }
+                        },
                         "autoindex": true
                     }
                 }
