@@ -33,6 +33,7 @@ auto Socket::read(char* buffer, size_t size) -> ssize_t
     return recv(descriptor, buffer, size, 0);
 #endif
 }
+
 auto Socket::write(const char* buffer, size_t size) -> ssize_t
 {
     // shhh don't tell anyone
@@ -47,8 +48,9 @@ auto Socket::write(const char* buffer, size_t size) -> ssize_t
 #endif
 }
 
-Socket::Socket(int fd)
+Socket::Socket(int fd, SocketAddr addr)
     : FileDescriptor(fd)
+    , _addr(addr)
 {
     GlobalIoEventHandler::register_special_callback(descriptor, BoxFunctor(new FunnyFunctor()), false, 0);
 }
@@ -71,12 +73,18 @@ auto net::Socket::uninitialized() -> Socket
 {
     return Socket();
 }
+
 Socket::~Socket()
 {
     if (descriptor >= 0) {
         TRACEPRINT("unregister " << descriptor);
         GlobalIoEventHandler::unregister_special_callbacks(descriptor);
     }
+}
+
+auto Socket::get_addr() const -> SocketAddr const&
+{
+    return _addr.value();
 }
 
 }
