@@ -12,7 +12,7 @@ using ioruntime::IExecutor;
 namespace futures {
 void Waker::operator()()
 {
-    if (task)
+    if (task.has_value())
         (*task)->get_sender()->respawn(RcPtr(*task));
 }
 
@@ -25,7 +25,7 @@ Waker::Waker(RcPtr<Task>&& future)
 
 Waker::Waker(Waker& other)
 {
-    if (other.task) {
+    if (other.task.has_value()) {
         task = RcPtr(*other.task);
     } else {
         task = option::nullopt;

@@ -246,7 +246,7 @@ public:
                 switch (state) {
                 case ReadMethod: {
                     auto method = get_method(str_in_buf);
-                    if (method) {
+                    if (method.has_value()) {
                         current_method = *method;
                         builder.method(string_view(*method));
                     } else {
@@ -298,7 +298,7 @@ public:
                         if (utils::str_eq_case_insensitive(field_name, "Content-Length")) {
                             auto length = utils::string_to_uint64(field_value);
 
-                            if (length) {
+                            if (length.has_value()) {
                                 content_length = *length;
                             } else {
                                 throw MalformedHeader();
@@ -310,7 +310,7 @@ public:
                     buffer.clear();
                 } break;
                 case Body: {
-                    if (content_length) {
+                    if (content_length.has_value()) {
                         // CL
                         if (buffer.size() == *content_length) {
                             builder.body(std::move(buffer));

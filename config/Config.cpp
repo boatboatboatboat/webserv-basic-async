@@ -41,9 +41,9 @@ BaseConfig::BaseConfig(optional<string> root, optional<vector<string>> index_pag
     : root(std::move(root))
     , index_pages(std::move(index_pages))
     , error_pages(std::move(error_pages))
-    , use_cgi(use_cgi)
+    , use_cgi(std::move(use_cgi))
     , allowed_methods(std::move(allowed_methods))
-    , autoindex(autoindex)
+    , autoindex(std::move(autoindex))
 {
 }
 
@@ -97,12 +97,12 @@ RootConfig::RootConfig(optional<uint64_t> worker_count, HttpConfig&& config)
 LocationConfig::LocationConfig(optional<table<Regex, LocationConfig>>&& locations, optional<bool> final, BaseConfig&& base)
     : BaseConfig(std::move(base))
     , locations(std::move(locations))
-    , final(final)
+    , final(final.value_or(false))
 {
 }
 auto LocationConfig::is_final() const -> bool
 {
-    return final && *final;
+    return final.has_value() && *final;
 }
 
 optional<RootConfig> RootConfigSingleton::rc = option::nullopt;

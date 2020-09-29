@@ -377,8 +377,8 @@ PathQueryFragment::PathQueryFragment(string_view str)
 
 auto PathQueryFragment::get_path() const -> optional<string_view>
 {
-    if (_path) {
-        if (_path->_unescaped) {
+    if (_path.has_value()) {
+        if (_path->_unescaped.has_value()) {
             return optional<string_view>(*_path->_unescaped);
         } else {
             return optional<string_view>(_path->_escaped);
@@ -390,7 +390,7 @@ auto PathQueryFragment::get_path() const -> optional<string_view>
 
 auto PathQueryFragment::get_path_escaped() const -> optional<string_view>
 {
-    if (_path) {
+    if (_path.has_value()) {
         return optional<string_view>(_path->_escaped);
     } else {
         return option::nullopt;
@@ -399,12 +399,12 @@ auto PathQueryFragment::get_path_escaped() const -> optional<string_view>
 
 auto PathQueryFragment::get_query() const -> optional<string_view>
 {
-    return _query ? optional<string_view>(_query) : option::nullopt;
+    return _query.has_value() ? optional<string_view>(_query) : option::nullopt;
 }
 
 auto PathQueryFragment::get_fragment() const -> optional<string_view>
 {
-    return _fragment ? optional<string_view>(_fragment) : option::nullopt;
+    return _fragment.has_value() ? optional<string_view>(_fragment) : option::nullopt;
 }
 
 Uri::Uri(string_view str)

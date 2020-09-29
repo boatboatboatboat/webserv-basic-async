@@ -38,7 +38,7 @@ auto StreamingHttpRequestBuilder::body(vector<uint8_t>&& body) -> StreamingHttpR
 
 auto StreamingHttpRequestBuilder::build() && -> StreamingHttpRequest
 {
-    if (!_uri) {
+    if (!_uri.has_value()) {
         throw std::runtime_error("no uri set in builder");
     }
     return StreamingHttpRequest(
