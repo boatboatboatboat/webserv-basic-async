@@ -39,6 +39,7 @@ public:
     auto header(HttpHeaderName name, const HttpHeaderValue& value) -> HttpResponseBuilder&;
     auto body(BoxPtr<ioruntime::IAsyncRead>&& body) -> HttpResponseBuilder&;
     auto body(BoxPtr<ioruntime::IAsyncRead>&& body, size_t content_length) -> HttpResponseBuilder&;
+    auto cgi() -> HttpResponseBuilder&;
     auto build() -> HttpResponse;
 
 private:
@@ -46,6 +47,7 @@ private:
     HttpVersion _version = HTTP_VERSION_1_1;
     HttpStatus _status;
     BoxPtr<ioruntime::IAsyncRead> _body;
+    bool _cgi_mode;
 };
 
 class HttpResponse {
@@ -54,7 +56,8 @@ public:
     explicit HttpResponse(
         std::map<HttpHeaderName, HttpHeaderValue>&& response_headers,
         HttpStatus status,
-        BoxPtr<ioruntime::IAsyncRead>&& response_body);
+        BoxPtr<ioruntime::IAsyncRead>&& response_body,
+        bool cgi_mode);
     HttpResponse(HttpResponse&& other) noexcept;
 
     auto operator=(HttpResponse&& other) noexcept -> HttpResponse&;
@@ -94,6 +97,7 @@ private:
     HttpStatus response_status;
     HttpVersion response_version;
     BoxPtr<ioruntime::IAsyncRead> response_body;
+    bool cgi_mode;
 };
 
 }

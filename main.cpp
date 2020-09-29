@@ -25,6 +25,7 @@
 #include "utils/utils.hpp"
 #include "json/Json.hpp"
 #include <csignal>
+#include "cgi/Cgi.hpp"
 
 using futures::FdLineStream;
 using futures::ForEachFuture;
@@ -186,7 +187,7 @@ auto recursive_locations(json::Json const& cfg) -> optional<table<Regex, Locatio
 
         locations.emplace_back(
             std::make_pair(
-                Regex(name), LocationConfig(recursive_locations(obj), final, base_config_from_json(obj))));
+                Regex(name), LocationConfig(recursive_locations(obj), std::move(final), base_config_from_json(obj))));
     }
 
     // fixes c++ bug
@@ -387,7 +388,8 @@ auto match_base_config(RootConfig const& rcfg, http::StreamingHttpRequest& req) 
     auto const& hcfg = rcfg.get_http_config();
     auto const& scfg = match_server(host, hcfg.get_servers());
     auto const& lcfg_o = match_location(scfg, req);
-    auto matched_path = req.get_uri().get_pqf()->get_path().value();
+
+    auto matched_path = std::get<1>(lcfg_o.value());
 
     DBGPRINT("mpath " << matched_path );
 
@@ -398,68 +400,68 @@ auto match_base_config(RootConfig const& rcfg, http::StreamingHttpRequest& req) 
     optional<vector<HttpMethod>> allowed_methods;
     optional<bool> autoindex;
 
-    if (lcfg_o) {
+    if (lcfg_o.has_value()) {
         auto& [lcfg_v, lcfg_p] = *lcfg_o;
 
         matched_path = lcfg_p;
         for (auto it = lcfg_v.rbegin(); it != lcfg_v.rend(); ++it) {
             auto& lcfg = *it;
 
-            if (!root && lcfg->get_root()) {
+            if (!root.has_value() && lcfg->get_root().has_value()) {
                 root = lcfg->get_root();
             }
-            if (!index_pages && lcfg->get_index_pages()) {
+            if (!index_pages.has_value() && lcfg->get_index_pages().has_value()) {
                 index_pages = lcfg->get_index_pages();
             }
-            if (!error_pages && lcfg->get_error_pages()) {
+            if (!error_pages.has_value() && lcfg->get_error_pages().has_value()) {
                 error_pages = lcfg->get_error_pages();
             }
-            if (!use_cgi && lcfg->get_use_cgi()) {
+            if (!use_cgi.has_value() && lcfg->get_use_cgi().has_value()) {
                 use_cgi = lcfg->get_use_cgi();
             }
-            if (!allowed_methods && lcfg->get_allowed_methods()) {
+            if (!allowed_methods.has_value() && lcfg->get_allowed_methods().has_value()) {
                 allowed_methods = lcfg->get_allowed_methods();
             }
-            if (!autoindex && lcfg->get_autoindex()) {
+            if (!autoindex.has_value() && lcfg->get_autoindex().has_value()) {
                 autoindex = lcfg->get_autoindex();
             }
         }
     }
 
-    if (!root && scfg.get_root()) {
+    if (!root.has_value() && scfg.get_root().has_value()) {
         root = scfg.get_root();
     }
-    if (!index_pages && scfg.get_index_pages()) {
+    if (!index_pages.has_value() && scfg.get_index_pages().has_value()) {
         index_pages = scfg.get_index_pages();
     }
-    if (!error_pages && scfg.get_error_pages()) {
+    if (!error_pages.has_value() && scfg.get_error_pages().has_value()) {
         error_pages = scfg.get_error_pages();
     }
-    if (!use_cgi && scfg.get_use_cgi()) {
+    if (!use_cgi.has_value() && scfg.get_use_cgi().has_value()) {
         use_cgi = scfg.get_use_cgi();
     }
-    if (!allowed_methods && scfg.get_allowed_methods()) {
+    if (!allowed_methods.has_value() && scfg.get_allowed_methods().has_value()) {
         allowed_methods = scfg.get_allowed_methods();
     }
-    if (!autoindex && scfg.get_autoindex()) {
+    if (!autoindex.has_value() && scfg.get_autoindex().has_value()) {
         autoindex = scfg.get_autoindex();
     }
-    if (!root && hcfg.get_root()) {
+    if (!root.has_value() && hcfg.get_root().has_value()) {
         root = hcfg.get_root();
     }
-    if (!index_pages && hcfg.get_index_pages()) {
+    if (!index_pages.has_value() && hcfg.get_index_pages().has_value()) {
         index_pages = hcfg.get_index_pages();
     }
-    if (!error_pages && hcfg.get_error_pages()) {
+    if (!error_pages.has_value() && hcfg.get_error_pages().has_value()) {
         error_pages = hcfg.get_error_pages();
     }
-    if (!use_cgi && hcfg.get_use_cgi()) {
+    if (!use_cgi.has_value() && hcfg.get_use_cgi().has_value()) {
         use_cgi = hcfg.get_use_cgi();
     }
-    if (!allowed_methods && hcfg.get_allowed_methods()) {
+    if (!allowed_methods.has_value() && hcfg.get_allowed_methods().has_value()) {
         allowed_methods = hcfg.get_allowed_methods();
     }
-    if (!autoindex && hcfg.get_autoindex()) {
+    if (!autoindex.has_value() && hcfg.get_autoindex().has_value()) {
         autoindex = hcfg.get_autoindex();
     }
     return tuple {
@@ -481,7 +483,6 @@ auto main(int argc, const char** argv) -> int
     // that all threads are preoccupied with running the signal handler
     signal(SIGPIPE, SIG_IGN);
     try {
-
         std::string config_file_path = "./config.json";
 
         {
@@ -598,15 +599,35 @@ auto main(int argc, const char** argv) -> int
                             auto auto_index = bcfg.get_autoindex().value_or(false);
                             auto const& root = bcfg.get_root();
 
-                            if (root) {
+                            if (root.has_value()) {
                                 auto search_path = string(*root).append(matched_path);
+                                auto use_cgi = bcfg.get_use_cgi();
+
+                                DBGPRINT("search path " << search_path);
+
                                 try {
-                                    auto file = BoxPtr(fs::File::open_no_traversal(search_path));
-                                    auto file_size = file->size();
-                                    builder.status(http::HTTP_STATUS_OK)
-                                        .body(std::move(file), file_size);
+                                    if (use_cgi.has_value() && *use_cgi) {
+                                        {
+                                            // We run this for its error side effects
+                                            (void)fs::File::open_no_traversal(search_path);
+                                        }
+                                        {
+                                            // it already executes here.
+                                            auto cgi_body = cgi::Cgi(req, search_path);
+                                            return HttpResponseBuilder()
+                                                .status(http::HTTP_STATUS_OK)
+                                                .body(BoxPtr<cgi::Cgi>::make(std::move(cgi_body)))
+                                                .cgi()
+                                                .build();
+                                        }
+                                    } else {
+                                        auto file = BoxPtr(fs::File::open_no_traversal(search_path));
+                                        auto file_size = file->size();
+                                        builder.status(http::HTTP_STATUS_OK)
+                                            .body(std::move(file), file_size);
+                                    }
                                     return builder.build();
-                                } catch (std::invalid_argument& e) {
+                                } catch (std::invalid_argument& e) { // TODO: change invalid_argument to FileIsDirectory error
                                     if (auto_index) {
                                         try {
                                             auto dir = BoxPtr<DirectoryBody>::make(search_path, path);

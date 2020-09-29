@@ -19,11 +19,12 @@ HttpResponse::HttpResponse()
 {
 }
 
-HttpResponse::HttpResponse(std::map<HttpHeaderName, HttpHeaderValue>&& response_headers, HttpStatus status, BoxPtr<ioruntime::IAsyncRead>&& response_body)
+HttpResponse::HttpResponse(std::map<HttpHeaderName, HttpHeaderValue>&& response_headers, HttpStatus status, BoxPtr<ioruntime::IAsyncRead>&& response_body, bool cgi_mode)
     : response_headers(std::move(response_headers))
     , response_status(status)
     , response_version(HTTP_VERSION_1_1)
     , response_body(std::move(response_body))
+    , cgi_mode(cgi_mode)
 {
     if (this->response_body.get() == nullptr) {
         // fixme: _body is BoxPtr which is allocated, memory alloc error can't recover properly
@@ -78,6 +79,10 @@ auto HttpResponse::poll_respond(net::Socket& socket, Waker&& waker) -> PollResul
         current = this->response_status.message;
     } break;
     case WriteHeaderName: {
+        if (cgi_mode) {
+            state = ReadBody;
+            return poll_respond(socket, std::move(waker));
+        }
         if (header_it == response_headers.end()) {
             state = WriteSeperatorCLRF;
             return poll_respond(socket, std::move(waker));
@@ -97,10 +102,12 @@ auto HttpResponse::poll_respond(net::Socket& socket, Waker&& waker) -> PollResul
     case ReadBody: {
         auto is_chunked = false;
         // if response_headers.contains(http::header::TRANSFER_ENCODING)
-        if (std::any_of(response_headers.begin(), response_headers.end(), [](auto& i) { return i.first == http::header::TRANSFER_ENCODING; })) {
-            // FIXME: bad chunked check
-            if (response_headers[http::header::TRANSFER_ENCODING].find("chunked") != std::string::npos) {
-                is_chunked = true;
+        if (!cgi_mode) {
+            if (std::any_of(response_headers.begin(), response_headers.end(), [](auto& i) { return i.first == http::header::TRANSFER_ENCODING; })) {
+                // FIXME: bad chunked check
+                if (response_headers[http::header::TRANSFER_ENCODING].find("chunked") != std::string::npos) {
+                    is_chunked = true;
+                }
             }
         }
 
@@ -171,6 +178,7 @@ HttpResponse::HttpResponse(HttpResponse&& other) noexcept
     , response_status(other.response_status)
     , response_version(other.response_version)
     , response_body(std::move(other.response_body))
+    , cgi_mode(other.cgi_mode)
 {
 }
 
@@ -187,6 +195,7 @@ auto HttpResponse::operator=(HttpResponse&& other) noexcept -> HttpResponse&
     this->response_status = other.response_status;
     this->response_body = std::move(other.response_body);
     this->response_version = other.response_version;
+    this->cgi_mode = other.cgi_mode;
     return *this;
 }
 
@@ -217,7 +226,7 @@ auto HttpResponseBuilder::body(BoxPtr<ioruntime::IAsyncRead>&& body, size_t cont
 
 auto HttpResponseBuilder::build() -> HttpResponse
 {
-    return HttpResponse(std::move(_headers), _status, std::move(_body));
+    return HttpResponse(std::move(_headers), _status, std::move(_body), _cgi_mode);
 }
 
 HttpResponseBuilder::HttpResponseBuilder()
@@ -229,6 +238,12 @@ HttpResponseBuilder::HttpResponseBuilder()
 auto HttpResponseBuilder::version(HttpVersion version) -> HttpResponseBuilder&
 {
     _version = version;
+    return *this;
+}
+
+auto HttpResponseBuilder::cgi() -> HttpResponseBuilder&
+{
+    _cgi_mode = true;
     return *this;
 }
 

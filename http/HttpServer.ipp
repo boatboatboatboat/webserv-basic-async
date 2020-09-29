@@ -2,6 +2,7 @@
 // Created by boat on 8/22/20.
 //
 
+#include "../cgi/Cgi.hpp"
 #include "../ioruntime/GlobalRuntime.hpp"
 #include "../net/TcpListener.hpp"
 #include "../net/TcpStream.hpp"
@@ -57,6 +58,13 @@ PollResult<void> HttpServer<RH>::HttpConnectionFuture::poll(Waker&& waker)
                 state = Respond;
                 try {
                     res = std::move(handler(*req));
+                } catch (cgi::Cgi::CgiError&) {
+                    state = Respond;
+                    res = HttpResponseBuilder()
+                              .status(HTTP_STATUS_BAD_GATEWAY)
+                              .header(http::header::CONTENT_TYPE, "text/html; charset=utf8")
+                              .build();
+                    return poll(std::move(waker));
                 } catch (std::exception& e) {
                     WARNPRINT("request handler error: " << e.what());
                     res = HttpResponseBuilder()
