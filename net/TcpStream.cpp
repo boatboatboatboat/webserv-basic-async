@@ -65,7 +65,7 @@ auto TcpStreamResponseFuture::poll(Waker&& waker) -> PollResult<void>
 }
 
 TcpStream::TcpStream(int fd, SocketAddr address)
-    : socket(fd)
+    : socket(fd, address)
     , address(address)
 {
 }
