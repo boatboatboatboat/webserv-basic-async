@@ -17,6 +17,7 @@ public:
     Ipv6Address() = delete;
     explicit Ipv6Address(uint64_t b1, uint64_t b2);
     explicit Ipv6Address(string_view str);
+    explicit Ipv6Address(in6_addr addr);
     [[nodiscard]] auto get_ip_posix() const -> in6_addr;
 
 private:

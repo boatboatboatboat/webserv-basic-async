@@ -5,6 +5,8 @@
 #ifndef WEBSERV_HTTPRESPONSE_HPP
 #define WEBSERV_HTTPRESPONSE_HPP
 
+#include "../cgi/Cgi.hpp"
+#include "../ioruntime/IoCopyFuture.hpp"
 #include "../net/Socket.hpp"
 #include "DefaultPageBody.hpp"
 #include "HttpHeader.hpp"
@@ -14,6 +16,8 @@
 #include "HttpVersion.hpp"
 #include <map>
 #include <string>
+
+using cgi::Cgi;
 
 // Get the max size of the buffer to store a chunked transfer size in
 static inline constexpr auto get_max_num_size(size_t s) -> size_t
@@ -29,9 +33,42 @@ static inline constexpr auto get_max_num_size(size_t s) -> size_t
 
 namespace http {
 
-class HttpResponse;
+// using HttpBody = BoxPtr<ioruntime::IAsyncRead>;
 
-class HttpResponseBuilder {
+class HttpBody final : public IAsyncRead {
+public:
+    // special methods
+    HttpBody() = delete;
+    HttpBody(HttpBody&&);
+    HttpBody& operator=(HttpBody&&);
+    ~HttpBody();
+
+    // ctors
+    explicit HttpBody(BoxPtr<ioruntime::IAsyncRead>&& reader);
+    explicit HttpBody(Cgi&& cgi);
+
+    // methods
+    [[nodiscard]] auto is_reader() const -> bool;
+    [[nodiscard]] auto is_cgi() const -> bool;
+    auto get_cgi() -> Cgi&;
+
+    // implement: IAsyncRead
+    auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<ioruntime::IoResult> override;
+
+private:
+    enum Tag {
+        ReaderTag,
+        CgiTag,
+    } tag;
+    union {
+        BoxPtr<ioruntime::IAsyncRead> _reader;
+        Cgi _cgi;
+    };
+};
+
+class LegacyHttpResponse;
+
+class HttpResponseBuilder final {
 public:
     HttpResponseBuilder();
     auto version(HttpVersion version) -> HttpResponseBuilder&;
@@ -39,52 +76,170 @@ public:
     auto header(HttpHeaderName name, const HttpHeaderValue& value) -> HttpResponseBuilder&;
     auto body(BoxPtr<ioruntime::IAsyncRead>&& body) -> HttpResponseBuilder&;
     auto body(BoxPtr<ioruntime::IAsyncRead>&& body, size_t content_length) -> HttpResponseBuilder&;
-    auto cgi() -> HttpResponseBuilder&;
-    auto build() -> HttpResponse;
+    auto cgi(Cgi&& proc) -> HttpResponseBuilder&;
+    auto build() -> LegacyHttpResponse;
 
 private:
-    std::map<HttpHeaderName, HttpHeaderValue> _headers;
-    HttpVersion _version = HTTP_VERSION_1_1;
+    HttpHeaders _headers;
+    HttpVersion _version = version::v1_1;
     HttpStatus _status;
-    BoxPtr<ioruntime::IAsyncRead> _body;
-    bool _cgi_mode;
+    HttpBody _body;
+    optional<Cgi> _cgi = option::nullopt;
 };
 
-class HttpResponse {
+class HttpResponse final {
 public:
-    HttpResponse();
-    explicit HttpResponse(
+    // ctors/dtors
+    HttpResponse() = delete;
+    HttpResponse(HttpHeaders&& headers, HttpVersion&& version, HttpStatus&& status, HttpBody&& body, optional<Cgi>&& cgi);
+    HttpResponse(HttpResponse&&);
+    auto operator=(HttpResponse&&) -> HttpResponse&;
+    ~HttpResponse() = default;
+
+    // getter methods
+    [[nodiscard]] auto get_headers() const -> HttpHeaders const&;
+    [[nodiscard]] auto get_header(HttpHeaderName const& needle_name) const -> optional<HttpHeaderValue>;
+    [[nodiscard]] auto get_version() const -> HttpVersion const&;
+    [[nodiscard]] auto get_status() const -> HttpStatus const&;
+    [[nodiscard]] auto get_body() const -> HttpBody const&;
+    [[nodiscard]] auto get_cgi() const -> optional<Cgi> const&;
+    [[nodiscard]] auto get_cgi() -> optional<Cgi>&;
+
+private:
+    // FIXME: Proxy-based requests don't have a 'set' header like this
+    HttpHeaders _headers;
+    HttpVersion _version;
+    HttpStatus _status;
+    HttpBody _body;
+    optional<Cgi> _cgi;
+};
+
+class HttpResponseReader : public IAsyncRead {
+public:
+    explicit HttpResponseReader(HttpResponse& response);
+    ~HttpResponseReader() override;
+    auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
+
+private:
+    // inner readers
+    class StatusReader : public IAsyncRead {
+    public:
+        explicit StatusReader(HttpResponse const& response);
+        auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
+
+    private:
+        enum State {
+            Version,
+            Space1,
+            Code,
+            Space2,
+            Message,
+            Clrf,
+        } _state
+            = Version;
+        char _status_code_buf[3];
+        string_view _current;
+        HttpResponse const& _response;
+    };
+    class HeaderReader : public IAsyncRead {
+    public:
+        explicit HeaderReader(HttpResponse const& response);
+        auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
+
+    private:
+        HttpResponse const& _response;
+    };
+    class BodyReader : public IAsyncRead {
+    public:
+        explicit BodyReader(HttpResponse const& response);
+        auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
+
+    private:
+        HttpResponse const& _response;
+    };
+    class ChunkedBodyReader : public IAsyncRead {
+    public:
+        explicit ChunkedBodyReader(HttpResponse const& response);
+        auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
+
+    private:
+        HttpResponse const& _response;
+    };
+    class CgiBodyReader : public IAsyncRead {
+    public:
+        explicit CgiBodyReader(HttpResponse const& response);
+        auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
+
+    private:
+        HttpResponse const& _response;
+    };
+
+    // Members
+    HttpResponse& _response;
+    enum State {
+        CheckCgiSuccess,
+        Status,
+        Header,
+        Body,
+        ChunkedBody,
+        CgiBody
+    } state;
+    union {
+        StatusReader _status;
+        HeaderReader _header;
+        BodyReader _body;
+        ChunkedBodyReader _chunked_body;
+        CgiBodyReader _cgi_body;
+    };
+};
+
+class LegacyHttpResponse {
+public:
+    LegacyHttpResponse();
+    explicit LegacyHttpResponse(
         std::map<HttpHeaderName, HttpHeaderValue>&& response_headers,
         HttpStatus status,
         BoxPtr<ioruntime::IAsyncRead>&& response_body,
-        bool cgi_mode);
-    HttpResponse(HttpResponse&& other) noexcept;
+        optional<Cgi>&& _cgi);
+    LegacyHttpResponse(LegacyHttpResponse&& other) noexcept;
 
-    auto operator=(HttpResponse&& other) noexcept -> HttpResponse&;
-    virtual ~HttpResponse();
+    auto operator=(LegacyHttpResponse&& other) noexcept -> LegacyHttpResponse&;
+    virtual ~LegacyHttpResponse();
     auto poll_respond(net::Socket& socket, Waker&& waker) -> PollResult<void>;
     auto write_response(net::Socket& socket, Waker&& waker) -> bool;
 
 private:
     enum State {
+        // Status line states
         WriteStatusVersion,
         WriteStatusSpace1,
         WriteStatusCode,
         WriteStatusSpace2,
         WriteStatusMessage,
         WriteStatusCRLF,
+
+        // Header line states
         WriteHeaderName,
         WriteHeaderSplit,
         WriteHeaderValue,
         WriteHeaderCRLF,
         WriteSeperatorCLRF,
+
+        // Regular body states
         ReadBody,
         WriteBody,
+
+        // Chunked body states
         WriteChunkedBodySize,
         WriteChunkedBodyCLRF1,
         WriteChunkedBody,
         WriteChunkedBodyCLRF2,
-        WriteChunkedBodyEof
+        WriteChunkedBodyEof,
+
+        // Cgi body states
+        WriteToCgiBody,
+        ReadCgiBody,
+        // WriteBody,
     };
     char buf[8192] {};
     char num[get_max_num_size(sizeof(buf))] {};
@@ -97,7 +252,8 @@ private:
     HttpStatus response_status;
     HttpVersion response_version;
     BoxPtr<ioruntime::IAsyncRead> response_body;
-    bool cgi_mode;
+    optional<Cgi> _cgi;
+    optional<ioruntime::IoCopyFuture> _icf;
 };
 
 }

@@ -8,11 +8,12 @@
 #include "../ioruntime/IAsyncRead.hpp"
 
 using ioruntime::IAsyncRead;
+using ioruntime::IoResult;
 
 class InfiniteBody : public IAsyncRead {
 public:
     InfiniteBody() = default;
-    PollResult<ssize_t> poll_read(char* buffer, size_t size, Waker&& waker) override;
+    auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
 };
 
 #endif //WEBSERV_HTTP_INFINITEBODY_HPP

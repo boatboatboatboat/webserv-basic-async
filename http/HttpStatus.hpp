@@ -15,7 +15,9 @@ struct HttpStatus {
     std::string_view message;
 };
 
-/*
+namespace status {
+
+    /*
     The 100 (Continue) status code indicates that the initial part of a
         request has been received and has not yet been rejected by the
         server.  The server intends to send a final response after the
@@ -31,9 +33,9 @@ struct HttpStatus {
     100-continue expectation, the client can simply discard this interim
         response.
 */
-inline const HttpStatus HTTP_STATUS_CONTINUE { 300, "Continue" };
+    inline const HttpStatus CONTINUE { 300, "Continue" };
 
-/*
+    /*
  The 101 (Switching Protocols) status code indicates that the server
    understands and is willing to comply with the client's request, via
    the Upgrade header field (Section 6.7 of [RFC7230]), for a change in
@@ -48,9 +50,9 @@ inline const HttpStatus HTTP_STATUS_CONTINUE { 300, "Continue" };
    switching to a real-time, synchronous protocol might be advantageous
    when delivering resources that use such features.
 */
-inline const HttpStatus HTTP_STATUS_SWITCHING_PROTOCOLS { 101, "Switching Protocols" };
+    inline const HttpStatus SWITCHING_PROTOCOLS { 101, "Switching Protocols" };
 
-/*
+    /*
 The 200 (OK) status code indicates that the request has succeeded.
    The payload sent in a 200 response depends on the request method.
    For the methods defined by this specification, the intended meaning
@@ -82,9 +84,9 @@ The 200 (OK) status code indicates that the request has succeeded.
    indicated by the method definition or explicit cache controls (see
    Section 4.2.2 of [RFC7234]).
 */
-inline const HttpStatus HTTP_STATUS_OK { 200, "OK" };
+    inline const HttpStatus OK { 200, "OK" };
 
-/*
+    /*
    The 201 (Created) status code indicates that the request has been
    fulfilled and has resulted in one or more new resources being
    created.  The primary resource created by the request is identified
@@ -96,9 +98,9 @@ inline const HttpStatus HTTP_STATUS_OK { 200, "OK" };
    and purpose of validator header fields, such as ETag and
    Last-Modified, in a 201 response.
 */
-inline const HttpStatus HTTP_STATUS_CREATED { 201, "Created" };
+    inline const HttpStatus CREATED { 201, "Created" };
 
-/*
+    /*
    The 202 (Accepted) status code indicates that the request has been
    accepted for processing, but the processing has not been completed.
    The request might or might not eventually be acted upon, as it might
@@ -115,9 +117,9 @@ inline const HttpStatus HTTP_STATUS_CREATED { 201, "Created" };
    (or embed) a status monitor that can provide the user with an
    estimate of when the request will be fulfilled.
 */
-inline const HttpStatus HTTP_STATUS_ACCEPTED { 202, "Accepted" };
+    inline const HttpStatus ACCEPTED { 202, "Accepted" };
 
-/*
+    /*
    The 203 (Non-Authoritative Information) status code indicates that
    the request was successful but the enclosed payload has been modified
    from that of the origin server's 200 (OK) response by a transforming
@@ -136,9 +138,9 @@ inline const HttpStatus HTTP_STATUS_ACCEPTED { 202, "Accepted" };
    indicated by the method definition or explicit cache controls (see
    Section 4.2.2 of [RFC7234]).
 */
-inline const HttpStatus HTTP_STATUS_NON_AUTHORITATIVE_INFORMATION { 203, "Non-Authoritative Information" };
+    inline const HttpStatus NON_AUTHORITATIVE_INFORMATION { 203, "Non-Authoritative Information" };
 
-/*
+    /*
    The 204 (No Content) status code indicates that the server has
    successfully fulfilled the request and that there is no additional
    content to send in the response payload body.  Metadata in the
@@ -171,9 +173,9 @@ inline const HttpStatus HTTP_STATUS_NON_AUTHORITATIVE_INFORMATION { 203, "Non-Au
    indicated by the method definition or explicit cache controls (see
    Section 4.2.2 of [RFC7234]).
 */
-inline const HttpStatus HTTP_STATUS_NO_CONTENT { 204, "No Content" };
+    inline const HttpStatus NO_CONTENT { 204, "No Content" };
 
-/*
+    /*
    The 205 (Reset Content) status code indicates that the server has
    fulfilled the request and desires that the user agent reset the
    "document view", which caused the request to be sent, to its original
@@ -197,9 +199,9 @@ inline const HttpStatus HTTP_STATUS_NO_CONTENT { 204, "No Content" };
    connection immediately after sending the blank line terminating the
    header section.
 */
-inline const HttpStatus HTTP_STATUS_RESET_CONTENT { 205, "Reset Content" };
+    inline const HttpStatus RESET_CONTENT { 205, "Reset Content" };
 
-/*
+    /*
    The 300 (Multiple Choices) status code indicates that the target
    resource has more than one representation, each with its own more
    specific identifier, and information about the alternatives is being
@@ -240,9 +242,9 @@ inline const HttpStatus HTTP_STATUS_RESET_CONTENT { 205, "Reset Content" };
    a set of Link header fields [RFC5988], each with a relationship of
    "alternate", though deployment is a chicken-and-egg problem.
 */
-inline const HttpStatus HTTP_STATUS_MULTIPLE_CHOICES { 300, "Multiple Choices" };
+    inline const HttpStatus MULTIPLE_CHOICES { 300, "Multiple Choices" };
 
-/*
+    /*
    The 301 (Moved Permanently) status code indicates that the target
    resource has been assigned a new permanent URI and any future
    references to this resource ought to use one of the enclosed URIs.
@@ -265,9 +267,9 @@ inline const HttpStatus HTTP_STATUS_MULTIPLE_CHOICES { 300, "Multiple Choices" }
    indicated by the method definition or explicit cache controls (see
    Section 4.2.2 of [RFC7234]).
 */
-inline const HttpStatus HTTP_STATUS_MOVED_PERMANENTLY { 301, "Moved Permanently" };
+    inline const HttpStatus MOVED_PERMANENTLY { 301, "Moved Permanently" };
 
-/*
+    /*
    The 302 (Found) status code indicates that the target resource
    resides temporarily under a different URI.  Since the redirection
    might be altered on occasion, the client ought to continue to use the
@@ -285,9 +287,9 @@ inline const HttpStatus HTTP_STATUS_MOVED_PERMANENTLY { 301, "Moved Permanently"
    can be used instead.
 
 */
-inline const HttpStatus HTTP_STATUS_FOUND { 302, "Found" };
+    inline const HttpStatus FOUND { 302, "Found" };
 
-/*
+    /*
    The 303 (See Other) status code indicates that the server is
    redirecting the user agent to a different resource, as indicated by a
    URI in the Location header field, which is intended to provide an
@@ -320,21 +322,21 @@ inline const HttpStatus HTTP_STATUS_FOUND { 302, "Found" };
    response ought to contain a short hypertext note with a hyperlink to
    the same URI reference provided in the Location header field.
 */
-inline const HttpStatus HTTP_STATUS_SEE_OTHER { 303, "See Other" };
+    inline const HttpStatus SEE_OTHER { 303, "See Other" };
 
-/*
+    /*
    The 305 (Use Proxy) status code was defined in a previous version of
    this specification and is now deprecated (Appendix B).
 */
-inline const HttpStatus HTTP_STATUS_USE_PROXY { 305, "Use Proxy" };
+    inline const HttpStatus USE_PROXY { 305, "Use Proxy" };
 
-/*
+    /*
    The 306 status code was defined in a previous version of this
    specification, is no longer used, and the code is reserved.
 */
-inline const HttpStatus HTTP_STATUS_UNUSED { 306, "(Unused)" };
+    inline const HttpStatus UNUSED { 306, "(Unused)" };
 
-/*
+    /*
 
    The 307 (Temporary Redirect) status code indicates that the target
    resource resides temporarily under a different URI and the user agent
@@ -355,27 +357,27 @@ inline const HttpStatus HTTP_STATUS_UNUSED { 306, "(Unused)" };
    Permanently) ([RFC7238], however, defines the status code 308
    (Permanent Redirect) for this purpose).
 */
-inline const HttpStatus HTTP_STATUS_TEMPORARY_REDIRECT { 307, "Temporary Redirect" };
+    inline const HttpStatus TEMPORARY_REDIRECT { 307, "Temporary Redirect" };
 
-/*
+    /*
    The 400 (Bad Request) status code indicates that the server cannot or
    will not process the request due to something that is perceived to be
    a client error (e.g., malformed request syntax, invalid request
    message framing, or deceptive request routing).
  */
-inline const HttpStatus HTTP_STATUS_BAD_REQUEST { 400, "Bad Request" };
+    inline const HttpStatus BAD_REQUEST { 400, "Bad Request" };
 
-/*
+    /*
 
 */
-inline const HttpStatus HTTP_STATUS_UNAUTHORIZED { 401, "Unauthorized" };
+    inline const HttpStatus UNAUTHORIZED { 401, "Unauthorized" };
 
-/*
+    /*
    The 402 (Payment Required) status code is reserved for future use.
 */
-inline const HttpStatus HTTP_STATUS_PAYMENT_REQUIRED { 402, "Payment Required" };
+    inline const HttpStatus PAYMENT_REQUIRED { 402, "Payment Required" };
 
-/*
+    /*
    The 403 (Forbidden) status code indicates that the server understood
    the request but refuses to authorize it.  A server that wishes to
    make public why the request has been forbidden can describe that
@@ -392,9 +394,9 @@ inline const HttpStatus HTTP_STATUS_PAYMENT_REQUIRED { 402, "Payment Required" }
    forbidden target resource MAY instead respond with a status code of
    404 (Not Found).
 */
-inline const HttpStatus HTTP_STATUS_FORBIDDEN { 403, "Forbidden" };
+    inline const HttpStatus FORBIDDEN { 403, "Forbidden" };
 
-/*
+    /*
    The 404 (Not Found) status code indicates that the origin server did
    not find a current representation for the target resource or is not
    willing to disclose that one exists.  A 404 status code does not
@@ -407,9 +409,9 @@ inline const HttpStatus HTTP_STATUS_FORBIDDEN { 403, "Forbidden" };
    indicated by the method definition or explicit cache controls (see
    Section 4.2.2 of [RFC7234]).
 */
-inline const HttpStatus HTTP_STATUS_NOT_FOUND { 404, "Not Found" };
+    inline const HttpStatus NOT_FOUND { 404, "Not Found" };
 
-/*
+    /*
    The 405 (Method Not Allowed) status code indicates that the method
    received in the request-line is known by the origin server but not
    supported by the target resource.  The origin server MUST generate an
@@ -420,9 +422,9 @@ inline const HttpStatus HTTP_STATUS_NOT_FOUND { 404, "Not Found" };
    indicated by the method definition or explicit cache controls (see
    Section 4.2.2 of [RFC7234]).
 */
-inline const HttpStatus HTTP_STATUS_METHOD_NOT_ALLOWED { 405, "Method Not Allowed" };
+    inline const HttpStatus METHOD_NOT_ALLOWED { 405, "Method Not Allowed" };
 
-/*
+    /*
    The 406 (Not Acceptable) status code indicates that the target
    resource does not have a current representation that would be
    acceptable to the user agent, according to the proactive negotiation
@@ -437,9 +439,9 @@ inline const HttpStatus HTTP_STATUS_METHOD_NOT_ALLOWED { 405, "Method Not Allowe
    not define any standard for such automatic selection, as described in
    Section 6.4.1.
 */
-inline const HttpStatus HTTP_STATUS_NOT_ACCEPTABLE { 406, "Request Timeout" };
+    inline const HttpStatus NOT_ACCEPTABLE { 406, "Request Timeout" };
 
-/*
+    /*
    The 408 (Request Timeout) status code indicates that the server did
    not receive a complete request message within the time that it was
    prepared to wait.  A server SHOULD send the "close" connection option
@@ -448,9 +450,9 @@ inline const HttpStatus HTTP_STATUS_NOT_ACCEPTABLE { 406, "Request Timeout" };
    waiting.  If the client has an outstanding request in transit, the
    client MAY repeat that request on a new connection.
 */
-inline const HttpStatus HTTP_STATUS_REQUEST_TIMEOUT { 408, "Request Timeout" };
+    inline const HttpStatus REQUEST_TIMEOUT { 408, "Request Timeout" };
 
-/*
+    /*
    The 409 (Conflict) status code indicates that the request could not
    be completed due to a conflict with the current state of the target
    resource.  This code is used in situations where the user might be
@@ -466,9 +468,9 @@ inline const HttpStatus HTTP_STATUS_REQUEST_TIMEOUT { 408, "Request Timeout" };
    case, the response representation would likely contain information
    useful for merging the differences based on the revision history.
 */
-inline const HttpStatus HTTP_STATUS_CONFLICT { 409, "Conflict" };
+    inline const HttpStatus CONFLICT { 409, "Conflict" };
 
-/*
+    /*
    The 410 (Gone) status code indicates that access to the target
    resource is no longer available at the origin server and that this
    condition is likely to be permanent.  If the origin server does not
@@ -490,18 +492,18 @@ inline const HttpStatus HTTP_STATUS_CONFLICT { 409, "Conflict" };
    indicated by the method definition or explicit cache controls (see
    Section 4.2.2 of [RFC7234]).
  */
-inline const HttpStatus HTTP_STATUS_GONE { 410, "Gone" };
+    inline const HttpStatus GONE { 410, "Gone" };
 
-/*
+    /*
    The 411 (Length Required) status code indicates that the server
    refuses to accept the request without a defined Content-Length
    (Section 3.3.2 of [RFC7230]).  The client MAY repeat the request if
    it adds a valid Content-Length header field containing the length of
    the message body in the request message.
 */
-inline const HttpStatus HTTP_STATUS_LENGTH_REQUIRED { 411, "Length Required" };
+    inline const HttpStatus LENGTH_REQUIRED { 411, "Length Required" };
 
-/*
+    /*
    The 413 (Payload Too Large) status code indicates that the server is
    refusing to process a request because the request payload is larger
    than the server is willing or able to process.  The server MAY close
@@ -511,9 +513,9 @@ inline const HttpStatus HTTP_STATUS_LENGTH_REQUIRED { 411, "Length Required" };
    Retry-After header field to indicate that it is temporary and after
    what time the client MAY try again.
 */
-inline const HttpStatus HTTP_STATUS_PAYLOAD_TOO_LARGE { 413, "Payload Too Large" };
+    inline const HttpStatus PAYLOAD_TOO_LARGE { 413, "Payload Too Large" };
 
-/*
+    /*
    The 414 (URI Too Long) status code indicates that the server is
    refusing to service the request because the request-target (Section
    5.3 of [RFC7230]) is longer than the server is willing to interpret.
@@ -528,9 +530,9 @@ inline const HttpStatus HTTP_STATUS_PAYLOAD_TOO_LARGE { 413, "Payload Too Large"
    indicated by the method definition or explicit cache controls (see
    Section 4.2.2 of [RFC7234]).
 */
-inline const HttpStatus HTTP_STATUS_URI_TOO_LONG { 414, "URI Too Long" };
+    inline const HttpStatus URI_TOO_LONG { 414, "URI Too Long" };
 
-/*
+    /*
    The 415 (Unsupported Media Type) status code indicates that the
    origin server is refusing to service the request because the payload
    is in a format not supported by this method on the target resource.
@@ -538,24 +540,24 @@ inline const HttpStatus HTTP_STATUS_URI_TOO_LONG { 414, "URI Too Long" };
    Content-Type or Content-Encoding, or as a result of inspecting the
    data directly.
 */
-inline const HttpStatus HTTP_STATUS_UNSUPPORTED_MEDIA_TYPE { 415, "Unsupported Media Type" };
+    inline const HttpStatus UNSUPPORTED_MEDIA_TYPE { 415, "Unsupported Media Type" };
 
-/*
+    /*
    The 417 (Expectation Failed) status code indicates that the
    expectation given in the request's Expect header field
    (Section 5.1.1) could not be met by at least one of the inbound
    servers.
 */
-inline const HttpStatus HTTP_STATUS_EXPECTATION_FAILED { 417, "Expectation Failed" };
+    inline const HttpStatus EXPECTATION_FAILED { 417, "Expectation Failed" };
 
-/*
+    /*
    Any attempt to brew coffee with a teapot should result in the error
    code "418 I'm a teapot". The resulting entity body MAY be short and
    stout.
 */
-inline const HttpStatus HTTP_STATUS_IM_A_TEAPOT { 418, "I'm a teapot" };
+    inline const HttpStatus IM_A_TEAPOT { 418, "I'm a teapot" };
 
-/*
+    /*
    The 426 (Upgrade Required) status code indicates that the server
    refuses to perform the request using the current protocol but might
    be willing to do so after the client upgrades to a different
@@ -574,9 +576,9 @@ inline const HttpStatus HTTP_STATUS_IM_A_TEAPOT { 418, "I'm a teapot" };
      This service requires use of the HTTP/3.0 protocol.
 
 */
-inline const HttpStatus HTTP_STATUS_UPGRADE_REQUIRED { 426, "Upgrade Required" };
+    inline const HttpStatus UPGRADE_REQUIRED { 426, "Upgrade Required" };
 
-/*
+    /*
 The 431 status code indicates that the server is unwilling to process
    the request because its header fields are too large.  The request MAY
    be resubmitted after reducing the size of the request header fields.
@@ -603,16 +605,16 @@ The 431 status code indicates that the server is unwilling to process
 
    Responses with the 431 status code MUST NOT be stored by a cache.
 */
-inline const HttpStatus HTTP_STATUS_REQUEST_HEADER_FIELDS_TOO_LARGE { 431, "Request Header Fields Too Large" };
+    inline const HttpStatus REQUEST_HEADER_FIELDS_TOO_LARGE { 431, "Request Header Fields Too Large" };
 
-/*
+    /*
    The 500 (Internal Server Error) status code indicates that the server
    encountered an unexpected condition that prevented it from fulfilling
    the request.
 */
-inline const HttpStatus HTTP_STATUS_INTERNAL_SERVER_ERROR { 500, "Internal Server Error" };
+    inline const HttpStatus INTERNAL_SERVER_ERROR { 500, "Internal Server Error" };
 
-/*
+    /*
 The 501 (Not Implemented) status code indicates that the server does
 not support the functionality required to fulfill the request.  This
     is the appropriate response when the server does not recognize the
@@ -622,16 +624,16 @@ A 501 response is cacheable by default; i.e., unless otherwise
 indicated by the method definition or explicit cache controls (see
 Section 4.2.2 of [RFC7234]).
 */
-inline const HttpStatus HTTP_STATUS_NOT_IMPLEMENTED { 501, "Not Implemented" };
+    inline const HttpStatus NOT_IMPLEMENTED { 501, "Not Implemented" };
 
-/*
+    /*
    The 502 (Bad Gateway) status code indicates that the server, while
    acting as a gateway or proxy, received an invalid response from an
    inbound server it accessed while attempting to fulfill the request.
 */
-inline const HttpStatus HTTP_STATUS_BAD_GATEWAY { 502, "Bad Gateway" };
+    inline const HttpStatus BAD_GATEWAY { 502, "Bad Gateway" };
 
-/*
+    /*
    The 503 (Service Unavailable) status code indicates that the server
    is currently unable to handle the request due to a temporary overload
    or scheduled maintenance, which will likely be alleviated after some
@@ -643,17 +645,17 @@ inline const HttpStatus HTTP_STATUS_BAD_GATEWAY { 502, "Bad Gateway" };
       server has to use it when becoming overloaded.  Some servers might
       simply refuse the connection.
 */
-inline const HttpStatus HTTP_STATUS_SERVICE_UNAVAILABLE { 503, "Service Unavailable" };
+    inline const HttpStatus SERVICE_UNAVAILABLE { 503, "Service Unavailable" };
 
-/*
+    /*
 The 504 (Gateway Timeout) status code indicates that the server,
 while acting as a gateway or proxy, did not receive a timely response
 from an upstream server it needed to access in order to complete the
     request.
 */
-inline const HttpStatus HTTP_STATUS_GATEWAY_TIMEOUT { 504, "Gateway Timeout" };
+    inline const HttpStatus GATEWAY_TIMEOUT { 504, "Gateway Timeout" };
 
-/*
+    /*
    The 505 (HTTP Version Not Supported) status code indicates that the
    server does not support, or refuses to support, the major version of
    HTTP that was used in the request message.  The server is indicating
@@ -664,7 +666,8 @@ inline const HttpStatus HTTP_STATUS_GATEWAY_TIMEOUT { 504, "Gateway Timeout" };
    that version is not supported and what other protocols are supported
    by that server.
 */
-inline const HttpStatus HTTP_STATUS_VERSION_NOT_SUPPORTED { 505, "HTTP Version Not Supported" };
+    inline const HttpStatus VERSION_NOT_SUPPORTED { 505, "HTTP Version Not Supported" };
+}
 
 }
 

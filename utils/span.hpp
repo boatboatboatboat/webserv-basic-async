@@ -93,12 +93,32 @@ public:
 
     [[nodiscard]] auto first(size_t count) const -> span<T>
     {
-        return span<T>(m_ptr, count);
+        return span<T>(m_ptr, count > size() ? size() : count);
+    }
+
+    auto remove_prefix_inplace(size_t count)
+    {
+        *this = last(size() - count);
+    }
+
+    auto remove_suffix_inplace(size_t count)
+    {
+        *this = first(size() - count);
+    }
+
+    inline auto remove_prefix(size_t count)
+    {
+        return last(size() - count);
+    }
+
+    inline auto remove_suffix(size_t count)
+    {
+        return first(size() - count);
     }
 
     [[nodiscard]] auto last(size_t count) const -> span<T>
     {
-        return span<T>(m_ptr + m_len - count, count);
+        return span<T>(m_ptr + (count > m_len ? m_len : m_len - count), (count > m_len) ? m_len : count);
     }
 };
 

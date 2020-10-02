@@ -20,7 +20,7 @@ using ioruntime::GlobalIoEventHandler;
 
 namespace net {
 
-auto Socket::read(char* buffer, size_t size) -> ssize_t
+auto Socket::read(void* buffer, size_t size) -> ssize_t
 {
     // shhh don't tell anyone
     if (fcntl(descriptor, F_SETFL, O_NONBLOCK) < 0)
@@ -34,7 +34,7 @@ auto Socket::read(char* buffer, size_t size) -> ssize_t
 #endif
 }
 
-auto Socket::write(const char* buffer, size_t size) -> ssize_t
+auto Socket::write(void const* buffer, size_t size) -> ssize_t
 {
     // shhh don't tell anyone
     if (fcntl(descriptor, F_SETFL, O_NONBLOCK) < 0)
@@ -62,16 +62,6 @@ Socket::Socket(Socket&& other) noexcept
         GlobalIoEventHandler::unregister_special_callbacks(descriptor);
         GlobalIoEventHandler::register_special_callback(descriptor, BoxFunctor(new FunnyFunctor()), false, 0);
     }
-}
-
-Socket::Socket()
-    : FileDescriptor(FileDescriptor::uninitialized())
-{
-}
-
-auto net::Socket::uninitialized() -> Socket
-{
-    return Socket();
 }
 
 Socket::~Socket()

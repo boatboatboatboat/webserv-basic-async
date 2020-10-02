@@ -1,3 +1,4 @@
 #!/usr/bin/lua
 
-print("content-type:text/html\r\ncontent-length:3\r\n\r\nlol")
+print("content-type:text/html\r\n\r\n")
+print(os.getenv("REQUEST_URI"))

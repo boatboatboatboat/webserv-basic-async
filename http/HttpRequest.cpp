@@ -1,171 +1,98 @@
-#include "HttpRequest.hpp"
-#include "../net/TcpStream.hpp"
-#include "../utils/utils.hpp"
-#include "HttpResponse.hpp"
-#include <algorithm>
-#include <sstream>
-#include <vector>
+//
+// Created by boat on 10/1/20.
+//
 
-#define STATE_NAME 0
-#define STATE_VALUE 1
+#include "HttpRequest.hpp"
+#include "../utils/utils.hpp"
+#include <algorithm>
 
 namespace http {
 
-HttpRequest::HttpRequest(std::string const& raw)
+auto HttpRequestBuilder::method(HttpMethod method) -> HttpRequestBuilder&
 {
-    this->parser.parse(raw);
-    std::vector<std::string> parts = utils::split(getHeader(http::header::CONNECTION), ',');
+    _method = method;
+    return *this;
 }
 
-HttpRequest::~HttpRequest() = default;
-
-/**
- * @brief Get the body of the HttpRequest.
- */
-std::string HttpRequest::getBody()
+auto HttpRequestBuilder::uri(Uri&& uri) -> HttpRequestBuilder&
 {
-    return this->parser.getBody();
+    _uri = std::move(uri);
+    return *this;
 }
 
-/**
- * @brief Get the named header.
- * @param [in] name The name of the header field to retrieve.
- * @return The value of the header field.
- */
-std::string HttpRequest::getHeader(std::string_view name)
+auto HttpRequestBuilder::version(HttpVersion version) -> HttpRequestBuilder&
 {
-    return this->parser.getHeader(name);
+    _version = version;
+    return *this;
 }
 
-std::map<std::string, std::string> HttpRequest::getHeaders()
+auto HttpRequestBuilder::header(string&& header_name, string&& header_value) -> HttpRequestBuilder&
 {
-    return this->parser.getHeaders();
+    _headers.push_back(HttpHeader { header_name, header_value });
+    return *this;
 }
 
-std::string HttpRequest::getMethod()
+auto HttpRequestBuilder::body(vector<uint8_t>&& body) -> HttpRequestBuilder&
 {
-    return this->parser.getMethod();
+    _body = std::move(body);
+    return *this;
 }
 
-std::string HttpRequest::getPath()
+auto HttpRequestBuilder::build() && -> HttpRequest
 {
-    return this->parser.getURL();
+    if (!_uri.has_value()) {
+        throw std::runtime_error("no uri set in builder");
+    }
+    return HttpRequest(
+        _method,
+        std::move(*_uri),
+        _version,
+        std::move(_headers),
+        std::move(_body));
 }
 
-/**
- * @brief Get the query part of the request.
- * The query is a set of name = value pairs.  The return is a map keyed by the name items.
- *
- * @return The query part of the request.
- */
-std::map<std::string, std::string> HttpRequest::getQuery()
+HttpRequest::HttpRequest(HttpMethod method, Uri uri, HttpVersion version, HttpHeaders headers, vector<uint8_t> body)
+    : _method(method)
+    , _uri(std::move(uri))
+    , _version(version)
+    , _headers(std::move(headers))
+    , _body(std::move(body))
 {
-    std::map<std::string, std::string> query_map;
-    std::string possible_query_string = this->getPath();
-    int qindex = possible_query_string.find_first_of('?');
+}
 
-    if (qindex < 0)
-        return query_map;
+auto HttpRequest::get_method() const -> HttpMethod const&
+{
+    return _method;
+}
 
-    std::string query_string = possible_query_string.substr(qindex + 1, -1);
+auto HttpRequest::get_uri() const -> Uri const&
+{
+    return _uri;
+}
 
-    int state = STATE_NAME;
-    std::string name;
-    std::string value;
+auto HttpRequest::get_version() const -> HttpVersion const&
+{
+    return _version;
+}
 
-    for (char currentChar : query_string) {
-        if (state == STATE_NAME) {
-            if (currentChar != '=') {
-                name += currentChar;
-            } else {
-                state = STATE_VALUE;
-                value = "";
-            }
-        } else {
-            if (currentChar != '&') {
-                value += currentChar;
-            } else {
-                query_map[name] = value;
-                state = STATE_NAME;
-                name = "";
-            }
+auto HttpRequest::get_headers() const -> HttpHeaders const&
+{
+    return _headers;
+}
+
+auto HttpRequest::get_body() const -> vector<uint8_t> const&
+{
+    return _body;
+}
+
+auto HttpRequest::get_header(string_view name) const -> optional<string_view>
+{
+    for (auto& header : _headers) {
+        if (utils::str_eq_case_insensitive(name, header.name)) {
+            return optional<string_view>(header.value);
         }
     }
-
-    if (state == STATE_VALUE)
-        query_map[name] = value;
-
-    return query_map;
-}
-
-std::string HttpRequest::getVersion()
-{
-    return this->parser.getVersion();
-}
-
-/**
- * Return the constituent parts of the path.
- * If we imagine a path as composed of parts separated by slashes, then this function
- * returns a vector composed of the parts.  For example:
- *
- * @return A vector of the constituent parts of the path.
- */
-std::vector<std::string> HttpRequest::pathSplit()
-{
-    std::istringstream stream(this->getPath());
-    std::vector<std::string> ret;
-    std::string pathPart;
-
-    while (std::getline(stream, pathPart, '/')) {
-        ret.push_back(pathPart);
-    }
-
-    return ret;
-}
-
-/**
- * A simple hex conversion function.
- * @param ch
- * @return
- */
-inline char from_hex(char ch)
-{
-    return isdigit(ch) ? ch - '0' : tolower(ch) - 'a' + 10;
-}
-
-/**
- * Decode a URL
- * @param text the text to decode
- * @return the decoded string.
- */
-std::string HttpRequest::urlDecode(std::string text)
-{
-    char h;
-    std::ostringstream escaped;
-    escaped.fill('0');
-
-    for (auto i = text.begin(), n = text.end(); i != n; ++i) {
-        std::string::value_type c = (*i);
-
-        if (c == '%') {
-            if (i[1] && i[2]) {
-                h = from_hex(i[1]) << 4 | from_hex(i[2]);
-                escaped << h;
-                i += 2;
-            }
-        } else if (c == '+') {
-            escaped << ' ';
-        } else {
-            escaped << c;
-        }
-    }
-
-    return escaped.str();
-}
-
-ParserFuture HttpRequest::parse_async(net::TcpStream& stream, size_t limit)
-{
-    return ParserFuture(&stream, limit);
+    return option::nullopt;
 }
 
 }

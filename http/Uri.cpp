@@ -3,6 +3,7 @@
 //
 
 #include "Uri.hpp"
+#include "HttpRfcConstants.hpp"
 
 namespace http {
 
@@ -24,7 +25,7 @@ Scheme::Scheme(string_view view)
     } else if (view == "https") {
         new (&_standard) StandardScheme("https");
     } else {
-        using namespace uri_parser_utils;
+        using namespace parser_utils;
 
         if (view.empty()) {
             throw SchemeParseError();
@@ -128,6 +129,40 @@ auto Scheme::get() const -> string_view
     }
 }
 
+Scheme::Scheme(const Scheme& other)
+{
+    switch (other._type) {
+    case None: {
+    } break;
+    case Standard: {
+        new (&_standard) StandardScheme(other._standard);
+    } break;
+    case Custom: {
+        new (&_custom) CustomScheme(other._custom);
+    } break;
+    }
+    _type = other._type;
+}
+
+auto Scheme::operator=(const Scheme& other) -> Scheme&
+{
+    if (_type == Custom) {
+        _custom.~CustomScheme();
+    }
+    switch (other._type) {
+    case None: {
+    } break;
+    case Standard: {
+        new (&_standard) StandardScheme(other._standard);
+    } break;
+    case Custom: {
+        new (&_custom) CustomScheme(other._custom);
+    } break;
+    }
+    _type = other._type;
+    return *this;
+}
+
 Uri::UriParseError::UriParseError()
     : std::runtime_error("URI parse failed")
 {
@@ -135,7 +170,7 @@ Uri::UriParseError::UriParseError()
 
 Authority::Authority(string_view str)
 {
-    using namespace uri_parser_utils;
+    using namespace parser_utils;
 
     // authority = [ userinfo "@" ] host [ ":" port ]
     // so if there's an @, there's a userinfo,
@@ -264,7 +299,7 @@ PathQueryFragment::PathQueryFragment(string_view str)
         throw PathQueryFragmentError();
     }
 
-    using namespace uri_parser_utils;
+    using namespace parser_utils;
 
     if (str.starts_with('/')) {
         str.remove_prefix(1);

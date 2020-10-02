@@ -8,6 +8,8 @@
 #include "../ioruntime/IAsyncRead.hpp"
 #include "HttpStatus.hpp"
 
+using ioruntime::IoResult;
+
 namespace http {
 
 static const char* DEFAULT_PAGE_START = "<html><head><title>webserv</title></head><body><h1 style=\"text-align:center;\">";
@@ -17,7 +19,7 @@ class DefaultPageBody : public ioruntime::IAsyncRead {
 public:
     DefaultPageBody() = delete;
     explicit DefaultPageBody(HttpStatus code);
-    PollResult<ssize_t> poll_read(char* buffer, size_t size, Waker&& waker) override;
+    auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
 
 private:
     enum State {

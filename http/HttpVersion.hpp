@@ -13,8 +13,10 @@ struct HttpVersion {
     std::string_view version_string;
 };
 
-inline constexpr HttpVersion HTTP_VERSION_1_0 { "HTTP/1.0" };
-inline constexpr HttpVersion HTTP_VERSION_1_1 { "HTTP/1.1" };
+namespace version {
+    inline constexpr HttpVersion v1_0 { "HTTP/1.0" };
+    inline constexpr HttpVersion v1_1 { "HTTP/1.1" };
+}
 
 }
 

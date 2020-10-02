@@ -10,20 +10,26 @@
 #include "../ioruntime/TimeoutFuture.hpp"
 #include "../net/TcpListener.hpp"
 #include "../net/TcpStream.hpp"
+#include "HttpRequestParser.hpp"
 #include "HttpResponse.hpp"
-#include "ParserFuture.hpp"
-#include "StreamingHttpRequestParser.hpp"
 
 using futures::ForEachFuture;
 using futures::IFuture;
 using ioruntime::TimeoutFuture;
 using net::TcpStream;
 
+
 namespace http {
+
+class TimeoutError final : public std::runtime_error {
+public:
+    TimeoutError();
+};
+
 template <typename RH>
-class HttpServer : public IFuture<void> {
+class HttpServer final : public IFuture<void> {
 private:
-    class HttpConnectionFuture : public IFuture<void> {
+    class HttpConnectionFuture final : public IFuture<void> {
     public:
         HttpConnectionFuture() = delete;
         ~HttpConnectionFuture() override;
@@ -35,12 +41,11 @@ private:
         enum State {
             Listen,
             Respond
-        };
-        State state = Listen;
-        optional<StreamingHttpRequest> req;
-        HttpResponse res;
+        } state = Listen;
+        optional<HttpRequest> req;
+        LegacyHttpResponse res;
         net::TcpStream stream;
-        optional<StreamingHttpRequestParser> parser;
+        optional<HttpRequestParser> parser;
         TimeoutFuture timeout;
         RH handler;
     };
@@ -48,13 +53,13 @@ private:
 public:
     HttpServer() = delete;
     explicit HttpServer(net::IpAddress address, uint16_t port, RH fn);
-    PollResult<void> poll(Waker&& waker) override;
+    auto poll(Waker&& waker) -> PollResult<void> override;
     static void handle_connection(net::TcpStream& stream);
     static void handle_exception(std::exception& e);
 
 private:
     ForEachFuture<net::TcpListener, net::TcpStream> listener;
-    static RH handler;
+    static RH _handler;
 };
 
 }

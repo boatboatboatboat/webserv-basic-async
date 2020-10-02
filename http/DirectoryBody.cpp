@@ -38,10 +38,10 @@ http::DirectoryBody::DirectoryBody(string_view str, string_view real_pathstr)
 }
 
 // FIXME: pageend not written?
-auto http::DirectoryBody::poll_read(char* buffer, size_t size, Waker&& waker) -> PollResult<ssize_t>
+auto http::DirectoryBody::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
 {
-    auto written = std::min(size, cur.length());
-    memcpy(buffer, cur.data(), written);
+    auto written = std::min(buffer.size(), cur.length());
+    utils::ft_memcpy(buffer.data(), cur.data(), written);
     cur.remove_prefix(written);
     if (cur.length() == 0) {
         switch (state) {
@@ -106,7 +106,7 @@ auto http::DirectoryBody::poll_read(char* buffer, size_t size, Waker&& waker) ->
         }
     }
     waker();
-    return PollResult<ssize_t>::ready(written);
+    return PollResult<IoResult>::ready(written);
 }
 
 http::DirectoryBody::~DirectoryBody()

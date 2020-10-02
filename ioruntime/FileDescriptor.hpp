@@ -20,11 +20,10 @@ public:
     explicit FileDescriptor(int fd);
     FileDescriptor(FileDescriptor&& other) noexcept;
     ~FileDescriptor() override;
-    static auto uninitialized() -> FileDescriptor;
-    virtual auto read(char* buffer, size_t size) -> ssize_t;
-    virtual auto write(const char* buffer, size_t size) -> ssize_t;
-    auto poll_read(char* buffer, size_t size, Waker&& waker) -> PollResult<ssize_t> override;
-    auto poll_write(const char* buffer, size_t size, Waker&& waker) -> PollResult<ssize_t> override;
+    virtual auto read(void* buffer, size_t size) -> ssize_t;
+    virtual auto write(void const* buffer, size_t size) -> ssize_t;
+    auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
+    auto poll_write(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
     auto can_read() -> bool;
     auto can_write() -> bool;
     auto close() && -> int;

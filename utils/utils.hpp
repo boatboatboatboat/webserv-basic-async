@@ -10,6 +10,7 @@
 #include "mem_zero.hpp"
 #include "span.hpp"
 #include <string>
+#include "../http/HttpRfcConstants.hpp"
 
 void dbg_puts(std::string const& printme);
 
@@ -167,10 +168,11 @@ inline auto str_eq_case_insensitive(std::string_view a, std::string_view b) -> b
 }
 
 inline auto string_to_uint64(std::string_view n) -> option::optional<uint64_t> {
+    using namespace http::parser_utils;
     uint64_t num = 0;
 
     while (!n.empty()) {
-        if (!isdigit(n.front())) {
+        if (!is_hex_digit(n.front())) {
             return option::nullopt;
         }
         uint64_t ofc = num;
@@ -179,6 +181,25 @@ inline auto string_to_uint64(std::string_view n) -> option::optional<uint64_t> {
             return option::nullopt;
         }
         num += n.front() - '0';
+        n.remove_prefix(1);
+    }
+    return num;
+}
+
+inline auto hexstring_to_uint64(std::string_view n) -> option::optional<uint64_t> {
+    using namespace http::parser_utils;
+    uint64_t num = 0;
+
+    while (!n.empty()) {
+        if (!is_hex_digit(n.front())) {
+            return option::nullopt;
+        }
+        uint64_t ofc = num;
+        num *= 16;
+        if (num < ofc) {
+            return option::nullopt;
+        }
+        num += hex_decode(n.front());
         n.remove_prefix(1);
     }
     return num;

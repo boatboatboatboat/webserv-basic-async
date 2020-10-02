@@ -10,6 +10,7 @@
 #include <string>
 
 using std::string_view;
+using ioruntime::IoResult;
 
 namespace http {
 
@@ -17,7 +18,7 @@ class DirectoryBody : public ioruntime::IAsyncRead {
 public:
     explicit DirectoryBody(string_view str, string_view real_pathstr);
     ~DirectoryBody() override;
-    auto poll_read(char* buffer, size_t size, Waker&& waker) -> PollResult<ssize_t> override;
+    auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
 
 private:
     inline static constexpr std::string_view PAGE_START = "<html><head><title>";

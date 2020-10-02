@@ -7,12 +7,14 @@
 
 #include "../ioruntime/IAsyncRead.hpp"
 
+using ioruntime::IoResult;
+
 namespace http {
 
 class StringBody : public ioruntime::IAsyncRead {
 public:
     explicit StringBody(std::string body, bool stream_like = false);
-    auto poll_read(char* buffer, size_t size, Waker&& waker) -> PollResult<ssize_t> override;
+    auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
 
 private:
     bool stream_like;

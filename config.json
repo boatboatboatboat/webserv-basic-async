@@ -1,5 +1,5 @@
 {
-    "workers": 4,
+    "workers": 0,
     "http": {
         "servers": [
             {
@@ -11,7 +11,7 @@
                 ],
                 "locations": {
                     "^/": {
-                        "root": "/home/boat/CLionProjects/webserv-basic-async2/",
+                        "root": "/home/boat/CLionProjects/webserv-ssh/",
                         "index": [
                             "index.html",
                             "index.php"
@@ -41,7 +41,7 @@
                     "^/cgi/?": {
                         "final": false,
                         "root" : "/home/boat/CLionProjects/webserv-ssh/tests/cgi_test",
-                        "allowed_methods": [ "GET" ],
+                        "allowed_methods": [ "GET", "POST" ],
                         "use_cgi": true,
                         "locations": {
                             ".+$": { "final": true }

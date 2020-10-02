@@ -1,0 +1,8 @@
+POST http://localhost:1234/cgi/test.pl
+Content-Type: text/plain
+
+Hello, world!
+###
+POST http://localhost:1234/cgi/body_test.lua
+
+Hello, world!

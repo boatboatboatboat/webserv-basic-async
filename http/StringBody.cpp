@@ -14,19 +14,19 @@ StringBody::StringBody(std::string body, bool stream_like)
 {
 }
 
-PollResult<ssize_t> StringBody::poll_read(char* buffer, size_t size, Waker&& waker)
+auto StringBody::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
 {
-    auto left_to_write = std::min(size, body.length() - written);
-    memcpy(buffer, body.c_str() + written, left_to_write);
+    auto left_to_write = std::min(buffer.size(), body.length() - written);
+    memcpy(buffer.data(), body.c_str() + written, left_to_write);
     written += left_to_write;
     waker();
     if (stream_like) {
         if (left_to_write)
-            return PollResult<ssize_t>::ready(left_to_write);
+            return PollResult<IoResult>::ready(left_to_write);
         else
-            return PollResult<ssize_t>::pending();
+            return PollResult<IoResult>::pending();
     } else {
-        return PollResult<ssize_t>::ready(left_to_write);
+        return PollResult<IoResult>::ready(left_to_write);
     }
 }
 

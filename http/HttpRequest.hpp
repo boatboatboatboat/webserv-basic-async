@@ -1,42 +1,64 @@
 //
-// Created by boat on 8/20/20.
+// Created by boat on 10/1/20.
 //
 
-#ifndef WEBSERV_HTTPREQUEST_HPP
-#define WEBSERV_HTTPREQUEST_HPP
+#ifndef WEBSERV_HTTP_HTTPREQUEST_HPP
+#define WEBSERV_HTTP_HTTPREQUEST_HPP
 
-#include "../net/TcpStream.hpp"
-#include "HttpParser.hpp"
-#include "ParserFuture.hpp"
-#include <map>
-#include <string>
+#include "HttpMethod.hpp"
+#include "HttpVersion.hpp"
+#include "HttpHeader.hpp"
+#include "Uri.hpp"
 #include <vector>
+#include <map>
+
+using std::vector;
 
 namespace http {
-// forward declarations
-class ParserFuture;
 
-// classes
-class HttpRequest {
+class HttpRequest;
+
+class HttpRequestBuilder {
 public:
-    HttpRequest() = default;
-    explicit HttpRequest(std::string const& raw);
-    virtual ~HttpRequest();
-    std::string getBody();
-    std::string getHeader(std::string_view name);
-    std::map<std::string, std::string> getHeaders();
-    std::string getMethod();
-    std::string getPath();
-    std::map<std::string, std::string> getQuery();
-    std::string getVersion();
-    std::vector<std::string> pathSplit();
-    std::string urlDecode(std::string str);
-    static ParserFuture parse_async(net::TcpStream& stream, size_t limit = 8192);
+    HttpRequestBuilder() = default;
+    auto method(HttpMethod method) -> HttpRequestBuilder&;
+    auto uri(Uri&& uri) -> HttpRequestBuilder&;
+    auto version(HttpVersion version) -> HttpRequestBuilder&;
+    auto header(string&& header_name, string&& header_value) -> HttpRequestBuilder&;
+    auto body(vector<uint8_t>&& body) -> HttpRequestBuilder&;
+    auto build() && -> HttpRequest;
 
 private:
-    HttpParser parser;
+    HttpMethod _method;
+    optional<Uri> _uri;
+    HttpVersion _version;
+    HttpHeaders _headers;
+    vector<uint8_t> _body;
+};
+
+class HttpRequest {
+public:
+    HttpRequest(
+        HttpMethod method,
+        Uri uri,
+        HttpVersion version,
+        HttpHeaders headers,
+        vector<uint8_t> body);
+    [[nodiscard]] auto get_method() const -> HttpMethod const&;
+    [[nodiscard]] auto get_uri() const -> Uri const&;
+    [[nodiscard]] auto get_version() const -> HttpVersion const&;
+    [[nodiscard]] auto get_headers() const -> HttpHeaders const&;
+    [[nodiscard]] auto get_header(string_view name) const -> optional<string_view>;
+    [[nodiscard]] auto get_body() const -> vector<uint8_t> const&;
+
+private:
+    HttpMethod _method;
+    Uri _uri;
+    HttpVersion _version;
+    HttpHeaders _headers;
+    vector<uint8_t> _body;
 };
 
 }
 
-#endif //WEBSERV_HTTPREQUEST_HPP
+#endif //WEBSERV_HTTP_HTTPREQUEST_HPP

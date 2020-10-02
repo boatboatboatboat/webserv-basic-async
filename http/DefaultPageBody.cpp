@@ -11,9 +11,9 @@ DefaultPageBody::DefaultPageBody(HttpStatus code)
 {
 }
 
-auto DefaultPageBody::poll_read(char* buffer, size_t size, Waker&& waker) -> PollResult<ssize_t>
+auto DefaultPageBody::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
 {
-    char buf[16];
+    char buf[8];
     std::string_view str;
     switch (state) {
     case PageStart: {
@@ -34,19 +34,20 @@ auto DefaultPageBody::poll_read(char* buffer, size_t size, Waker&& waker) -> Pol
     } break;
     }
     auto len = str.length();
-    auto left_to_write = std::min(size, len - written);
-    utils::ft_memcpy(buffer, str.data() + written, left_to_write);
+    auto left_to_write = std::min(buffer.size(), len - written);
+    utils::ft_memcpy(buffer.data(), str.data() + written, left_to_write);
     written += left_to_write;
     if (left_to_write == 0) {
         if (state != PageEnd) {
+            auto oldw = written;
             written = 0;
             // the enums are consecutive, we can just increase by one
             state = static_cast<State>(static_cast<int>(state) + 1);
-            return poll_read(buffer + written, size - written, std::move(waker));
+            return poll_read(buffer.remove_prefix(oldw), std::move(waker));
         }
     }
     waker();
-    return PollResult<ssize_t>::ready(left_to_write);
+    return PollResult<IoResult>::ready(left_to_write);
 }
 
 }

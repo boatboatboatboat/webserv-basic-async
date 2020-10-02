@@ -109,17 +109,17 @@ private:
     auto get_next_character(char& c, Waker&& waker) -> GncResult
     {
         if (head == 0) {
-            auto poll_result = fd.poll_read(rbuffer, sizeof(rbuffer), std::move(waker));
+            auto poll_result = fd.poll_read(span(rbuffer, sizeof(rbuffer)), std::move(waker));
 
             if (poll_result.is_ready()) {
                 auto result = poll_result.get();
-                if (result < 0) {
+                if (result.is_error()) {
 #ifdef DEBUG
                     DBGPRINT("Read error" << strerror(errno));
 #endif
                     return (Error);
                 }
-                max = result;
+                max = result.get_bytes_read();
             } else {
                 return (NotReady);
             }
@@ -133,7 +133,7 @@ private:
 
     bool completed = false;
     std::string buffer;
-    char rbuffer[64] {};
+    uint8_t rbuffer[64] {};
     int head = 0;
     int max = 0;
     FileDescriptor fd;

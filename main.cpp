@@ -4,6 +4,7 @@
 #include <netinet/in.h>
 
 #include "args/Args.hpp"
+#include "cgi/Cgi.hpp"
 #include "config/Config.hpp"
 #include "fs/File.hpp"
 #include "futures/ForEachFuture.hpp"
@@ -25,7 +26,6 @@
 #include "utils/utils.hpp"
 #include "json/Json.hpp"
 #include <csignal>
-#include "cgi/Cgi.hpp"
 
 using futures::FdLineStream;
 using futures::ForEachFuture;
@@ -33,7 +33,7 @@ using futures::IFuture;
 using futures::PollResult;
 using http::DirectoryBody;
 using http::HttpRequest;
-using http::HttpResponse;
+using http::HttpResponseBuilder;
 using http::HttpResponseBuilder;
 using http::HttpServer;
 using http::StringBody;
@@ -353,10 +353,10 @@ void match_location_i(LocationConfig const& cfg, const char*& path, vector<Locat
         }
     }
     if (lout != nullptr) {
-        DBGPRINT("Location matched: [" << std::string_view(path, len) << "] from (" << path << ")");
+        TRACEPRINT("Location matched: [" << std::string_view(path, len) << "] from (" << path << ")");
         if (!lout->is_final())
             path += len;
-        DBGPRINT("Path adjusted: (" << path << ")");
+        TRACEPRINT("Path adjusted: (" << path << ")");
         // TODO: this should probably be a tuple<string, LocationConfig> to not match twice
         abcd.push_back(lout);
         match_location_i(*lout, path, abcd);
@@ -364,7 +364,7 @@ void match_location_i(LocationConfig const& cfg, const char*& path, vector<Locat
     // return lout == nullptr ? std::nullopt : std::optional { lout };
 }
 
-auto match_location(LocationConfig const& cfg, http::StreamingHttpRequest& req) -> optional<tuple<vector<LocationConfig const*>, string>>
+auto match_location(LocationConfig const& cfg, http::HttpRequest& req) -> optional<tuple<vector<LocationConfig const*>, string>>
 {
     vector<LocationConfig const*> location_list;
     auto path = req.get_uri().get_pqf()->get_path_escaped().value();
@@ -380,7 +380,7 @@ auto match_location(LocationConfig const& cfg, http::StreamingHttpRequest& req) 
     return x;
 }
 
-auto match_base_config(RootConfig const& rcfg, http::StreamingHttpRequest& req) -> tuple<BaseConfig, string>
+auto match_base_config(RootConfig const& rcfg, http::HttpRequest& req) -> tuple<BaseConfig, string>
 {
     // FIXME: this could be a lot cleaner
     auto host = req.get_header(http::header::HOST).value_or("");
@@ -391,7 +391,7 @@ auto match_base_config(RootConfig const& rcfg, http::StreamingHttpRequest& req) 
 
     auto matched_path = std::get<1>(lcfg_o.value());
 
-    DBGPRINT("mpath " << matched_path );
+    TRACEPRINT("matched path " << matched_path);
 
     optional<string> root;
     optional<vector<string>> index_pages;
@@ -495,7 +495,7 @@ auto main(int argc, const char** argv) -> int
                 if (*it == "--help" || *it == "-h") {
                     std::cout
                         << "usage: webserv [--config config_file_path]"
-                    << std::endl;
+                        << std::endl;
                     return 0;
                 } else if (*it == "--config" || *it == "-c") {
                     ++it;
@@ -562,95 +562,97 @@ auto main(int argc, const char** argv) -> int
             auto bind_addresses = server.get_bind_addresses();
             if (bind_addresses.has_value()) {
                 for (auto& [address, port] : *bind_addresses) {
-                    GlobalRuntime::spawn(HttpServer(address, port, [](http::StreamingHttpRequest& req) {
-                        auto const& cfg = RootConfigSingleton::get();
-                        auto host = req.get_header(http::header::HOST);
-                        auto method = req.get_method();
-                        auto& uri = req.get_uri();
+                    GlobalRuntime::spawn(HttpServer(
+                        address,
+                        port,
+                        [](http::HttpRequest& req, net::SocketAddr const& socket_addr) {
+                            auto const& cfg = RootConfigSingleton::get();
+                            auto host = req.get_header(http::header::HOST);
+                            auto method = req.get_method();
+                            auto& uri = req.get_uri();
 
-                        auto path = uri.get_pqf()->get_path_escaped().value();
+                            auto path = uri.get_pqf()->get_path_escaped().value();
 
-                        auto builder = HttpResponseBuilder();
-                        builder.status(http::HTTP_STATUS_NOT_FOUND);
+                            auto builder = HttpResponseBuilder();
+                            builder.status(http::status::NOT_FOUND);
 
-                        const auto [bcfg, matched_path] = match_base_config(cfg, req);
-                        {
-                            bool method_allowed = false;
-                            auto allowed_methods = bcfg.get_allowed_methods();
+                            const auto [bcfg, matched_path] = match_base_config(cfg, req);
+                            {
+                                bool method_allowed = false;
+                                auto allowed_methods = bcfg.get_allowed_methods();
 
-                            if (allowed_methods.has_value()) {
-                                for (auto& allowed_method : *allowed_methods) {
-                                    if (allowed_method == method) {
-                                        method_allowed = true;
-                                        break;
+                                if (allowed_methods.has_value()) {
+                                    for (auto& allowed_method : *allowed_methods) {
+                                        if (allowed_method == method) {
+                                            method_allowed = true;
+                                            break;
+                                        }
                                     }
+                                } else if (method == http::method::GET || method == http::method::HEAD) {
+                                    method_allowed = true;
                                 }
-                            } else if (method == http::method::GET || method == http::method::HEAD) {
-                                method_allowed = true;
-                            }
 
-                            if (!method_allowed) {
-                                return std::move(builder).build();
-                            }
-                        }
-
-                        // find files
-                        {
-                            auto auto_index = bcfg.get_autoindex().value_or(false);
-                            auto const& root = bcfg.get_root();
-
-                            if (root.has_value()) {
-                                auto search_path = string(*root).append(matched_path);
-                                auto use_cgi = bcfg.get_use_cgi();
-
-                                DBGPRINT("search path " << search_path);
-
-                                try {
-                                    if (use_cgi.has_value() && *use_cgi) {
-                                        {
-                                            // We run this for its error side effects
-                                            (void)fs::File::open_no_traversal(search_path);
-                                        }
-                                        {
-                                            // it already executes here.
-                                            auto cgi_body = cgi::Cgi(req, search_path);
-                                            return HttpResponseBuilder()
-                                                .status(http::HTTP_STATUS_OK)
-                                                .body(BoxPtr<cgi::Cgi>::make(std::move(cgi_body)))
-                                                .cgi()
-                                                .build();
-                                        }
-                                    } else {
-                                        auto file = BoxPtr(fs::File::open_no_traversal(search_path));
-                                        auto file_size = file->size();
-                                        builder.status(http::HTTP_STATUS_OK)
-                                            .body(std::move(file), file_size);
-                                    }
-                                    return builder.build();
-                                } catch (std::invalid_argument& e) { // TODO: change invalid_argument to FileIsDirectory error
-                                    if (auto_index) {
-                                        try {
-                                            auto dir = BoxPtr<DirectoryBody>::make(search_path, path);
-                                            return HttpResponseBuilder()
-                                                .status(http::HTTP_STATUS_OK)
-                                                .body(std::move(dir))
-                                                .build();
-                                        } catch (std::invalid_argument& e) {
-                                            // we catch "no such file",
-                                            // but we allow other throws
-                                            // this way the server will throw 500 on an actual error
-                                        }
-                                    }
-                                    return HttpResponseBuilder()
-                                        .status(http::HTTP_STATUS_NOT_FOUND)
-                                        .build();
+                                if (!method_allowed) {
+                                    return std::move(builder).build();
                                 }
                             }
-                        }
-                        return HttpResponseBuilder()
-                            .status(http::HTTP_STATUS_NOT_FOUND)
-                            .build();
-                    }));
+
+                            // find files
+                            {
+                                auto auto_index = bcfg.get_autoindex().value_or(false);
+                                auto const& root = bcfg.get_root();
+
+                                if (root.has_value()) {
+                                    auto search_path = string(*root).append(matched_path);
+                                    auto use_cgi = bcfg.get_use_cgi();
+
+                                    try {
+                                        if (use_cgi.has_value() && *use_cgi) {
+                                            {
+                                                // This is (for now) ran for its error side effects
+                                                // TODO: write a better file-exists check
+                                                (void)fs::File::open_no_traversal(search_path);
+                                            }
+                                            {
+                                                // it already executes here.
+                                                auto cgi_body = cgi::Cgi(search_path, req, socket_addr);
+                                                return HttpResponseBuilder()
+                                                    .status(http::status::OK)
+                                                    .body(BoxPtr<cgi::Cgi>::make(std::move(cgi_body)))
+                                                    .cgi(std::move(cgi_body))
+                                                    .build();
+                                            }
+                                        } else {
+                                            auto file = BoxPtr(fs::File::open_no_traversal(search_path));
+                                            auto file_size = file->size();
+                                            builder.status(http::status::OK)
+                                                .body(std::move(file), file_size);
+                                        }
+                                        return builder.build();
+                                    } catch (std::invalid_argument& e) { // TODO: change invalid_argument to FileIsDirectory error
+                                        if (auto_index) {
+                                            try {
+                                                auto dir = BoxPtr<DirectoryBody>::make(search_path, path);
+                                                return HttpResponseBuilder()
+                                                    .status(http::status::OK)
+                                                    .body(std::move(dir))
+                                                    .build();
+                                            } catch (std::invalid_argument& e) {
+                                                // we catch "no such file",
+                                                // but we allow other throws
+                                                // this way the server will throw 500 on an actual error
+                                            }
+                                        }
+                                        return HttpResponseBuilder()
+                                            .status(http::status::NOT_FOUND)
+                                            .build();
+                                    }
+                                }
+                            }
+                            return HttpResponseBuilder()
+                                .status(http::status::NOT_FOUND)
+                                .build();
+                        }));
                 }
             }
         }

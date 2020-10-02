@@ -4,7 +4,7 @@
 
 #include "HttpHeader.hpp"
 
-bool http::HttpHeader::operator==(const http::HttpHeader& other) const
+auto http::HttpHeader::operator==(const http::HttpHeader& other) const -> bool
 {
     return (name.size() == other.name.size())
         && std::equal(name.begin(), name.end(), other.name.begin(), other.name.end(),

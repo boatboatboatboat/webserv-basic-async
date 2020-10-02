@@ -7,6 +7,6 @@
 
 std::ostream& operator<<(std::ostream& os, http::HttpStatus const& status)
 {
-    os << status.code << http::HTTP_SP << status.message;
+    os << status.code << http::SP << status.message;
     return os;
 }

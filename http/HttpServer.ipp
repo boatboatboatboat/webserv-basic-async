@@ -27,7 +27,7 @@ HttpServer<RH>::HttpServer(net::IpAddress address, uint16_t port, RH fn)
 }
 
 template <typename RH>
-PollResult<void> HttpServer<RH>::poll(Waker&& waker)
+auto HttpServer<RH>::poll(Waker&& waker) -> PollResult<void>
 {
     return listener.poll(std::move(waker));
 }
@@ -46,7 +46,7 @@ void HttpServer<RH>::handle_exception(std::exception& e)
 }
 
 template <typename RH>
-PollResult<void> HttpServer<RH>::HttpConnectionFuture::poll(Waker&& waker)
+auto HttpServer<RH>::HttpConnectionFuture::poll(Waker&& waker) -> PollResult<void>
 {
     switch (state) {
     case Listen: {
@@ -56,70 +56,49 @@ PollResult<void> HttpServer<RH>::HttpConnectionFuture::poll(Waker&& waker)
             if (poll_result.is_ready()) {
                 req = poll_result.get();
                 state = Respond;
-                try {
-                    res = std::move(handler(*req));
-                } catch (cgi::Cgi::CgiError&) {
-                    state = Respond;
-                    res = HttpResponseBuilder()
-                              .status(HTTP_STATUS_BAD_GATEWAY)
-                              .header(http::header::CONTENT_TYPE, "text/html; charset=utf8")
-                              .build();
-                    return poll(std::move(waker));
-                } catch (std::exception& e) {
-                    WARNPRINT("request handler error: " << e.what());
-                    res = HttpResponseBuilder()
-                              .status(HTTP_STATUS_INTERNAL_SERVER_ERROR)
-                              .header(http::header::CONTENT_TYPE, "text/html; charset=utf8")
-                              .build();
-                }
+                res = std::move(handler(*req, stream.get_addr()));
                 return poll(std::move(waker));
             }
             TRACEPRINT("connection listening match timer");
             auto timer_result = timeout.poll(Waker(waker));
             if (timer_result.is_ready()) {
-                // timeout
-                state = Respond;
-                // FIXME: gateway timeout requires connection header
-                res = HttpResponseBuilder()
-                          .status(HTTP_STATUS_GATEWAY_TIMEOUT)
-                          .build();
-                WARNPRINT("Request timed out");
-                return poll(std::move(waker));
+                throw TimeoutError();
             }
-        } catch (StreamingHttpRequestParser::UndeterminedLength& e) {
+        } catch (std::exception const&) {
             state = Respond;
-            res = HttpResponseBuilder()
-                      .status(HTTP_STATUS_LENGTH_REQUIRED)
-                      .header(http::header::CONTENT_TYPE, "text/html; charset=utf8")
-                      .build();
-            return poll(std::move(waker));
-        } catch (StreamingHttpRequestParser::RequestUriExceededBuffer& e) {
-            state = Respond;
-            res = HttpResponseBuilder()
-                      .status(HTTP_STATUS_URI_TOO_LONG)
-                      .header(http::header::CONTENT_TYPE, "text/html; charset=utf8")
-                      .build();
-            return poll(std::move(waker));
-        } catch (StreamingHttpRequestParser::BodyExceededLimit& e) {
-            state = Respond;
-            res = HttpResponseBuilder()
-                      .status(HTTP_STATUS_PAYLOAD_TOO_LARGE)
-                      .header(http::header::CONTENT_TYPE, "text/html; charset=utf8")
-                      .build();
-            return poll(std::move(waker));
-        } catch (StreamingHttpRequestParser::ParserError& e) {
-            state = Respond;
-            res = HttpResponseBuilder()
-                      .status(HTTP_STATUS_BAD_REQUEST)
-                      .header(http::header::CONTENT_TYPE, "text/html; charset=utf8")
-                      .build();
-            return poll(std::move(waker));
-        } catch (std::exception& e) {
-            state = Respond;
-            res = HttpResponseBuilder()
-                      .status(HTTP_STATUS_INTERNAL_SERVER_ERROR)
-                      .header(http::header::CONTENT_TYPE, "text/html; charset=utf8")
-                      .build();
+            auto builder = HttpResponseBuilder();
+
+            builder.header(header::CONTENT_TYPE, "text/html; charset=utf8");
+            auto status = status::INTERNAL_SERVER_ERROR;
+
+            try {
+                throw;
+            } catch (HttpRequestParser::UndeterminedLength const&) {
+                status = status::LENGTH_REQUIRED;
+            } catch (HttpRequestParser::RequestUriExceededBuffer const&) {
+                status = status::URI_TOO_LONG;
+            } catch (HttpRequestParser::BodyExceededLimit const&) {
+                status = status::PAYLOAD_TOO_LARGE;
+            } catch (HttpRequestParser::GenericExceededBuffer const&) {
+                status = status::REQUEST_HEADER_FIELDS_TOO_LARGE;
+            } catch (HttpRequestParser::InvalidMethod const&) {
+                status = status::NOT_IMPLEMENTED;
+            } catch (HttpRequestParser::InvalidVersion const&) {
+                status = status::VERSION_NOT_SUPPORTED;
+            } catch (HttpRequestParser::MalformedRequest const&) {
+                status = status::BAD_REQUEST;
+            } catch (HttpRequestParser::UnexpectedEof const&) {
+                status = status::BAD_REQUEST;
+            } catch (HttpRequestParser::BadTransferEncoding const&) {
+                status = status::NOT_IMPLEMENTED;
+            } catch (TimeoutError const&) {
+                status = status::REQUEST_TIMEOUT;
+                // this header is not required
+                builder.header(header::CONNECTION, "close");
+            } catch (...) {
+                // status is already set to INTERNAL_SERVER_ERROR
+            }
+            res = builder.status(status).build();
             return poll(std::move(waker));
         }
         return PollResult<void>::pending();
@@ -143,7 +122,7 @@ HttpServer<RH>::HttpConnectionFuture::HttpConnectionFuture(net::TcpStream&& pstr
     : req()
     , res()
     , stream(std::move(pstream))
-    , parser(optional<StreamingHttpRequestParser>(StreamingHttpRequestParser(stream.get_socket(), 8192, 8192)))
+    , parser(optional<HttpRequestParser>(HttpRequestParser(stream.get_socket(), 8192, 8192)))
     , timeout(5000)
 {
 }
@@ -159,7 +138,7 @@ HttpServer<RH>::HttpConnectionFuture::HttpConnectionFuture(HttpServer::HttpConne
     , req(std::move(other.req))
     , res(std::move(other.res))
     , stream(std::move(other.stream))
-    , parser(StreamingHttpRequestParser(std::move(*other.parser), stream.get_socket()))
+    , parser(HttpRequestParser(std::move(*other.parser), stream.get_socket()))
     , timeout(std::move(other.timeout))
     , handler(other.handler)
 {

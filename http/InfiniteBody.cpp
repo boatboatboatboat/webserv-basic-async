@@ -3,9 +3,9 @@
 //
 
 #include "InfiniteBody.hpp"
-PollResult<ssize_t> InfiniteBody::poll_read(char* buffer, size_t size, Waker&& waker)
+
+auto InfiniteBody::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
 {
-    utils::ft_memset(buffer, 'A', size);
-    waker();
-    return PollResult<ssize_t>::ready(size);
+    utils::ft_memset(buffer.data(), 'A', buffer.size());
+    return PollResult<IoResult>::ready(buffer.size());
 }

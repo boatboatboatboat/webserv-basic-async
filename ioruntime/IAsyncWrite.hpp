@@ -6,15 +6,19 @@
 #define WEBSERV_IORUNTIME_IASYNCWRITE_HPP
 
 #include "../futures/PollResult.hpp"
+#include "../utils/span.hpp"
+#include "IoResult.hpp"
 #include <algorithm>
 
 using futures::PollResult;
+using utils::span;
 
 namespace ioruntime {
 
 class IAsyncWrite {
 public:
-    virtual auto poll_write(const char* buffer, size_t size, Waker&& waker) -> PollResult<ssize_t> = 0;
+    virtual auto poll_write(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> = 0;
+    virtual ~IAsyncWrite() = 0;
 };
 
 }

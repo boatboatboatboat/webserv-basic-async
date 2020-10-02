@@ -3,7 +3,7 @@
 //
 
 #include "../func/Functor.hpp"
-#include "../http/StreamingHttpRequestParser.hpp"
+#include "../http/HttpRequestParser.hpp"
 #include "../http/StringBody.hpp"
 #include "../ioruntime/RuntimeBuilder.hpp"
 
@@ -23,7 +23,7 @@ TEST(ShrpTests, shrp_basic_request)
 
     StringBody sbody(request, true);
 
-    StreamingHttpRequestParser parser(sbody, buffer_limit, body_limit);
+    HttpRequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
         auto res = parser.poll(Waker::dead());
@@ -31,7 +31,7 @@ TEST(ShrpTests, shrp_basic_request)
             auto val = std::move(res.get());
             EXPECT_EQ(val.get_method(), method::GET);
             EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
-            EXPECT_EQ(val.get_version().version_string, HTTP_VERSION_1_1.version_string);
+            EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
             break;
         }
     }
@@ -45,7 +45,7 @@ TEST(ShrpTests, shrp_basic_request_path)
 
     StringBody sbody(request, true);
 
-    StreamingHttpRequestParser parser(sbody, buffer_limit, body_limit);
+    HttpRequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
         auto res = parser.poll(Waker::dead());
@@ -53,7 +53,7 @@ TEST(ShrpTests, shrp_basic_request_path)
             auto val = std::move(res.get());
             EXPECT_EQ(val.get_method(), method::GET);
             EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/example.html");
-            EXPECT_EQ(val.get_version().version_string, HTTP_VERSION_1_1.version_string);
+            EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
             break;
         }
     }
@@ -67,7 +67,7 @@ TEST(ShrpTests, shrp_request_asterisk)
 
     StringBody sbody(request, true);
 
-    StreamingHttpRequestParser parser(sbody, buffer_limit, body_limit);
+    HttpRequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
         auto res = parser.poll(Waker::dead());
@@ -75,7 +75,7 @@ TEST(ShrpTests, shrp_request_asterisk)
             auto val = std::move(res.get());
             EXPECT_EQ(val.get_method(), method::OPTIONS);
             EXPECT_EQ(val.get_uri().get_target_form(), Uri::AsteriskForm);
-            EXPECT_EQ(val.get_version().version_string, HTTP_VERSION_1_1.version_string);
+            EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
             break;
         }
     }
@@ -89,7 +89,7 @@ TEST(ShrpTests, shrp_basic_authority)
 
     StringBody sbody(request, true);
 
-    StreamingHttpRequestParser parser(sbody, buffer_limit, body_limit);
+    HttpRequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
         auto res = parser.poll(Waker::dead());
@@ -98,7 +98,7 @@ TEST(ShrpTests, shrp_basic_authority)
             EXPECT_EQ(val.get_method(), method::CONNECT);
             EXPECT_EQ(val.get_uri().get_authority()->get_host(), "www.example.com");
             EXPECT_EQ(val.get_uri().get_authority()->get_port().value(), 80);
-            EXPECT_EQ(val.get_version().version_string, HTTP_VERSION_1_1.version_string);
+            EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
             break;
         }
     }
@@ -112,7 +112,7 @@ TEST(ShrpTests, shrp_basic_post_with_body)
 
     StringBody sbody(request, true);
 
-    StreamingHttpRequestParser parser(sbody, buffer_limit, body_limit);
+    HttpRequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
         auto res = parser.poll(Waker::dead());
@@ -121,7 +121,7 @@ TEST(ShrpTests, shrp_basic_post_with_body)
             EXPECT_EQ(val.get_method(), method::POST);
             EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/form");
             EXPECT_EQ(val.get_uri().get_pqf().value().get_query().value(), "inline=test");
-            EXPECT_EQ(val.get_version().version_string, HTTP_VERSION_1_1.version_string);
+            EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
             EXPECT_EQ(
                 string_view(reinterpret_cast<const char*>(val.get_body().data()), val.get_body().size()),
                 "Hello, world!");
@@ -138,14 +138,14 @@ TEST(ShrpTests, shrp_body_limit)
 
     StringBody sbody(request, true);
 
-    StreamingHttpRequestParser parser(sbody, buffer_limit, body_limit);
+    HttpRequestParser parser(sbody, buffer_limit, body_limit);
 
     EXPECT_THROW({
         while (true) {
             auto res = parser.poll(Waker::dead());
         }
     },
-        StreamingHttpRequestParser::BodyExceededLimit);
+        HttpRequestParser::BodyExceededLimit);
 }
 
 TEST(ShrpTests, shrp_buffer_limit_uri)
@@ -156,14 +156,14 @@ TEST(ShrpTests, shrp_buffer_limit_uri)
 
     StringBody sbody(request, true);
 
-    StreamingHttpRequestParser parser(sbody, buffer_limit, body_limit);
+    HttpRequestParser parser(sbody, buffer_limit, body_limit);
 
     EXPECT_THROW({
         while (true) {
             auto res = parser.poll(Waker::dead());
         }
     },
-        StreamingHttpRequestParser::RequestUriExceededBuffer);
+        HttpRequestParser::RequestUriExceededBuffer);
 }
 
 TEST(ShrpTests, shrp_buffer_limit_generic)
@@ -174,14 +174,14 @@ TEST(ShrpTests, shrp_buffer_limit_generic)
 
     StringBody sbody(request, true);
 
-    StreamingHttpRequestParser parser(sbody, buffer_limit, body_limit);
+    HttpRequestParser parser(sbody, buffer_limit, body_limit);
 
     EXPECT_THROW({
         while (true) {
             auto res = parser.poll(Waker::dead());
         }
     },
-        StreamingHttpRequestParser::GenericExceededBuffer);
+        HttpRequestParser::GenericExceededBuffer);
 }
 
 TEST(ShrpTests, shrp_get_header)
@@ -192,7 +192,7 @@ TEST(ShrpTests, shrp_get_header)
 
     StringBody sbody(request, true);
 
-    StreamingHttpRequestParser parser(sbody, buffer_limit, body_limit);
+    HttpRequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
         auto res = parser.poll(Waker::dead());
@@ -200,10 +200,10 @@ TEST(ShrpTests, shrp_get_header)
             auto val = std::move(res.get());
             EXPECT_EQ(val.get_method(), method::GET);
             EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
-            EXPECT_FALSE(val.get_uri().get_pqf().value().get_query());
-            EXPECT_EQ(val.get_version().version_string, HTTP_VERSION_1_1.version_string);
+            EXPECT_FALSE(val.get_uri().get_pqf().value().get_query().has_value());
+            EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
             EXPECT_EQ(val.get_headers().size(), 1);
-            EXPECT_EQ(val.get_headers().find("X-Useless-Header")->second, "false");
+            EXPECT_EQ(val.get_header("X-Useless-Header").value(), "false");
             break;
         }
     }
@@ -217,7 +217,7 @@ TEST(ShrpTests, shrp_get_header_n2)
 
     StringBody sbody(request, true);
 
-    StreamingHttpRequestParser parser(sbody, buffer_limit, body_limit);
+    HttpRequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
         auto res = parser.poll(Waker::dead());
@@ -225,11 +225,11 @@ TEST(ShrpTests, shrp_get_header_n2)
             auto val = std::move(res.get());
             EXPECT_EQ(val.get_method(), method::GET);
             EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
-            EXPECT_FALSE(val.get_uri().get_pqf().value().get_query());
-            EXPECT_EQ(val.get_version().version_string, HTTP_VERSION_1_1.version_string);
+            EXPECT_FALSE(val.get_uri().get_pqf().value().get_query().has_value());
+            EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
             EXPECT_EQ(val.get_headers().size(), 2);
-            EXPECT_EQ(val.get_headers().find("X-Useless-Header")->second, "false");
-            EXPECT_EQ(val.get_headers().find("X-More-Useless-Header")->second, "funny");
+            EXPECT_EQ(val.get_header("X-Useless-Header").value(), "false");
+            EXPECT_EQ(val.get_header("X-More-Useless-Header").value(), "funny");
             break;
         }
     }
@@ -243,13 +243,13 @@ TEST(ShrpTests, shrp_header_buffer_limit)
 
     StringBody sbody(request, true);
 
-    StreamingHttpRequestParser parser(sbody, buffer_limit, body_limit);
+    HttpRequestParser parser(sbody, buffer_limit, body_limit);
 
     EXPECT_THROW({
         while (true) {
             auto res = parser.poll(Waker::dead());
         }
     },
-        StreamingHttpRequestParser::GenericExceededBuffer);
+        HttpRequestParser::GenericExceededBuffer);
 }
 }

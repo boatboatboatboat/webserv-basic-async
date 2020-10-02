@@ -15,41 +15,19 @@ using futures::PollResult;
 
 namespace net {
 
-class TcpStream;
-class TcpStreamResponseFuture : public IFuture<void> {
-public:
-    TcpStreamResponseFuture(TcpStream&& stream, std::string (*responder)(std::string& str));
-    auto poll(Waker&& waker) -> PollResult<void> override;
-
-private:
-    enum State {
-        Reading,
-        Writing
-    } state
-        = Reading;
-    size_t written = 0;
-    char buffer[64] {};
-    std::string message;
-    std::string (*responder)(std::string& str);
-    Socket socket;
-};
 class TcpStream {
-    friend class TcpStreamResponseFuture;
-
 public:
+    TcpStream() = delete;
     explicit TcpStream(int fd, SocketAddr address);
     TcpStream(TcpStream&& other) noexcept;
     ~TcpStream() = default;
-    TcpStreamResponseFuture respond(std::string (*fp)(std::string& str)) &&;
 
-    [[nodiscard]] SocketAddr const& get_addr() const;
-    Socket& get_socket();
-    static TcpStream uninitialized();
+    [[nodiscard]] auto get_addr() const -> SocketAddr const&;
+    auto get_socket() -> Socket&;
 
 private:
-    TcpStream();
-    Socket socket;
-    SocketAddr address;
+    Socket _socket;
+    SocketAddr _address;
 };
 }
 

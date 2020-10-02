@@ -7,24 +7,26 @@
 #include "HttpStatus.hpp"
 #include "StringBody.hpp"
 
+using std::move;
+
 namespace http {
 
-HttpResponse::~HttpResponse() = default;
+LegacyHttpResponse::~LegacyHttpResponse() = default;
 
-HttpResponse::HttpResponse()
+LegacyHttpResponse::LegacyHttpResponse()
     : response_headers()
-    , response_status(HTTP_STATUS_IM_A_TEAPOT)
-    , response_version(HTTP_VERSION_1_1)
+    , response_status(http::status::IM_A_TEAPOT)
+    , response_version(http::version::v1_1)
     , response_body(nullptr)
 {
 }
 
-HttpResponse::HttpResponse(std::map<HttpHeaderName, HttpHeaderValue>&& response_headers, HttpStatus status, BoxPtr<ioruntime::IAsyncRead>&& response_body, bool cgi_mode)
+LegacyHttpResponse::LegacyHttpResponse(std::map<HttpHeaderName, HttpHeaderValue>&& response_headers, HttpStatus status, BoxPtr<ioruntime::IAsyncRead>&& response_body, optional<Cgi>&& _proc)
     : response_headers(std::move(response_headers))
     , response_status(status)
-    , response_version(HTTP_VERSION_1_1)
+    , response_version(http::version::v1_1)
     , response_body(std::move(response_body))
-    , cgi_mode(cgi_mode)
+    , _cgi(std::move(_proc))
 {
     if (this->response_body.get() == nullptr) {
         // fixme: _body is BoxPtr which is allocated, memory alloc error can't recover properly
@@ -33,7 +35,7 @@ HttpResponse::HttpResponse(std::map<HttpHeaderName, HttpHeaderValue>&& response_
     }
 }
 
-auto HttpResponse::write_response(net::Socket& socket, Waker&& waker) -> bool
+auto LegacyHttpResponse::write_response(net::Socket& socket, Waker&& waker) -> bool
 {
     auto str = current.data() + written;
     auto len = current.length() - written;
@@ -56,7 +58,7 @@ auto HttpResponse::write_response(net::Socket& socket, Waker&& waker) -> bool
     return false;
 }
 
-auto HttpResponse::poll_respond(net::Socket& socket, Waker&& waker) -> PollResult<void>
+auto LegacyHttpResponse::poll_respond(net::Socket& socket, Waker&& waker) -> PollResult<void>
 {
     TRACEPRINT("responder state: " << state);
     switch (state) {
@@ -65,22 +67,22 @@ auto HttpResponse::poll_respond(net::Socket& socket, Waker&& waker) -> PollResul
     } break;
     case WriteStatusSpace1:
     case WriteStatusSpace2: {
-        current = HTTP_SP;
+        current = SP;
     } break;
     case WriteStatusCode: {
         std::sprintf(buf, "%u", this->response_status.code);
         current = buf;
     } break;
     case WriteStatusCRLF: {
-        current = HTTP_CRLF;
+        current = CLRF;
         header_it = response_headers.begin();
     } break;
     case WriteStatusMessage: {
         current = this->response_status.message;
     } break;
     case WriteHeaderName: {
-        if (cgi_mode) {
-            state = ReadBody;
+        if (_cgi.has_value()) {
+            state = ReadCgiBody;
             return poll_respond(socket, std::move(waker));
         }
         if (header_it == response_headers.end()) {
@@ -97,12 +99,12 @@ auto HttpResponse::poll_respond(net::Socket& socket, Waker&& waker) -> PollResul
     } break;
     case WriteSeperatorCLRF:
     case WriteHeaderCRLF: {
-        current = HTTP_CRLF;
+        current = CLRF;
     } break;
     case ReadBody: {
         auto is_chunked = false;
-        // if response_headers.contains(http::header::TRANSFER_ENCODING)
-        if (!cgi_mode) {
+        if (!_cgi.has_value()) {
+            // if response_headers.contains(http::header::TRANSFER_ENCODING)
             if (std::any_of(response_headers.begin(), response_headers.end(), [](auto& i) { return i.first == http::header::TRANSFER_ENCODING; })) {
                 // FIXME: bad chunked check
                 if (response_headers[http::header::TRANSFER_ENCODING].find("chunked") != std::string::npos) {
@@ -110,7 +112,6 @@ auto HttpResponse::poll_respond(net::Socket& socket, Waker&& waker) -> PollResul
                 }
             }
         }
-
         auto poll_result = response_body->poll_read(buf, sizeof(buf), Waker(waker));
         if (poll_result.is_pending())
             return PollResult<void>::pending();
@@ -134,6 +135,24 @@ auto HttpResponse::poll_respond(net::Socket& socket, Waker&& waker) -> PollResul
         }
         return poll_respond(socket, std::move(waker));
     } break;
+    case ReadCgiBody: {
+        auto poll_result = _cgi->poll_read(buf, sizeof(buf), Waker(waker));
+        if (poll_result.is_pending()) {
+            return PollResult<void>::pending();
+        }
+        if (poll_result.get() == 0) {
+            return PollResult<void>::ready();
+        }
+        body_view = string_view(buf, poll_result.get());
+        current = body_view;
+        state = WriteBody;
+    } break;
+    case WriteToCgiBody: {
+        auto poll_result = _icf->poll(Waker(waker));
+        if (poll_result.is_ready()) {
+            state = ReadCgiBody;
+        }
+    } break;
     case WriteBody: {
         // current is already set in previous step
     } break;
@@ -141,13 +160,13 @@ auto HttpResponse::poll_respond(net::Socket& socket, Waker&& waker) -> PollResul
         current = num;
     } break;
     case WriteChunkedBodyCLRF1: {
-        current = HTTP_CRLF;
+        current = CLRF;
     } break;
     case WriteChunkedBody: {
         current = body_view;
     } break;
     case WriteChunkedBodyCLRF2: {
-        current = HTTP_CRLF;
+        current = CLRF;
     } break;
     case WriteChunkedBodyEof: {
         // do nothing
@@ -157,10 +176,19 @@ auto HttpResponse::poll_respond(net::Socket& socket, Waker&& waker) -> PollResul
         if (state == WriteChunkedBodyEof) {
             return PollResult<void>::ready();
         }
-        if (state != WriteHeaderCRLF && state != WriteBody && state != WriteChunkedBodyCLRF2) {
+        if (
+            state != WriteHeaderCRLF
+            && state != WriteBody
+            && state != WriteChunkedBodyCLRF2
+            && state != WriteToCgiBody
+            && state != ReadCgiBody) {
             state = static_cast<State>(static_cast<int>(state) + 1);
         } else if (state == WriteBody || state == WriteChunkedBodyCLRF2) {
-            state = ReadBody;
+            if (_cgi.has_value()) {
+                state = ReadCgiBody;
+            } else {
+                state = ReadBody;
+            }
         } else if (state == WriteHeaderCRLF) {
             ++header_it;
             state = WriteHeaderName;
@@ -170,7 +198,7 @@ auto HttpResponse::poll_respond(net::Socket& socket, Waker&& waker) -> PollResul
     return PollResult<void>::pending();
 }
 
-HttpResponse::HttpResponse(HttpResponse&& other) noexcept
+LegacyHttpResponse::LegacyHttpResponse(LegacyHttpResponse&& other) noexcept
     : state(other.state)
     , current(other.current)
     , response_headers(std::move(other.response_headers))
@@ -178,24 +206,24 @@ HttpResponse::HttpResponse(HttpResponse&& other) noexcept
     , response_status(other.response_status)
     , response_version(other.response_version)
     , response_body(std::move(other.response_body))
-    , cgi_mode(other.cgi_mode)
+    , _cgi(std::move(other._cgi))
 {
 }
 
-auto HttpResponse::operator=(HttpResponse&& other) noexcept -> HttpResponse&
+auto LegacyHttpResponse::operator=(LegacyHttpResponse&& other) noexcept -> LegacyHttpResponse&
 {
     if (&other == this) {
         return *this;
     }
 
-    this->state = other.state;
-    this->current = other.current;
-    this->response_headers = std::move(other.response_headers);
-    this->header_it = other.header_it;
-    this->response_status = other.response_status;
-    this->response_body = std::move(other.response_body);
-    this->response_version = other.response_version;
-    this->cgi_mode = other.cgi_mode;
+    state = other.state;
+    current = other.current;
+    response_headers = std::move(other.response_headers);
+    header_it = other.header_it;
+    response_status = other.response_status;
+    response_body = std::move(other.response_body);
+    response_version = other.response_version;
+    _cgi = std::move(other._cgi);
     return *this;
 }
 
@@ -207,7 +235,7 @@ auto HttpResponseBuilder::status(HttpStatus status) -> HttpResponseBuilder&
 
 auto HttpResponseBuilder::header(HttpHeaderName name, const HttpHeaderValue& value) -> HttpResponseBuilder&
 {
-    _headers.insert(std::pair<HttpHeaderName, HttpHeaderValue>(name, value));
+    _headers.push_back(HttpHeader { move(name), value });
     return *this;
 }
 
@@ -224,13 +252,13 @@ auto HttpResponseBuilder::body(BoxPtr<ioruntime::IAsyncRead>&& body, size_t cont
     return header(http::header::CONTENT_LENGTH, std::to_string(content_length));
 }
 
-auto HttpResponseBuilder::build() -> HttpResponse
+auto HttpResponseBuilder::build() -> LegacyHttpResponse
 {
-    return HttpResponse(std::move(_headers), _status, std::move(_body), _cgi_mode);
+    return LegacyHttpResponse(std::move(_headers), _status, std::move(_body), std::move(_cgi));
 }
 
 HttpResponseBuilder::HttpResponseBuilder()
-    : _status(HTTP_STATUS_IM_A_TEAPOT)
+    : _status(http::status::IM_A_TEAPOT)
     , _body(nullptr)
 {
 }
@@ -241,10 +269,210 @@ auto HttpResponseBuilder::version(HttpVersion version) -> HttpResponseBuilder&
     return *this;
 }
 
-auto HttpResponseBuilder::cgi() -> HttpResponseBuilder&
+auto HttpResponseBuilder::cgi(Cgi&& proc) -> HttpResponseBuilder&
 {
-    _cgi_mode = true;
+    _cgi = std::move(proc);
     return *this;
 }
+
+HttpResponse::HttpResponse(HttpHeaders&& headers, HttpVersion&& version, HttpStatus&& status, HttpBody&& body, optional<Cgi>&& cgi)
+    : _headers(move(headers))
+    , _version(version)
+    , _status(status)
+    , _body(move(body))
+    , _cgi(move(cgi))
+{
+}
+
+auto HttpResponse::get_headers() const -> HttpHeaders const&
+{
+    return _headers;
+}
+
+auto HttpResponse::get_version() const -> HttpVersion const&
+{
+    return _version;
+}
+
+auto HttpResponse::get_status() const -> HttpStatus const&
+{
+    return _status;
+}
+
+auto HttpResponse::get_body() const -> HttpBody const&
+{
+    return _body;
+}
+
+auto HttpResponse::get_cgi() const -> optional<Cgi> const&
+{
+    return _cgi;
+}
+
+auto HttpResponse::get_cgi() -> optional<Cgi>&
+{
+    return _cgi;
+}
+
+auto HttpResponse::get_header(HttpHeaderName const& needle_name) const -> optional<HttpHeaderValue>
+{
+    for (auto& header : _headers) {
+        if (utils::str_eq_case_insensitive(header.name, needle_name)) {
+            return header.value;
+        }
+    }
+}
+
+HttpResponseReader::HttpResponseReader(HttpResponse& response)
+    : _response(response)
+{
+    if (response.get_cgi().has_value()) {
+        // CGI has been set - switch to "wait for CGI ready" status;
+        state = CheckCgiSuccess;
+    } else {
+        // CGI has not been set - begin writing a body
+        state = Status;
+    }
+}
+
+auto HttpResponseReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
+{
+    switch (state) {
+    case CheckCgiSuccess: {
+        if (_response.get_cgi()->poll_success(Waker(waker))) {
+            // Change to Status state
+            state = Status;
+            new (&_status) StatusReader(_response);
+            return poll_read(buffer, move(waker));
+        }
+        return PollResult<IoResult>::pending();
+    } break;
+    case Status: {
+        auto poll_res = _status.poll_read(buffer, Waker(waker));
+        if (poll_res.is_ready()) {
+            if (poll_res.get().is_eof()) {
+                // Clean up old state
+                _status.~StatusReader();
+                // Change to next state
+                if (_response.get_cgi().has_value()) {
+                    // CGI writes its own headers, so skip to the CGI state
+                    state = CgiBody;
+                    new (&_cgi_body) CgiBodyReader(_response);
+                } else {
+                    // No CGI - write our own headers
+                    state = Header;
+                    new (&_header) HeaderReader(_response);
+                }
+                return PollResult<IoResult>::pending();
+            }
+        }
+        return poll_res;
+    } break;
+    case Header: {
+        auto poll_res = _header.poll_read(buffer, Waker(waker));
+        if (poll_res.is_ready()) {
+            if (poll_res.get().is_eof()) {
+                // Clean up old state
+                _header.~HeaderReader();
+                // Change to Body state
+                if (_response.get_header(http::header::CONTENT_LENGTH).has_value()) {
+                    // Content-Length means regular body
+                    state = Body;
+                    new (&_body) BodyReader(_response);
+                } else {
+                    // No content-length means chunked transfer
+                    state = ChunkedBody;
+                    new (&_chunked_body) ChunkedBodyReader(_response);
+                }
+                return PollResult<IoResult>::pending();
+            }
+        }
+        return poll_res;
+    } break;
+    case Body: {
+        return _body.poll_read(buffer, move(waker));
+    } break;
+    case ChunkedBody: {
+        return _chunked_body.poll_read(buffer, move(waker));
+    } break;
+    case CgiBody: {
+        return _cgi_body.poll_read(buffer, move(waker));
+    } break;
+    }
+}
+
+HttpResponseReader::~HttpResponseReader()
+{
+    switch (state) {
+    case Status: {
+        _status.~StatusReader();
+    } break;
+    case Header: {
+        _header.~HeaderReader();
+    } break;
+    case Body: {
+        _body.~BodyReader();
+    } break;
+    case ChunkedBody: {
+        _chunked_body.~ChunkedBodyReader();
+    } break;
+    case CgiBody: {
+        _cgi_body.~CgiBodyReader();
+    } break;
+    default:
+        break;
+    }
+}
+
+HttpResponseReader::StatusReader::StatusReader(const HttpResponse& response)
+    : _response(response)
+{
+    // start out with Version
+    _current = _response.get_version().version_string;
+}
+
+auto HttpResponseReader::StatusReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
+{
+    switch (_state) {
+    case Version: {
+        if (_current.empty()) {
+            _current = http::SP;
+            _state = Space1;
+        }
+    } break;
+    case Space1: {
+        if (_current.empty()) {
+            std::sprintf(_status_code_buf, "%u", _response.get_status().code);
+            _current = _status_code_buf;
+            _state = Code;
+        }
+    } break;
+    case Code: {
+        if (_current.empty()) {
+            _current = http::SP;
+            _state = Space2;
+        }
+    } break;
+    case Space2: {
+        if (_current.empty()) {
+            _current = _response.get_status().message;
+            _state = Message;
+        }
+    } break;
+    case Message: {
+        if (_current.empty()) {
+            _current = http::CLRF;
+            _state = Clrf;
+        }
+    } break;
+    case Clrf: {
+        if (_current.empty()) {
+            return PollResult<IoResult>::ready(IoResult::eof());
+        }
+    } break;
+    }
+}
+
+
 
 }

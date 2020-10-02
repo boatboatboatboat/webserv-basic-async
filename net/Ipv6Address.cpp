@@ -30,6 +30,11 @@ net::Ipv6Address::Ipv6Address(string_view str)
     }
 }
 
+net::Ipv6Address::Ipv6Address(in6_addr addr)
+    : ip(addr)
+{
+}
+
 auto operator<<(std::ostream& os, const net::Ipv6Address& sa) -> std::ostream&
 {
     in6_addr ip_raw = sa.get_ip_posix();

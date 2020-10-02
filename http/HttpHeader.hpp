@@ -1,3 +1,5 @@
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "cert-err58-cpp"
 //
 // Created by boat on 8/27/20.
 //
@@ -6,10 +8,11 @@
 #define WEBSERV_HTTPHEADER_HPP
 
 #include <string>
+#include <vector>
 
 namespace http {
 
-using HttpHeaderName = std::string_view;
+using HttpHeaderName = std::string;
 using HttpHeaderValue = std::string;
 
 class HttpHeader {
@@ -19,23 +22,26 @@ public:
     auto operator==(HttpHeader const& other) const -> bool;
 };
 
+using HttpHeaders = std::vector<HttpHeader>;
+
 namespace header {
     // HTTP header names are case insensitive (RFC 2616 Section 4.2.)
-
-    inline constexpr HttpHeaderName ACCEPT { "Accept" };
-    inline constexpr HttpHeaderName ALLOW { "Allow" };
-    inline constexpr HttpHeaderName CONNECTION { "Connection" };
-    inline constexpr HttpHeaderName CONTENT_LENGTH { "Content-Length" };
-    inline constexpr HttpHeaderName CONTENT_TYPE { "Content-Type" };
-    inline constexpr HttpHeaderName COOKIE { "Cookie" };
-    inline constexpr HttpHeaderName HOST { "Host" };
-    inline constexpr HttpHeaderName LAST_MODIFIED { "Last-Modified" };
-    inline constexpr HttpHeaderName ORIGIN { "Origin" };
-    inline constexpr HttpHeaderName UPGRADE { "Upgrade" };
-    inline constexpr HttpHeaderName USER_AGENT { "User-Agent" };
-    inline constexpr HttpHeaderName TRANSFER_ENCODING { "Transfer-Encoding" };
+    inline HttpHeaderName ACCEPT { "Accept" };
+    inline HttpHeaderName ALLOW { "Allow" };
+    inline HttpHeaderName CONNECTION { "Connection" };
+    inline HttpHeaderName CONTENT_LENGTH { "Content-Length" };
+    inline HttpHeaderName CONTENT_TYPE { "Content-Type" };
+    inline HttpHeaderName COOKIE { "Cookie" };
+    inline HttpHeaderName HOST { "Host" };
+    inline HttpHeaderName LAST_MODIFIED { "Last-Modified" };
+    inline HttpHeaderName ORIGIN { "Origin" };
+    inline HttpHeaderName UPGRADE { "Upgrade" };
+    inline HttpHeaderName USER_AGENT { "User-Agent" };
+    inline HttpHeaderName TRANSFER_ENCODING { "Transfer-Encoding" };
 }
 
 }
 
 #endif //WEBSERV_HTTPHEADER_HPP
+
+#pragma clang diagnostic pop

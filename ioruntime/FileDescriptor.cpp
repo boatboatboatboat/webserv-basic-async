@@ -51,7 +51,7 @@ FileDescriptor::~FileDescriptor()
     }
 }
 
-auto FileDescriptor::poll_read(char* buffer, size_t size, Waker&& waker) -> PollResult<ssize_t>
+auto FileDescriptor::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
 {
     auto ready_guard = ready_to_read->lock();
     if (!*ready_guard) {
@@ -59,13 +59,9 @@ auto FileDescriptor::poll_read(char* buffer, size_t size, Waker&& waker) -> Poll
         GlobalIoEventHandler::register_reader_callback(descriptor, waker.boxed(), true, 10);
         // File descriptor is not ready to read,
         // return that it's pending
-        return PollResult<ssize_t>::pending();
+        return PollResult<IoResult>::pending();
     }
-    ssize_t result = read(buffer, size);
-
-    if (result < 0) {
-        TRACEPRINT("read error: " << result);
-    }
+    ssize_t result = read(buffer.data(), buffer.size());
 
     // Re-register the "ready" callback
     BoxFunctor cb = BoxFunctor(new SetReadyFunctor(RcPtr(ready_to_read)));
@@ -78,11 +74,10 @@ auto FileDescriptor::poll_read(char* buffer, size_t size, Waker&& waker) -> Poll
     *ready_guard = false;
 
     // Return the result of read
-    // the + 0 fixes an error related to result being an lvalue
-    return PollResult<ssize_t>::ready(result + 0);
+    return PollResult<IoResult>::ready(IoResult(result));
 }
 
-auto FileDescriptor::poll_write(const char* buffer, size_t size, Waker&& waker) -> PollResult<ssize_t>
+auto FileDescriptor::poll_write(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
 {
     auto ready_guard = ready_to_write->lock();
     if (!*ready_guard) {
@@ -91,9 +86,9 @@ auto FileDescriptor::poll_write(const char* buffer, size_t size, Waker&& waker) 
 
         // File descriptor is not ready to write,
         // return that it's pending
-        return PollResult<ssize_t>::pending();
+        return PollResult<IoResult>::pending();
     }
-    ssize_t result = write(buffer, size);
+    ssize_t result = write(buffer.data(), buffer.size());
 
     if (result < 0) {
         TRACEPRINT("write error: " << strerror(errno));
@@ -110,8 +105,7 @@ auto FileDescriptor::poll_write(const char* buffer, size_t size, Waker&& waker) 
     *ready_guard = false;
 
     // Return the result of write
-    // the + 0 fixes an error related to result being an lvalue
-    return PollResult<ssize_t>::ready(result + 0);
+    return PollResult<IoResult>::ready(IoResult(result));
 }
 
 auto FileDescriptor::get_descriptor() const -> int
@@ -119,12 +113,12 @@ auto FileDescriptor::get_descriptor() const -> int
     return descriptor;
 }
 
-auto FileDescriptor::read(char* buffer, size_t size) -> ssize_t
+auto FileDescriptor::read(void* buffer, size_t size) -> ssize_t
 {
     return ::read(descriptor, buffer, size);
 }
 
-auto FileDescriptor::write(const char* buffer, size_t size) -> ssize_t
+auto FileDescriptor::write(void const* buffer, size_t size) -> ssize_t
 {
     return ::write(descriptor, buffer, size);
 }
@@ -134,11 +128,6 @@ FileDescriptor::FileDescriptor()
     , ready_to_read(RcPtr<Mutex<bool>>::uninitialized())
     , ready_to_write(RcPtr<Mutex<bool>>::uninitialized())
 {
-}
-
-auto FileDescriptor::uninitialized() -> FileDescriptor
-{
-    return FileDescriptor();
 }
 
 auto FileDescriptor::close() && -> int

@@ -14,16 +14,15 @@ namespace net {
 
 class Socket : public ioruntime::FileDescriptor {
 public:
+    Socket() = delete;
     explicit Socket(int fd, SocketAddr addr);
-    static auto uninitialized() -> Socket;
     Socket(Socket&& other) noexcept;
     ~Socket() override; // = default;
-    auto read(char* buffer, size_t size) -> ssize_t override;
-    auto write(const char* buffer, size_t size) -> ssize_t override;
+    auto read(void* buffer, size_t size) -> ssize_t override;
+    auto write(void const* buffer, size_t size) -> ssize_t override;
     [[nodiscard]] auto get_addr() const -> SocketAddr const&;
 
 private:
-    Socket();
     optional<SocketAddr> _addr;
 };
 
