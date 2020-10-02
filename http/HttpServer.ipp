@@ -6,9 +6,9 @@
 #include "../ioruntime/GlobalRuntime.hpp"
 #include "../net/TcpListener.hpp"
 #include "../net/TcpStream.hpp"
-#include "HttpHeader.hpp"
-#include "HttpResponse.hpp"
+#include "Header.hpp"
 #include "HttpServer.hpp"
+#include "Response.hpp"
 
 using ioruntime::GlobalRuntime;
 
@@ -66,30 +66,30 @@ auto HttpServer<RH>::HttpConnectionFuture::poll(Waker&& waker) -> PollResult<voi
             }
         } catch (std::exception const&) {
             state = Respond;
-            auto builder = HttpResponseBuilder();
+            auto builder = ResponseBuilder();
 
             builder.header(header::CONTENT_TYPE, "text/html; charset=utf8");
             auto status = status::INTERNAL_SERVER_ERROR;
 
             try {
                 throw;
-            } catch (HttpRequestParser::UndeterminedLength const&) {
+            } catch (RequestParser::UndeterminedLength const&) {
                 status = status::LENGTH_REQUIRED;
-            } catch (HttpRequestParser::RequestUriExceededBuffer const&) {
+            } catch (RequestParser::RequestUriExceededBuffer const&) {
                 status = status::URI_TOO_LONG;
-            } catch (HttpRequestParser::BodyExceededLimit const&) {
+            } catch (RequestParser::BodyExceededLimit const&) {
                 status = status::PAYLOAD_TOO_LARGE;
-            } catch (HttpRequestParser::GenericExceededBuffer const&) {
+            } catch (RequestParser::GenericExceededBuffer const&) {
                 status = status::REQUEST_HEADER_FIELDS_TOO_LARGE;
-            } catch (HttpRequestParser::InvalidMethod const&) {
+            } catch (RequestParser::InvalidMethod const&) {
                 status = status::NOT_IMPLEMENTED;
-            } catch (HttpRequestParser::InvalidVersion const&) {
+            } catch (RequestParser::InvalidVersion const&) {
                 status = status::VERSION_NOT_SUPPORTED;
-            } catch (HttpRequestParser::MalformedRequest const&) {
+            } catch (RequestParser::MalformedRequest const&) {
                 status = status::BAD_REQUEST;
-            } catch (HttpRequestParser::UnexpectedEof const&) {
+            } catch (RequestParser::UnexpectedEof const&) {
                 status = status::BAD_REQUEST;
-            } catch (HttpRequestParser::BadTransferEncoding const&) {
+            } catch (RequestParser::BadTransferEncoding const&) {
                 status = status::NOT_IMPLEMENTED;
             } catch (TimeoutError const&) {
                 status = status::REQUEST_TIMEOUT;
@@ -122,7 +122,7 @@ HttpServer<RH>::HttpConnectionFuture::HttpConnectionFuture(net::TcpStream&& pstr
     : req()
     , res()
     , stream(std::move(pstream))
-    , parser(optional<HttpRequestParser>(HttpRequestParser(stream.get_socket(), 8192, 8192)))
+    , parser(optional<RequestParser>(RequestParser(stream.get_socket(), 8192, 8192)))
     , timeout(5000)
 {
 }
@@ -138,7 +138,7 @@ HttpServer<RH>::HttpConnectionFuture::HttpConnectionFuture(HttpServer::HttpConne
     , req(std::move(other.req))
     , res(std::move(other.res))
     , stream(std::move(other.stream))
-    , parser(HttpRequestParser(std::move(*other.parser), stream.get_socket()))
+    , parser(RequestParser(std::move(*other.parser), stream.get_socket()))
     , timeout(std::move(other.timeout))
     , handler(other.handler)
 {

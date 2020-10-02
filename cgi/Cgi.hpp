@@ -5,7 +5,7 @@
 #ifndef WEBSERV_CGI_CGI_HPP
 #define WEBSERV_CGI_CGI_HPP
 
-#include "../http/HttpRequestParser.hpp"
+#include "../http/RequestParser.hpp"
 #include "../ioruntime/FileDescriptor.hpp"
 #include "../ioruntime/GlobalChildProcessHandler.hpp"
 #include "../ioruntime/IAsyncRead.hpp"
@@ -15,7 +15,7 @@
 
 namespace cgi {
 
-using http::HttpRequest;
+using http::Request;
 using ioruntime::FileDescriptor;
 using ioruntime::GlobalChildProcessHandler;
 using ioruntime::IAsyncWrite;
@@ -50,7 +50,7 @@ public:
 
     explicit Cgi(
         const string& path,
-        HttpRequest const& req,
+        Request const& req,
         SocketAddr const& addr)
         : _path(path)
     {
@@ -150,7 +150,7 @@ public:
     }
 
 private:
-    void generate_env(HttpRequest const& req, SocketAddr const& addr)
+    void generate_env(Request const& req, SocketAddr const& addr)
     {
         // TODO: set auth_type metavar
         // Set CONTENT_LENGTH metavar

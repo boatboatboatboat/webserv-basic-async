@@ -3,7 +3,7 @@
 //
 
 #include "Uri.hpp"
-#include "HttpRfcConstants.hpp"
+#include "RfcConstants.hpp"
 
 namespace http {
 

@@ -8,11 +8,11 @@
 #include "../futures/PollResult.hpp"
 #include "../ioruntime/IAsyncRead.hpp"
 #include "../utils/utils.hpp"
-#include "HttpMethod.hpp"
-#include "HttpRequest.hpp"
-#include "HttpStatus.hpp"
-#include "HttpVersion.hpp"
+#include "Method.hpp"
+#include "Request.hpp"
+#include "Status.hpp"
 #include "Uri.hpp"
+#include "Version.hpp"
 #include <map>
 #include <string>
 #include <vector>
@@ -29,9 +29,9 @@ using utils::span;
 
 namespace http {
 
-inline auto get_method(const string_view possible_method) -> optional<http::HttpMethod>
+inline auto get_method(const string_view possible_method) -> optional<http::Method>
 {
-    constexpr http::HttpMethod VALID_METHODS[8] = {
+    constexpr http::Method VALID_METHODS[8] = {
         http::method::CONNECT,
         http::method::DELETE,
         http::method::GET,
@@ -45,10 +45,10 @@ inline auto get_method(const string_view possible_method) -> optional<http::Http
 
     for (auto& method : methods) {
         if (method == possible_method) {
-            return optional<http::HttpMethod>(method);
+            return optional<http::Method>(method);
         }
     }
-    return optional<http::HttpMethod>::none();
+    return optional<http::Method>::none();
 }
 
 inline auto method_has_body(const string_view possible_method) -> bool
@@ -59,7 +59,7 @@ inline auto method_has_body(const string_view possible_method) -> bool
         || possible_method == http::method::DELETE;
 }
 
-class HttpRequestParser : public IFuture<HttpRequest> {
+class RequestParser : public IFuture<Request> {
 public:
     class ParserError : public std::runtime_error {
     public:
@@ -101,10 +101,10 @@ public:
     public:
         BadTransferEncoding();
     };
-    explicit HttpRequestParser(IAsyncRead& source, size_t buffer_limit, size_t body_limit);
-    HttpRequestParser(HttpRequestParser&& other) noexcept;
-    HttpRequestParser(HttpRequestParser&& other, IAsyncRead& new_stream) noexcept;
-    auto poll(Waker&& waker) -> PollResult<HttpRequest> override;
+    explicit RequestParser(IAsyncRead& source, size_t buffer_limit, size_t body_limit);
+    RequestParser(RequestParser&& other) noexcept;
+    RequestParser(RequestParser&& other, IAsyncRead& new_stream) noexcept;
+    auto poll(Waker&& waker) -> PollResult<Request> override;
     auto poll_character(Waker&& waker) -> StreamPollResult<uint8_t>;
 
 private:
@@ -127,14 +127,14 @@ private:
     size_t character_max = 0;
     size_t buffer_limit;
     size_t body_limit;
-    HttpMethod current_method;
+    Method current_method;
     optional<uint64_t> content_length;
     size_t last_chunk_size;
     bool chunked;
     IAsyncRead& source;
     vector<uint8_t> buffer;
     optional<vector<uint8_t>> decoded_body;
-    HttpRequestBuilder builder;
+    RequestBuilder builder;
     bool moved = false;
 };
 

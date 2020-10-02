@@ -1,16 +1,17 @@
-#include "HttpResponse.hpp"
+#include "Response.hpp"
 #include "../net/Socket.hpp"
 #include "DefaultPageBody.hpp"
-#include "HttpHeader.hpp"
-#include "HttpRequest.hpp"
-#include "HttpRfcConstants.hpp"
-#include "HttpStatus.hpp"
+#include "Header.hpp"
+#include "Request.hpp"
+#include "RfcConstants.hpp"
+#include "Status.hpp"
 #include "StringBody.hpp"
 
 using std::move;
 
 namespace http {
 
+/*
 LegacyHttpResponse::~LegacyHttpResponse() = default;
 
 LegacyHttpResponse::LegacyHttpResponse()
@@ -21,7 +22,7 @@ LegacyHttpResponse::LegacyHttpResponse()
 {
 }
 
-LegacyHttpResponse::LegacyHttpResponse(std::map<HttpHeaderName, HttpHeaderValue>&& response_headers, HttpStatus status, BoxPtr<ioruntime::IAsyncRead>&& response_body, optional<Cgi>&& _proc)
+LegacyHttpResponse::LegacyHttpResponse(std::map<HeaderName, HeaderValue>&& response_headers, Status status, BoxPtr<ioruntime::IAsyncRead>&& response_body, optional<Cgi>&& _proc)
     : response_headers(std::move(response_headers))
     , response_status(status)
     , response_version(http::version::v1_1)
@@ -226,56 +227,62 @@ auto LegacyHttpResponse::operator=(LegacyHttpResponse&& other) noexcept -> Legac
     _cgi = std::move(other._cgi);
     return *this;
 }
+*/
 
-auto HttpResponseBuilder::status(HttpStatus status) -> HttpResponseBuilder&
+auto ResponseBuilder::status(Status status) -> ResponseBuilder&
 {
     _status = status;
     return *this;
 }
 
-auto HttpResponseBuilder::header(HttpHeaderName name, const HttpHeaderValue& value) -> HttpResponseBuilder&
+auto ResponseBuilder::header(HeaderName name, const HeaderValue& value) -> ResponseBuilder&
 {
-    _headers.push_back(HttpHeader { move(name), value });
+    _headers.push_back(Header { move(name), value });
     return *this;
 }
 
-auto HttpResponseBuilder::body(BoxPtr<ioruntime::IAsyncRead>&& body) -> HttpResponseBuilder&
+auto ResponseBuilder::body(BoxPtr<ioruntime::IAsyncRead>&& body) -> ResponseBuilder&
 {
     _body = std::move(body);
     header(http::header::TRANSFER_ENCODING, "chunked");
     return *this;
 }
 
-auto HttpResponseBuilder::body(BoxPtr<ioruntime::IAsyncRead>&& body, size_t content_length) -> HttpResponseBuilder&
+auto ResponseBuilder::body(BoxPtr<ioruntime::IAsyncRead>&& body, size_t content_length) -> ResponseBuilder&
 {
     _body = std::move(body);
     return header(http::header::CONTENT_LENGTH, std::to_string(content_length));
 }
 
-auto HttpResponseBuilder::build() -> LegacyHttpResponse
+auto ResponseBuilder::build() -> Response
 {
-    return LegacyHttpResponse(std::move(_headers), _status, std::move(_body), std::move(_cgi));
+    return Response(
+        move(*_headers),
+        move(*_version),
+        move(*_status),
+        move(*_body),
+        move(*_cgi));
 }
 
-HttpResponseBuilder::HttpResponseBuilder()
+ResponseBuilder::ResponseBuilder()
     : _status(http::status::IM_A_TEAPOT)
     , _body(nullptr)
 {
 }
 
-auto HttpResponseBuilder::version(HttpVersion version) -> HttpResponseBuilder&
+auto ResponseBuilder::version(Version version) -> ResponseBuilder&
 {
     _version = version;
     return *this;
 }
 
-auto HttpResponseBuilder::cgi(Cgi&& proc) -> HttpResponseBuilder&
+auto ResponseBuilder::cgi(Cgi&& proc) -> ResponseBuilder&
 {
     _cgi = std::move(proc);
     return *this;
 }
 
-HttpResponse::HttpResponse(HttpHeaders&& headers, HttpVersion&& version, HttpStatus&& status, HttpBody&& body, optional<Cgi>&& cgi)
+Response::Response(Headers&& headers, Version&& version, Status&& status, Body&& body, optional<Cgi>&& cgi)
     : _headers(move(headers))
     , _version(version)
     , _status(status)
@@ -284,37 +291,37 @@ HttpResponse::HttpResponse(HttpHeaders&& headers, HttpVersion&& version, HttpSta
 {
 }
 
-auto HttpResponse::get_headers() const -> HttpHeaders const&
+auto Response::get_headers() const -> Headers const&
 {
     return _headers;
 }
 
-auto HttpResponse::get_version() const -> HttpVersion const&
+auto Response::get_version() const -> Version const&
 {
     return _version;
 }
 
-auto HttpResponse::get_status() const -> HttpStatus const&
+auto Response::get_status() const -> Status const&
 {
     return _status;
 }
 
-auto HttpResponse::get_body() const -> HttpBody const&
+auto Response::get_body() const -> Body const&
 {
     return _body;
 }
 
-auto HttpResponse::get_cgi() const -> optional<Cgi> const&
+auto Response::get_cgi() const -> optional<Cgi> const&
 {
     return _cgi;
 }
 
-auto HttpResponse::get_cgi() -> optional<Cgi>&
+auto Response::get_cgi() -> optional<Cgi>&
 {
     return _cgi;
 }
 
-auto HttpResponse::get_header(HttpHeaderName const& needle_name) const -> optional<HttpHeaderValue>
+auto Response::get_header(HeaderName const& needle_name) const -> optional<HeaderValue>
 {
     for (auto& header : _headers) {
         if (utils::str_eq_case_insensitive(header.name, needle_name)) {
@@ -323,25 +330,25 @@ auto HttpResponse::get_header(HttpHeaderName const& needle_name) const -> option
     }
 }
 
-HttpResponseReader::HttpResponseReader(HttpResponse& response)
+ResponseReader::ResponseReader(Response& response)
     : _response(response)
 {
     if (response.get_cgi().has_value()) {
         // CGI has been set - switch to "wait for CGI ready" status;
-        state = CheckCgiSuccess;
+        _state = CheckCgiSuccess;
     } else {
         // CGI has not been set - begin writing a body
-        state = Status;
+        _state = Status;
     }
 }
 
-auto HttpResponseReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
+auto ResponseReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
 {
-    switch (state) {
+    switch (_state) {
     case CheckCgiSuccess: {
         if (_response.get_cgi()->poll_success(Waker(waker))) {
             // Change to Status state
-            state = Status;
+            _state = Status;
             new (&_status) StatusReader(_response);
             return poll_read(buffer, move(waker));
         }
@@ -356,11 +363,11 @@ auto HttpResponseReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollR
                 // Change to next state
                 if (_response.get_cgi().has_value()) {
                     // CGI writes its own headers, so skip to the CGI state
-                    state = CgiBody;
+                    _state = CgiBody;
                     new (&_cgi_body) CgiBodyReader(_response);
                 } else {
                     // No CGI - write our own headers
-                    state = Header;
+                    _state = Header;
                     new (&_header) HeaderReader(_response);
                 }
                 return PollResult<IoResult>::pending();
@@ -377,11 +384,11 @@ auto HttpResponseReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollR
                 // Change to Body state
                 if (_response.get_header(http::header::CONTENT_LENGTH).has_value()) {
                     // Content-Length means regular body
-                    state = Body;
+                    _state = Body;
                     new (&_body) BodyReader(_response);
                 } else {
                     // No content-length means chunked transfer
-                    state = ChunkedBody;
+                    _state = ChunkedBody;
                     new (&_chunked_body) ChunkedBodyReader(_response);
                 }
                 return PollResult<IoResult>::pending();
@@ -401,10 +408,10 @@ auto HttpResponseReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollR
     }
 }
 
-HttpResponseReader::~HttpResponseReader()
+ResponseReader::~ResponseReader()
 {
-    switch (state) {
-    case Status: {
+    switch (_state) {
+    case StatusState: {
         _status.~StatusReader();
     } break;
     case Header: {
@@ -424,17 +431,18 @@ HttpResponseReader::~HttpResponseReader()
     }
 }
 
-HttpResponseReader::StatusReader::StatusReader(const HttpResponse& response)
-    : _response(response)
+ResponseReader::StatusReader::StatusReader(Version const& version, Status const& status)
+    : _version(version)
+    , _status(status)
 {
     // start out with Version
-    _current = _response.get_version().version_string;
+    _current = version.version_string;
 }
 
-auto HttpResponseReader::StatusReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
+auto ResponseReader::StatusReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
 {
     switch (_state) {
-    case Version: {
+    case VersionState: {
         if (_current.empty()) {
             _current = http::SP;
             _state = Space1;
@@ -442,7 +450,7 @@ auto HttpResponseReader::StatusReader::poll_read(span<uint8_t> buffer, Waker&& w
     } break;
     case Space1: {
         if (_current.empty()) {
-            std::sprintf(_status_code_buf, "%u", _response.get_status().code);
+            std::sprintf(_status_code_buf, "%u", _status.code);
             _current = _status_code_buf;
             _state = Code;
         }
@@ -455,7 +463,7 @@ auto HttpResponseReader::StatusReader::poll_read(span<uint8_t> buffer, Waker&& w
     } break;
     case Space2: {
         if (_current.empty()) {
-            _current = _response.get_status().message;
+            _current = _status.message;
             _state = Message;
         }
     } break;
@@ -471,8 +479,12 @@ auto HttpResponseReader::StatusReader::poll_read(span<uint8_t> buffer, Waker&& w
         }
     } break;
     }
+    auto written = buffer.size() >= _current.size() ? _current.size() : buffer.size();
+    memcpy(buffer.data(), _current.data(), written);
+    _current.remove_prefix(written);
+    buffer.remove_prefix_inplace(written);
+    waker();
+    return PollResult<IoResult>::ready(written);
 }
-
-
 
 }

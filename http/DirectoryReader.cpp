@@ -2,9 +2,9 @@
 // Created by boat on 9/8/20.
 //
 
-#include "DirectoryBody.hpp"
+#include "DirectoryReader.hpp"
 
-http::DirectoryBody::DirectoryBody(string_view str, string_view real_pathstr)
+http::DirectoryReader::DirectoryReader(string_view str, string_view real_pathstr)
 {
     std::string no_traversal(str);
 
@@ -38,7 +38,7 @@ http::DirectoryBody::DirectoryBody(string_view str, string_view real_pathstr)
 }
 
 // FIXME: pageend not written?
-auto http::DirectoryBody::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
+auto http::DirectoryReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
 {
     auto written = std::min(buffer.size(), cur.length());
     utils::ft_memcpy(buffer.data(), cur.data(), written);
@@ -109,7 +109,7 @@ auto http::DirectoryBody::poll_read(span<uint8_t> buffer, Waker&& waker) -> Poll
     return PollResult<IoResult>::ready(written);
 }
 
-http::DirectoryBody::~DirectoryBody()
+http::DirectoryReader::~DirectoryReader()
 {
     closedir(dir);
 }

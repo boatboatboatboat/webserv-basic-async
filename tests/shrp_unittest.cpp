@@ -3,7 +3,7 @@
 //
 
 #include "../func/Functor.hpp"
-#include "../http/HttpRequestParser.hpp"
+#include "../http/RequestParser.hpp"
 #include "../http/StringBody.hpp"
 #include "../ioruntime/RuntimeBuilder.hpp"
 
@@ -23,7 +23,7 @@ TEST(ShrpTests, shrp_basic_request)
 
     StringBody sbody(request, true);
 
-    HttpRequestParser parser(sbody, buffer_limit, body_limit);
+    RequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
         auto res = parser.poll(Waker::dead());
@@ -45,7 +45,7 @@ TEST(ShrpTests, shrp_basic_request_path)
 
     StringBody sbody(request, true);
 
-    HttpRequestParser parser(sbody, buffer_limit, body_limit);
+    RequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
         auto res = parser.poll(Waker::dead());
@@ -67,7 +67,7 @@ TEST(ShrpTests, shrp_request_asterisk)
 
     StringBody sbody(request, true);
 
-    HttpRequestParser parser(sbody, buffer_limit, body_limit);
+    RequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
         auto res = parser.poll(Waker::dead());
@@ -89,7 +89,7 @@ TEST(ShrpTests, shrp_basic_authority)
 
     StringBody sbody(request, true);
 
-    HttpRequestParser parser(sbody, buffer_limit, body_limit);
+    RequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
         auto res = parser.poll(Waker::dead());
@@ -112,7 +112,7 @@ TEST(ShrpTests, shrp_basic_post_with_body)
 
     StringBody sbody(request, true);
 
-    HttpRequestParser parser(sbody, buffer_limit, body_limit);
+    RequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
         auto res = parser.poll(Waker::dead());
@@ -138,14 +138,14 @@ TEST(ShrpTests, shrp_body_limit)
 
     StringBody sbody(request, true);
 
-    HttpRequestParser parser(sbody, buffer_limit, body_limit);
+    RequestParser parser(sbody, buffer_limit, body_limit);
 
     EXPECT_THROW({
         while (true) {
             auto res = parser.poll(Waker::dead());
         }
     },
-        HttpRequestParser::BodyExceededLimit);
+        RequestParser::BodyExceededLimit);
 }
 
 TEST(ShrpTests, shrp_buffer_limit_uri)
@@ -156,14 +156,14 @@ TEST(ShrpTests, shrp_buffer_limit_uri)
 
     StringBody sbody(request, true);
 
-    HttpRequestParser parser(sbody, buffer_limit, body_limit);
+    RequestParser parser(sbody, buffer_limit, body_limit);
 
     EXPECT_THROW({
         while (true) {
             auto res = parser.poll(Waker::dead());
         }
     },
-        HttpRequestParser::RequestUriExceededBuffer);
+        RequestParser::RequestUriExceededBuffer);
 }
 
 TEST(ShrpTests, shrp_buffer_limit_generic)
@@ -174,14 +174,14 @@ TEST(ShrpTests, shrp_buffer_limit_generic)
 
     StringBody sbody(request, true);
 
-    HttpRequestParser parser(sbody, buffer_limit, body_limit);
+    RequestParser parser(sbody, buffer_limit, body_limit);
 
     EXPECT_THROW({
         while (true) {
             auto res = parser.poll(Waker::dead());
         }
     },
-        HttpRequestParser::GenericExceededBuffer);
+        RequestParser::GenericExceededBuffer);
 }
 
 TEST(ShrpTests, shrp_get_header)
@@ -192,7 +192,7 @@ TEST(ShrpTests, shrp_get_header)
 
     StringBody sbody(request, true);
 
-    HttpRequestParser parser(sbody, buffer_limit, body_limit);
+    RequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
         auto res = parser.poll(Waker::dead());
@@ -217,7 +217,7 @@ TEST(ShrpTests, shrp_get_header_n2)
 
     StringBody sbody(request, true);
 
-    HttpRequestParser parser(sbody, buffer_limit, body_limit);
+    RequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
         auto res = parser.poll(Waker::dead());
@@ -243,13 +243,13 @@ TEST(ShrpTests, shrp_header_buffer_limit)
 
     StringBody sbody(request, true);
 
-    HttpRequestParser parser(sbody, buffer_limit, body_limit);
+    RequestParser parser(sbody, buffer_limit, body_limit);
 
     EXPECT_THROW({
         while (true) {
             auto res = parser.poll(Waker::dead());
         }
     },
-        HttpRequestParser::GenericExceededBuffer);
+        RequestParser::GenericExceededBuffer);
 }
 }

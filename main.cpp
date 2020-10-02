@@ -9,12 +9,12 @@
 #include "fs/File.hpp"
 #include "futures/ForEachFuture.hpp"
 #include "futures/SelectFuture.hpp"
-#include "http/DirectoryBody.hpp"
+#include "http/DirectoryReader.hpp"
 #include "http/HttpParser.hpp"
-#include "http/HttpRequest.hpp"
-#include "http/HttpResponse.hpp"
 #include "http/HttpServer.hpp"
 #include "http/InfiniteBody.hpp"
+#include "http/Request.hpp"
+#include "http/Response.hpp"
 #include "http/StringBody.hpp"
 #include "ioruntime/FdLineStream.hpp"
 #include "ioruntime/FdStringReadFuture.hpp"
@@ -31,11 +31,9 @@ using futures::FdLineStream;
 using futures::ForEachFuture;
 using futures::IFuture;
 using futures::PollResult;
-using http::DirectoryBody;
-using http::HttpRequest;
-using http::HttpResponseBuilder;
-using http::HttpResponseBuilder;
+using http::DirectoryReader;
 using http::HttpServer;
+using http::ResponseBuilder;
 using http::StringBody;
 using ioruntime::GlobalIoEventHandler;
 using ioruntime::GlobalRuntime;
@@ -46,6 +44,7 @@ using ioruntime::TimeoutEventHandler;
 using ioruntime::TimeoutFuture;
 using option::make_optional;
 using std::move;
+using std::pair;
 using std::pair;
 
 auto base_config_from_json(json::Json const& config) -> BaseConfig
@@ -58,7 +57,7 @@ auto base_config_from_json(json::Json const& config) -> BaseConfig
     optional<vector<string>> config_index_pages;
     optional<map<uint16_t, string>> config_error_pages;
     optional<bool> config_use_cgi;
-    optional<vector<HttpMethod>> config_allowed_methods;
+    optional<vector<Method>> config_allowed_methods;
     optional<bool> config_autoindex;
 
     // set root field
@@ -123,7 +122,7 @@ auto base_config_from_json(json::Json const& config) -> BaseConfig
 
     // set allowed methods
     if (config["allowed_methods"].is_array()) {
-        vector<HttpMethod> methods;
+        vector<Method> methods;
 
         for (auto& method : config["allowed_methods"].array_items()) {
             if (!method.is_string()) {
@@ -364,7 +363,7 @@ void match_location_i(LocationConfig const& cfg, const char*& path, vector<Locat
     // return lout == nullptr ? std::nullopt : std::optional { lout };
 }
 
-auto match_location(LocationConfig const& cfg, http::HttpRequest& req) -> optional<tuple<vector<LocationConfig const*>, string>>
+auto match_location(LocationConfig const& cfg, http::Request& req) -> optional<tuple<vector<LocationConfig const*>, string>>
 {
     vector<LocationConfig const*> location_list;
     auto path = req.get_uri().get_pqf()->get_path_escaped().value();
@@ -380,7 +379,7 @@ auto match_location(LocationConfig const& cfg, http::HttpRequest& req) -> option
     return x;
 }
 
-auto match_base_config(RootConfig const& rcfg, http::HttpRequest& req) -> tuple<BaseConfig, string>
+auto match_base_config(RootConfig const& rcfg, http::Request& req) -> tuple<BaseConfig, string>
 {
     // FIXME: this could be a lot cleaner
     auto host = req.get_header(http::header::HOST).value_or("");
@@ -397,7 +396,7 @@ auto match_base_config(RootConfig const& rcfg, http::HttpRequest& req) -> tuple<
     optional<vector<string>> index_pages;
     optional<map<uint16_t, string>> error_pages;
     optional<bool> use_cgi;
-    optional<vector<HttpMethod>> allowed_methods;
+    optional<vector<Method>> allowed_methods;
     optional<bool> autoindex;
 
     if (lcfg_o.has_value()) {
@@ -565,7 +564,7 @@ auto main(int argc, const char** argv) -> int
                     GlobalRuntime::spawn(HttpServer(
                         address,
                         port,
-                        [](http::HttpRequest& req, net::SocketAddr const& socket_addr) {
+                        [](http::Request& req, net::SocketAddr const& socket_addr) {
                             auto const& cfg = RootConfigSingleton::get();
                             auto host = req.get_header(http::header::HOST);
                             auto method = req.get_method();
@@ -573,7 +572,7 @@ auto main(int argc, const char** argv) -> int
 
                             auto path = uri.get_pqf()->get_path_escaped().value();
 
-                            auto builder = HttpResponseBuilder();
+                            auto builder = ResponseBuilder();
                             builder.status(http::status::NOT_FOUND);
 
                             const auto [bcfg, matched_path] = match_base_config(cfg, req);
@@ -616,7 +615,7 @@ auto main(int argc, const char** argv) -> int
                                             {
                                                 // it already executes here.
                                                 auto cgi_body = cgi::Cgi(search_path, req, socket_addr);
-                                                return HttpResponseBuilder()
+                                                return ResponseBuilder()
                                                     .status(http::status::OK)
                                                     .body(BoxPtr<cgi::Cgi>::make(std::move(cgi_body)))
                                                     .cgi(std::move(cgi_body))
@@ -632,8 +631,8 @@ auto main(int argc, const char** argv) -> int
                                     } catch (std::invalid_argument& e) { // TODO: change invalid_argument to FileIsDirectory error
                                         if (auto_index) {
                                             try {
-                                                auto dir = BoxPtr<DirectoryBody>::make(search_path, path);
-                                                return HttpResponseBuilder()
+                                                auto dir = BoxPtr<DirectoryReader>::make(search_path, path);
+                                                return ResponseBuilder()
                                                     .status(http::status::OK)
                                                     .body(std::move(dir))
                                                     .build();
@@ -643,13 +642,13 @@ auto main(int argc, const char** argv) -> int
                                                 // this way the server will throw 500 on an actual error
                                             }
                                         }
-                                        return HttpResponseBuilder()
+                                        return ResponseBuilder()
                                             .status(http::status::NOT_FOUND)
                                             .build();
                                     }
                                 }
                             }
-                            return HttpResponseBuilder()
+                            return ResponseBuilder()
                                 .status(http::status::NOT_FOUND)
                                 .build();
                         }));

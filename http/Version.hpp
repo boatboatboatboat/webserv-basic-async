@@ -9,17 +9,17 @@
 
 namespace http {
 
-struct HttpVersion {
+struct Version {
     std::string_view version_string;
 };
 
 namespace version {
-    inline constexpr HttpVersion v1_0 { "HTTP/1.0" };
-    inline constexpr HttpVersion v1_1 { "HTTP/1.1" };
+    inline constexpr Version v1_0 { "HTTP/1.0" };
+    inline constexpr Version v1_1 { "HTTP/1.1" };
 }
 
 }
 
-std::ostream& operator<<(std::ostream& os, http::HttpVersion const& version);
+std::ostream& operator<<(std::ostream& os, http::Version const& version);
 
 #endif //WEBSERV_HTTPVERSION_HPP

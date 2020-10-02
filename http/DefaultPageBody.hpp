@@ -6,7 +6,7 @@
 #define WEBSERV_DEFAULTPAGEBODY_HPP
 
 #include "../ioruntime/IAsyncRead.hpp"
-#include "HttpStatus.hpp"
+#include "Status.hpp"
 
 using ioruntime::IoResult;
 
@@ -18,7 +18,7 @@ static const char* DEFAULT_PAGE_END = "</h1><hr><p style=\"text-align:center;\">
 class DefaultPageBody : public ioruntime::IAsyncRead {
 public:
     DefaultPageBody() = delete;
-    explicit DefaultPageBody(HttpStatus code);
+    explicit DefaultPageBody(Status code);
     auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
 
 private:
@@ -31,7 +31,7 @@ private:
     };
     State state = PageStart;
     ssize_t written {};
-    HttpStatus code;
+    Status code;
 };
 
 }

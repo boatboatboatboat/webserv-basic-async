@@ -5,7 +5,7 @@
 #ifndef WEBSERV_CONFIG_HPP
 #define WEBSERV_CONFIG_HPP
 
-#include "../http/HttpMethod.hpp"
+#include "../http/Method.hpp"
 #include "../net/IpAddress.hpp"
 #include "../option/optional.hpp"
 #include "../regex/Regex.hpp"
@@ -25,17 +25,17 @@ using std::vector;
 template <typename K, typename V>
 using table = vector<pair<K, V>>;
 
-using http::HttpMethod;
+using http::Method;
 using net::IpAddress;
 
 class BaseConfig {
 public:
-    BaseConfig(optional<string> root, optional<vector<string>> index_pages, optional<map<uint16_t, string>> error_pages, optional<bool> use_cgi, optional<vector<HttpMethod>> allowed_methods, optional<bool> autoindex);
+    BaseConfig(optional<string> root, optional<vector<string>> index_pages, optional<map<uint16_t, string>> error_pages, optional<bool> use_cgi, optional<vector<Method>> allowed_methods, optional<bool> autoindex);
     [[nodiscard]] auto get_root() const -> optional<string> const&;
     [[nodiscard]] auto get_index_pages() const -> optional<vector<string>> const&;
     [[nodiscard]] auto get_error_pages() const -> optional<map<uint16_t, string>> const&;
     [[nodiscard]] auto get_use_cgi() const -> optional<bool> const&;
-    [[nodiscard]] auto get_allowed_methods() const -> optional<vector<HttpMethod>> const&;
+    [[nodiscard]] auto get_allowed_methods() const -> optional<vector<Method>> const&;
     [[nodiscard]] auto get_autoindex() const -> optional<bool> const&;
 
 private:
@@ -43,7 +43,7 @@ private:
     optional<vector<string>> index_pages;
     optional<map<uint16_t, string>> error_pages;
     optional<bool> use_cgi;
-    optional<vector<HttpMethod>> allowed_methods;
+    optional<vector<Method>> allowed_methods;
     optional<bool> autoindex;
 };
 

@@ -10,14 +10,13 @@
 #include "../ioruntime/TimeoutFuture.hpp"
 #include "../net/TcpListener.hpp"
 #include "../net/TcpStream.hpp"
-#include "HttpRequestParser.hpp"
-#include "HttpResponse.hpp"
+#include "RequestParser.hpp"
+#include "Response.hpp"
 
 using futures::ForEachFuture;
 using futures::IFuture;
 using ioruntime::TimeoutFuture;
 using net::TcpStream;
-
 
 namespace http {
 
@@ -41,11 +40,12 @@ private:
         enum State {
             Listen,
             Respond
-        } state = Listen;
-        optional<HttpRequest> req;
+        } state
+            = Listen;
+        optional<Request> req;
         LegacyHttpResponse res;
         net::TcpStream stream;
-        optional<HttpRequestParser> parser;
+        optional<RequestParser> parser;
         TimeoutFuture timeout;
         RH handler;
     };

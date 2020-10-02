@@ -14,10 +14,10 @@ using ioruntime::IoResult;
 
 namespace http {
 
-class DirectoryBody : public ioruntime::IAsyncRead {
+class DirectoryReader : public ioruntime::IAsyncRead {
 public:
-    explicit DirectoryBody(string_view str, string_view real_pathstr);
-    ~DirectoryBody() override;
+    explicit DirectoryReader(string_view str, string_view real_pathstr);
+    ~DirectoryReader() override;
     auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
 
 private:

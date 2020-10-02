@@ -28,7 +28,7 @@ auto BaseConfig::get_use_cgi() const -> optional<bool> const&
     return use_cgi;
 }
 
-auto BaseConfig::get_allowed_methods() const -> optional<vector<HttpMethod>> const&
+auto BaseConfig::get_allowed_methods() const -> optional<vector<Method>> const&
 {
     return allowed_methods;
 }
@@ -37,7 +37,7 @@ auto BaseConfig::get_autoindex() const -> optional<bool> const&
 {
     return autoindex;
 }
-BaseConfig::BaseConfig(optional<string> root, optional<vector<string>> index_pages, optional<map<uint16_t, string>> error_pages, optional<bool> use_cgi, optional<vector<HttpMethod>> allowed_methods, optional<bool> autoindex)
+BaseConfig::BaseConfig(optional<string> root, optional<vector<string>> index_pages, optional<map<uint16_t, string>> error_pages, optional<bool> use_cgi, optional<vector<Method>> allowed_methods, optional<bool> autoindex)
     : root(std::move(root))
     , index_pages(std::move(index_pages))
     , error_pages(std::move(error_pages))

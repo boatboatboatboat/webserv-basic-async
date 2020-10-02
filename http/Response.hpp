@@ -8,12 +8,13 @@
 #include "../cgi/Cgi.hpp"
 #include "../ioruntime/IoCopyFuture.hpp"
 #include "../net/Socket.hpp"
+#include "Body.hpp"
 #include "DefaultPageBody.hpp"
-#include "HttpHeader.hpp"
-#include "HttpRequest.hpp"
-#include "HttpRfcConstants.hpp"
-#include "HttpStatus.hpp"
-#include "HttpVersion.hpp"
+#include "Header.hpp"
+#include "Request.hpp"
+#include "RfcConstants.hpp"
+#include "Status.hpp"
+#include "Version.hpp"
 #include <map>
 #include <string>
 
@@ -33,157 +34,133 @@ static inline constexpr auto get_max_num_size(size_t s) -> size_t
 
 namespace http {
 
-// using HttpBody = BoxPtr<ioruntime::IAsyncRead>;
+class Response;
 
-class HttpBody final : public IAsyncRead {
+class ResponseBuilder final {
 public:
-    // special methods
-    HttpBody() = delete;
-    HttpBody(HttpBody&&);
-    HttpBody& operator=(HttpBody&&);
-    ~HttpBody();
-
-    // ctors
-    explicit HttpBody(BoxPtr<ioruntime::IAsyncRead>&& reader);
-    explicit HttpBody(Cgi&& cgi);
-
-    // methods
-    [[nodiscard]] auto is_reader() const -> bool;
-    [[nodiscard]] auto is_cgi() const -> bool;
-    auto get_cgi() -> Cgi&;
-
-    // implement: IAsyncRead
-    auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<ioruntime::IoResult> override;
+    ResponseBuilder();
+    auto version(Version version) -> ResponseBuilder&;
+    auto status(Status status) -> ResponseBuilder&;
+    auto header(HeaderName name, const HeaderValue& value) -> ResponseBuilder&;
+    auto body(BoxPtr<ioruntime::IAsyncRead>&& body) -> ResponseBuilder&;
+    auto body(BoxPtr<ioruntime::IAsyncRead>&& body, size_t content_length) -> ResponseBuilder&;
+    auto cgi(Cgi&& proc) -> ResponseBuilder&;
+    auto build() -> Response;
 
 private:
-    enum Tag {
-        ReaderTag,
-        CgiTag,
-    } tag;
-    union {
-        BoxPtr<ioruntime::IAsyncRead> _reader;
-        Cgi _cgi;
-    };
-};
-
-class LegacyHttpResponse;
-
-class HttpResponseBuilder final {
-public:
-    HttpResponseBuilder();
-    auto version(HttpVersion version) -> HttpResponseBuilder&;
-    auto status(HttpStatus status) -> HttpResponseBuilder&;
-    auto header(HttpHeaderName name, const HttpHeaderValue& value) -> HttpResponseBuilder&;
-    auto body(BoxPtr<ioruntime::IAsyncRead>&& body) -> HttpResponseBuilder&;
-    auto body(BoxPtr<ioruntime::IAsyncRead>&& body, size_t content_length) -> HttpResponseBuilder&;
-    auto cgi(Cgi&& proc) -> HttpResponseBuilder&;
-    auto build() -> LegacyHttpResponse;
-
-private:
-    HttpHeaders _headers;
-    HttpVersion _version = version::v1_1;
-    HttpStatus _status;
-    HttpBody _body;
+    optional<Headers> _headers;
+    optional<Version> _version = version::v1_1;
+    optional<Status> _status;
+    optional<Body> _body;
     optional<Cgi> _cgi = option::nullopt;
 };
 
-class HttpResponse final {
+class Response final {
 public:
     // ctors/dtors
-    HttpResponse() = delete;
-    HttpResponse(HttpHeaders&& headers, HttpVersion&& version, HttpStatus&& status, HttpBody&& body, optional<Cgi>&& cgi);
-    HttpResponse(HttpResponse&&);
-    auto operator=(HttpResponse&&) -> HttpResponse&;
-    ~HttpResponse() = default;
+    Response() = delete;
+    Response(Headers&& headers, Version&& version, Status&& status, Body&& body, optional<Cgi>&& cgi);
+    Response(Response&&);
+    auto operator=(Response&&) -> Response&;
+    ~Response() = default;
 
     // getter methods
-    [[nodiscard]] auto get_headers() const -> HttpHeaders const&;
-    [[nodiscard]] auto get_header(HttpHeaderName const& needle_name) const -> optional<HttpHeaderValue>;
-    [[nodiscard]] auto get_version() const -> HttpVersion const&;
-    [[nodiscard]] auto get_status() const -> HttpStatus const&;
-    [[nodiscard]] auto get_body() const -> HttpBody const&;
+    [[nodiscard]] auto get_headers() const -> Headers const&;
+    [[nodiscard]] auto get_header(HeaderName const& needle_name) const -> optional<HeaderValue>;
+    [[nodiscard]] auto get_version() const -> Version const&;
+    [[nodiscard]] auto get_status() const -> Status const&;
+    [[nodiscard]] auto get_body() const -> Body const&;
     [[nodiscard]] auto get_cgi() const -> optional<Cgi> const&;
     [[nodiscard]] auto get_cgi() -> optional<Cgi>&;
 
 private:
     // FIXME: Proxy-based requests don't have a 'set' header like this
-    HttpHeaders _headers;
-    HttpVersion _version;
-    HttpStatus _status;
-    HttpBody _body;
+    Headers _headers;
+    Version _version;
+    Status _status;
+    Body _body;
     optional<Cgi> _cgi;
 };
 
-class HttpResponseReader : public IAsyncRead {
+class ResponseReader final : public IAsyncRead {
 public:
-    explicit HttpResponseReader(HttpResponse& response);
-    ~HttpResponseReader() override;
+    explicit ResponseReader(Response& response);
+    ~ResponseReader() override;
     auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
 
 private:
     // inner readers
     class StatusReader : public IAsyncRead {
     public:
-        explicit StatusReader(HttpResponse const& response);
+        explicit StatusReader(Version const& version, Status const& status);
         auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
 
     private:
         enum State {
-            Version,
+            VersionState,
             Space1,
             Code,
             Space2,
             Message,
             Clrf,
         } _state
-            = Version;
+            = VersionState;
         char _status_code_buf[3];
         string_view _current;
-        HttpResponse const& _response;
+        Version const& _version;
+        Status const& _status;
     };
     class HeaderReader : public IAsyncRead {
     public:
-        explicit HeaderReader(HttpResponse const& response);
+        explicit HeaderReader(Header const& header);
         auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
 
     private:
-        HttpResponse const& _response;
+        enum State {
+            Name,
+            Splitter,
+            Value,
+            Clrf
+        } _state
+            = Name;
+        string_view _current;
+        Header const& _header;
     };
     class BodyReader : public IAsyncRead {
     public:
-        explicit BodyReader(HttpResponse const& response);
+        explicit BodyReader(Response const& response);
         auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
 
     private:
-        HttpResponse const& _response;
+        Response const& _response;
     };
     class ChunkedBodyReader : public IAsyncRead {
     public:
-        explicit ChunkedBodyReader(HttpResponse const& response);
+        explicit ChunkedBodyReader(Response const& response);
         auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
 
     private:
-        HttpResponse const& _response;
+        Response const& _response;
     };
     class CgiBodyReader : public IAsyncRead {
     public:
-        explicit CgiBodyReader(HttpResponse const& response);
+        explicit CgiBodyReader(Response const& response);
         auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
 
     private:
-        HttpResponse const& _response;
+        Response const& _response;
     };
 
     // Members
-    HttpResponse& _response;
+    Response& _response;
     enum State {
         CheckCgiSuccess,
-        Status,
+        StatusState,
         Header,
         Body,
         ChunkedBody,
         CgiBody
-    } state;
+    } _state;
     union {
         StatusReader _status;
         HeaderReader _header;
@@ -193,12 +170,13 @@ private:
     };
 };
 
+/*
 class LegacyHttpResponse {
 public:
     LegacyHttpResponse();
     explicit LegacyHttpResponse(
-        std::map<HttpHeaderName, HttpHeaderValue>&& response_headers,
-        HttpStatus status,
+        std::map<HeaderName, HeaderValue>&& response_headers,
+        Status status,
         BoxPtr<ioruntime::IAsyncRead>&& response_body,
         optional<Cgi>&& _cgi);
     LegacyHttpResponse(LegacyHttpResponse&& other) noexcept;
@@ -247,14 +225,15 @@ private:
     std::string_view current;
     std::string_view body_view;
     ssize_t written { 0 };
-    std::map<HttpHeaderName, HttpHeaderValue> response_headers;
-    std::map<HttpHeaderName, HttpHeaderValue>::const_iterator header_it;
-    HttpStatus response_status;
-    HttpVersion response_version;
+    std::map<HeaderName, HeaderValue> response_headers;
+    std::map<HeaderName, HeaderValue>::const_iterator header_it;
+    Status response_status;
+    Version response_version;
     BoxPtr<ioruntime::IAsyncRead> response_body;
     optional<Cgi> _cgi;
     optional<ioruntime::IoCopyFuture> _icf;
 };
+*/
 
 }
 

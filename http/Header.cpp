@@ -2,9 +2,9 @@
 // Created by boat on 8/27/20.
 //
 
-#include "HttpHeader.hpp"
+#include "Header.hpp"
 
-auto http::HttpHeader::operator==(const http::HttpHeader& other) const -> bool
+auto http::Header::operator==(const http::Header& other) const -> bool
 {
     return (name.size() == other.name.size())
         && std::equal(name.begin(), name.end(), other.name.begin(), other.name.end(),

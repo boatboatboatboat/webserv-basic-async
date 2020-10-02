@@ -6,7 +6,7 @@
 
 namespace http {
 
-DefaultPageBody::DefaultPageBody(HttpStatus code)
+DefaultPageBody::DefaultPageBody(Status code)
     : code(code)
 {
 }

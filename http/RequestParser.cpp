@@ -2,70 +2,70 @@
 // Created by boat on 13-09-20.
 //
 
-#include "HttpRequestParser.hpp"
+#include "RequestParser.hpp"
 
 using std::move;
 
 namespace http {
 
-HttpRequestParser::ParserError::ParserError(const char* w)
+RequestParser::ParserError::ParserError(const char* w)
     : std::runtime_error(w)
 {
 }
 
-HttpRequestParser::RequestUriExceededBuffer::RequestUriExceededBuffer()
+RequestParser::RequestUriExceededBuffer::RequestUriExceededBuffer()
     : ParserError("Request URI exceeded buffer limit")
 {
 }
 
-HttpRequestParser::BodyExceededLimit::BodyExceededLimit()
+RequestParser::BodyExceededLimit::BodyExceededLimit()
     : ParserError("Body exceeded limit")
 {
 }
 
-HttpRequestParser::GenericExceededBuffer::GenericExceededBuffer()
+RequestParser::GenericExceededBuffer::GenericExceededBuffer()
     : ParserError("Exceeded buffer limit")
 {
 }
 
-HttpRequestParser::InvalidMethod::InvalidMethod()
+RequestParser::InvalidMethod::InvalidMethod()
     : ParserError("Invalid HTTP method")
 {
 }
 
-HttpRequestParser::InvalidVersion::InvalidVersion()
+RequestParser::InvalidVersion::InvalidVersion()
     : ParserError("Invalid HTTP version")
 {
 }
 
-HttpRequestParser::MalformedRequest::MalformedRequest()
+RequestParser::MalformedRequest::MalformedRequest()
     : ParserError("Invalid HTTP header")
 {
 }
 
-HttpRequestParser::UnexpectedEof::UnexpectedEof()
+RequestParser::UnexpectedEof::UnexpectedEof()
     : ParserError("Unexpected end of request")
 {
 }
 
-HttpRequestParser::UndeterminedLength::UndeterminedLength()
+RequestParser::UndeterminedLength::UndeterminedLength()
     : ParserError("Undetermined length of body")
 {
 }
 
-HttpRequestParser::BadTransferEncoding::BadTransferEncoding()
+RequestParser::BadTransferEncoding::BadTransferEncoding()
     : ParserError("Bad transfer encoding")
 {
 }
 
-HttpRequestParser::HttpRequestParser(IAsyncRead& source, size_t buffer_limit, size_t body_limit)
+RequestParser::RequestParser(IAsyncRead& source, size_t buffer_limit, size_t body_limit)
     : buffer_limit(buffer_limit)
     , body_limit(body_limit)
     , source(source)
 {
 }
 
-HttpRequestParser::HttpRequestParser(HttpRequestParser&& other) noexcept
+RequestParser::RequestParser(RequestParser&& other) noexcept
     : character_head(other.character_head)
     , character_max(other.character_max)
     , buffer_limit(other.buffer_limit)
@@ -78,7 +78,7 @@ HttpRequestParser::HttpRequestParser(HttpRequestParser&& other) noexcept
     other.moved = true;
 }
 
-HttpRequestParser::HttpRequestParser(HttpRequestParser&& other, IAsyncRead& new_stream) noexcept
+RequestParser::RequestParser(RequestParser&& other, IAsyncRead& new_stream) noexcept
     : character_head(other.character_head)
     , character_max(other.character_max)
     , buffer_limit(other.buffer_limit)
@@ -93,10 +93,10 @@ HttpRequestParser::HttpRequestParser(HttpRequestParser&& other, IAsyncRead& new_
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "EndlessLoop"
-auto HttpRequestParser::poll(Waker&& waker) -> PollResult<HttpRequest>
+auto RequestParser::poll(Waker&& waker) -> PollResult<Request>
 {
     if (moved)
-        return PollResult<HttpRequest>::pending();
+        return PollResult<Request>::pending();
     auto poll_result = poll_character(Waker(waker));
     using Status = StreamPollResult<uint8_t>::Status;
 
@@ -168,7 +168,7 @@ auto HttpRequestParser::poll(Waker&& waker) -> PollResult<HttpRequest>
             case HeaderLine: {
                 if (str_in_buf.empty()) {
                     if (!method_has_body(current_method)) {
-                        return PollResult<HttpRequest>::ready(move(builder).build());
+                        return PollResult<Request>::ready(move(builder).build());
                     }
                     if (content_length.has_value()) {
                         state = Body;
@@ -216,7 +216,7 @@ auto HttpRequestParser::poll(Waker&& waker) -> PollResult<HttpRequest>
             case Body: {
                 if (buffer.size() == *content_length) {
                     builder.body(move(buffer));
-                    return PollResult<HttpRequest>::ready(move(builder).build());
+                    return PollResult<Request>::ready(move(builder).build());
                 }
             } break;
             case ChunkedBodySize: {
@@ -225,6 +225,7 @@ auto HttpRequestParser::poll(Waker&& waker) -> PollResult<HttpRequest>
                 // however we are allowed to ignore the extensions,
                 // so we're just going to ignore everything after the first ';'.
                 // however, we still have to check if the characters are valid
+                // because we need to send a 400 if that isn't the case
 
                 auto first_separator = str_in_buf.find(';');
                 if (first_separator == string_view::npos) {
@@ -242,7 +243,7 @@ auto HttpRequestParser::poll(Waker&& waker) -> PollResult<HttpRequest>
                     last_chunk_size = decoded_size.value();
                     if (decoded_size.value() == 0) {
                         builder.body(move(*decoded_body));
-                        return PollResult<HttpRequest>::ready(move(builder).build());
+                        return PollResult<Request>::ready(move(builder).build());
                     }
                     buffer.clear();
                     state = ChunkedBodyData;
@@ -272,7 +273,7 @@ auto HttpRequestParser::poll(Waker&& waker) -> PollResult<HttpRequest>
         return poll(move(waker));
     } break;
     case Status::Pending: {
-        return PollResult<HttpRequest>::pending();
+        return PollResult<Request>::pending();
     } break;
     case Status::Finished: {
         // All EOFs are unexpected, we want either TCE or CL
@@ -282,7 +283,7 @@ auto HttpRequestParser::poll(Waker&& waker) -> PollResult<HttpRequest>
 };
 #pragma clang diagnostic pop
 
-auto HttpRequestParser::poll_character(Waker&& waker) -> StreamPollResult<uint8_t>
+auto RequestParser::poll_character(Waker&& waker) -> StreamPollResult<uint8_t>
 {
     if (character_head == 0) {
         auto poll_result = source.poll_read(span(character_buffer, sizeof(character_buffer)), move(waker));

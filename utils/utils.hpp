@@ -4,13 +4,13 @@
 
 #ifndef WEBSERV_UTIL_HPP
 #define WEBSERV_UTIL_HPP
+#include "../http/RfcConstants.hpp"
 #include "../option/optional.hpp"
 #include "cstr.hpp"
 #include "mem_copy.hpp"
 #include "mem_zero.hpp"
 #include "span.hpp"
 #include <string>
-#include "../http/HttpRfcConstants.hpp"
 
 void dbg_puts(std::string const& printme);
 
