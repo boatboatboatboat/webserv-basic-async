@@ -67,7 +67,7 @@ Socket::Socket(Socket&& other) noexcept
 Socket::~Socket()
 {
     if (descriptor >= 0) {
-        TRACEPRINT("unregister " << descriptor);
+        TRACEPRINT("socket unregister " << descriptor);
         GlobalIoEventHandler::unregister_special_callbacks(descriptor);
     }
 }

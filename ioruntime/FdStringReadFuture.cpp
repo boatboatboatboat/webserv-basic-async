@@ -12,18 +12,18 @@ ioruntime::FdStringReadFuture::FdStringReadFuture(FileDescriptor&& fd, std::stri
 
 auto ioruntime::FdStringReadFuture::poll(futures::Waker&& waker) -> futures::PollResult<void>
 {
-    char buf[128];
+    uint8_t buf[128];
 
-    auto res = fd.poll_read(buf, sizeof(buf), std::move(waker));
+    auto res = fd.poll_read(span(buf, sizeof(buf)), std::move(waker));
     if (res.is_ready()) {
-        if (res.get() < 0) {
+        if (res.get().is_error()) {
             throw std::runtime_error("read failed");
         }
 
-        if (res.get() == 0)
+        if (res.get().is_eof())
             return PollResult<void>::ready();
 
-        str += std::string_view(buf, res.get());
+        str += std::string_view((char *)buf, res.get().get_bytes_read());
     }
     return PollResult<void>::pending();
 }

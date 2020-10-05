@@ -21,6 +21,7 @@ using ioruntime::GlobalChildProcessHandler;
 using ioruntime::IAsyncWrite;
 using ioruntime::IoResult;
 using net::SocketAddr;
+using std::move;
 using std::string;
 
 class Cgi : public IAsyncRead, public IAsyncWrite {
@@ -48,15 +49,19 @@ public:
         }
     };
 
+    Cgi(Cgi&&) noexcept = default;
     explicit Cgi(
         const string& path,
-        Request const& req,
+        Request&& req,
         SocketAddr const& addr)
         : _path(path)
+        , _request(move(req))
+        , _body_span(const_cast<uint8_t*>(_request.get_body().data()), _request.get_body().size())
     {
-        generate_env(req, addr);
+        generate_env(_request, addr);
         create_pipe();
         fork_process();
+        env.clear();
         // check if child errored
         // basically, check if something has been written to the error pipe
         // if it has been, throw an error
@@ -90,62 +95,56 @@ public:
         GlobalChildProcessHandler::register_handler(pid, waker.boxed());
 
         uint8_t errbuf[1];
-        auto res = child_error_ipc->poll_read(span(errbuf, 1), std::move(waker));
+        auto res = child_error_ipc->poll_read(span(errbuf, 1), Waker(waker));
 
         if (res.is_ready()) {
             if (res.get().is_success()) {
                 throw CgiError("execve failure");
             }
+            return true;
         } else {
             auto ran = process_ran->lock();
             if (*ran || child_output->can_read()) {
                 return true;
+            } else {
+                // just try to poll write the body and see if something happens
+                poll_write_body(move(waker));
             }
         }
         return false;
     }
 
+    auto poll_write_body(Waker&& waker) -> PollResult<IoResult>
+    {
+        if (child_input.has_value()) {
+            auto poll_res = child_input->poll_write(_body_span, move(waker));
+            if (poll_res.is_ready()) {
+                auto res = poll_res.get();
+                if (res.is_error()) {
+                    // probably a broken pipe or something
+                    // we can't do anything and we don't care either
+                    WARNPRINT("CGI body write failure");
+                } else if (res.is_eof()) {
+                    // eof: destroy child_input!
+                    child_input = option::nullopt;
+                } else if (res.is_success()) {
+                    _body_span.remove_prefix_inplace(res.get_bytes_read());
+                }
+            }
+            return poll_res;
+        } else {
+            return PollResult<IoResult>::ready(IoResult::eof());
+        }
+    }
+
     auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override
     {
         GlobalChildProcessHandler::register_handler(pid, waker.boxed());
-        if (!child_succeeded) {
-            uint8_t errbuf[1];
-            auto res = child_error_ipc->poll_read(span(errbuf, 1), Waker(waker));
-
-            if (res.is_ready()) {
-                if (res.get().is_success()) {
-                    throw CgiError("execve failure");
-                }
-            } else {
-                auto ran = process_ran->lock();
-                if (*ran || child_output->can_read()) {
-                    child_succeeded = true;
-                    return child_input->poll_read(buffer, std::move(waker));
-                }
-            }
-        }
         return child_output->poll_read(buffer, std::move(waker));
     }
 
     auto poll_write(span<uint8_t> const buffer, Waker&& waker) -> PollResult<IoResult> override
     {
-        if (!child_succeeded) {
-            uint8_t errbuf[1];
-            auto res = child_error_ipc->poll_read(span(errbuf, 1), Waker(waker));
-
-            if (res.is_ready()) {
-                if (res.get().is_success()) {
-                    throw CgiError("execve failure");
-                }
-            } else {
-                auto ran = process_ran->lock();
-                if (*ran || child_output->can_read()) {
-                    child_succeeded = true;
-                    return child_input->poll_write(buffer, std::move(waker));
-                }
-            }
-            return PollResult<IoResult>::pending();
-        }
         return child_input->poll_write(buffer, std::move(waker));
     }
 
@@ -308,13 +307,20 @@ private:
         if (pipe(output_redirection_fds) < 0) {
             throw PipeSetupFailed();
         }
-        if (pipe(error_indication_fds) < 0) {
+        if (pipe(input_redirection_fds) < 0) {
             close(output_redirection_fds[0]);
             close(output_redirection_fds[1]);
             throw PipeSetupFailed();
         }
+        if (pipe(error_indication_fds) < 0) {
+            close(output_redirection_fds[0]);
+            close(input_redirection_fds[0]);
+            close(output_redirection_fds[1]);
+            close(input_redirection_fds[1]);
+            throw PipeSetupFailed();
+        }
         child_output = FileDescriptor(output_redirection_fds[0]);
-        child_input = FileDescriptor(output_redirection_fds[1]);
+        child_input = FileDescriptor(input_redirection_fds[1]);
         child_error_ipc = FileDescriptor(error_indication_fds[0]);
     }
 
@@ -328,6 +334,7 @@ private:
             do_child_logic();
         } else {
             close(output_redirection_fds[1]);
+            close(input_redirection_fds[0]);
             close(error_indication_fds[1]);
             // TODO: check if this is a race condition, and that the signal may be fired before the handler is created
             GlobalChildProcessHandler::register_handler(pid, BoxPtr<SetReadyFunctor>::make(RcPtr(process_ran)));
@@ -340,10 +347,12 @@ private:
         if (dup2(output_redirection_fds[1], STDOUT_FILENO) < 0) {
             child_indicate_failure();
         }
+
         // redirect stdin
-        if (dup2(output_redirection_fds[0], STDIN_FILENO) < 0) {
+        if (dup2(input_redirection_fds[0], STDIN_FILENO) < 0) {
             child_indicate_failure();
         }
+
         close(error_indication_fds[0]);
         try {
             switch_process();
@@ -394,15 +403,17 @@ private:
     }
 
     int output_redirection_fds[2];
+    int input_redirection_fds[2];
     int error_indication_fds[2];
-    bool child_succeeded = false;
     pid_t pid;
     RcPtr<Mutex<bool>> process_ran = RcPtr(Mutex(false));
     optional<FileDescriptor> child_input;
     optional<FileDescriptor> child_output;
     optional<FileDescriptor> child_error_ipc;
     vector<string> env;
-    const string& _path;
+    string const& _path;
+    Request _request;
+    span<uint8_t> _body_span;
 };
 
 }

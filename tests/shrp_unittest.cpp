@@ -4,7 +4,7 @@
 
 #include "../func/Functor.hpp"
 #include "../http/RequestParser.hpp"
-#include "../http/StringBody.hpp"
+#include "../http/StringReader.hpp"
 #include "../ioruntime/RuntimeBuilder.hpp"
 
 #include "gtest/gtest.h"
@@ -21,7 +21,7 @@ TEST(ShrpTests, shrp_basic_request)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringBody sbody(request, true);
+    StringReader sbody(request, true);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -43,7 +43,7 @@ TEST(ShrpTests, shrp_basic_request_path)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringBody sbody(request, true);
+    StringReader sbody(request, true);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -65,7 +65,7 @@ TEST(ShrpTests, shrp_request_asterisk)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringBody sbody(request, true);
+    StringReader sbody(request, true);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -87,7 +87,7 @@ TEST(ShrpTests, shrp_basic_authority)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringBody sbody(request, true);
+    StringReader sbody(request, true);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -110,7 +110,7 @@ TEST(ShrpTests, shrp_basic_post_with_body)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringBody sbody(request, true);
+    StringReader sbody(request, true);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -136,7 +136,7 @@ TEST(ShrpTests, shrp_body_limit)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 10;
 
-    StringBody sbody(request, true);
+    StringReader sbody(request, true);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -154,7 +154,7 @@ TEST(ShrpTests, shrp_buffer_limit_uri)
     const size_t buffer_limit = 10;
     const size_t body_limit = 8192;
 
-    StringBody sbody(request, true);
+    StringReader sbody(request, true);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -172,7 +172,7 @@ TEST(ShrpTests, shrp_buffer_limit_generic)
     const size_t buffer_limit = 10;
     const size_t body_limit = 8192;
 
-    StringBody sbody(request, true);
+    StringReader sbody(request, true);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -190,7 +190,7 @@ TEST(ShrpTests, shrp_get_header)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringBody sbody(request, true);
+    StringReader sbody(request, true);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -215,7 +215,7 @@ TEST(ShrpTests, shrp_get_header_n2)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringBody sbody(request, true);
+    StringReader sbody(request, true);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -241,7 +241,7 @@ TEST(ShrpTests, shrp_header_buffer_limit)
     const size_t buffer_limit = 10;
     const size_t body_limit = 8192;
 
-    StringBody sbody(request, true);
+    StringReader sbody(request, true);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 

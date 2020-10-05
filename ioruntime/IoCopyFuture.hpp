@@ -9,21 +9,23 @@
 #include "../futures/Waker.hpp"
 #include "IAsyncRead.hpp"
 #include "IAsyncWrite.hpp"
+#include "../option/optional.hpp"
 
 using futures::IFuture;
 using futures::PollResult;
 using futures::Waker;
+using option::optional;
 
 namespace ioruntime {
 
 class IoCopyFuture: public IFuture<void> {
 public:
     IoCopyFuture() = delete;
-    IoCopyFuture(IAsyncRead& reader, IAsyncWrite& writer);
+    explicit IoCopyFuture(IAsyncRead& reader, IAsyncWrite& writer);
     auto poll(Waker&& waker) -> PollResult<void> override;
 private:
     uint8_t buffer[8192];
-    size_t head = 0;
+    optional<span<uint8_t>> _span;
     enum State {
         Reading,
         Writing

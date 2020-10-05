@@ -54,7 +54,7 @@ void IoEventHandler::reactor_step()
         safe_fire_listeners(write_fd_in_use, write_selected, write_listeners);
         safe_fire_listeners(special_fd_in_use, special_selected, special_listeners);
     } else if (selected < 0) {
-        WARNPRINT("Select failed: " << strerror(errno));
+        TRACEPRINT("Select failed: " << strerror(errno));
     }
 }
 

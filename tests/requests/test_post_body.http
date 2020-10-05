@@ -3,6 +3,6 @@ Content-Type: text/plain
 
 Hello, world!
 ###
-POST http://localhost:1234/cgi/body_test.lua
+POST http://localhost:1234/cgi/body_echo.lua
 
 Hello, world!

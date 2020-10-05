@@ -169,6 +169,7 @@ TEST(IpAddressTests, ipaddr_v4_cmp_aton1)
     const char* b = strdup(inet_ntoa(in_addr { ip.get_ip_bytes() }));
     EXPECT_STREQ(b, inet_ntoa(rip));
     EXPECT_EQ(ip.get_ip_bytes(), rip.s_addr);
+    free((void*)b);
 }
 
 TEST(IpAddressTests, ipaddr_v4_cmp_aton2)
@@ -181,6 +182,7 @@ TEST(IpAddressTests, ipaddr_v4_cmp_aton2)
     const char* b = strdup(inet_ntoa(in_addr { ip.get_ip_bytes() }));
     EXPECT_STREQ(b, inet_ntoa(rip));
     EXPECT_EQ(ip.get_ip_bytes(), rip.s_addr);
+    free((void*)b);
 }
 
 TEST(IpAddressTests, ipaddr_v4_cmp_aton3)
@@ -193,6 +195,7 @@ TEST(IpAddressTests, ipaddr_v4_cmp_aton3)
     const char* b = strdup(inet_ntoa(in_addr { ip.get_ip_bytes() }));
     EXPECT_STREQ(b, inet_ntoa(rip));
     EXPECT_EQ(ip.get_ip_bytes(), rip.s_addr);
+    free((void*)b);
 }
 
 TEST(IpAddressTests, ipaddr_v4_cmp_aton4)
@@ -205,6 +208,7 @@ TEST(IpAddressTests, ipaddr_v4_cmp_aton4)
     const char* b = strdup(inet_ntoa(in_addr { ip.get_ip_bytes() }));
     EXPECT_STREQ(b, inet_ntoa(rip));
     EXPECT_EQ(ip.get_ip_bytes(), rip.s_addr);
+    free((void*)b);
 }
 
 TEST(IpAddressTests, ipaddr_v4_cmp_aton5)
@@ -217,6 +221,7 @@ TEST(IpAddressTests, ipaddr_v4_cmp_aton5)
     const char* b = strdup(inet_ntoa(in_addr { ip.get_ip_bytes() }));
     EXPECT_STREQ(b, inet_ntoa(rip));
     EXPECT_EQ(ip.get_ip_bytes(), rip.s_addr);
+    free((void*)b);
 }
 
 TEST(IpAddressTests, ipaddr_v4_cmp_aton6)
@@ -229,6 +234,7 @@ TEST(IpAddressTests, ipaddr_v4_cmp_aton6)
     const char* b = strdup(inet_ntoa(in_addr { ip.get_ip_bytes() }));
     EXPECT_STREQ(b, inet_ntoa(rip));
     EXPECT_EQ(ip.get_ip_bytes(), rip.s_addr);
+    free((void*)b);
 }
 
 TEST(IpAddressTests, ipaddr_v4_cmp_aton7)
@@ -241,6 +247,7 @@ TEST(IpAddressTests, ipaddr_v4_cmp_aton7)
     const char* b = strdup(inet_ntoa(in_addr { ip.get_ip_bytes() }));
     EXPECT_STREQ(b, inet_ntoa(rip));
     EXPECT_EQ(ip.get_ip_bytes(), rip.s_addr);
+    free((void*)b);
 }
 
 TEST(IpAddressTests, ipaddr_v6_cmp_aton1)

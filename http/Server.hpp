@@ -26,14 +26,14 @@ public:
 };
 
 template <typename RH>
-class HttpServer final : public IFuture<void> {
+class Server final : public IFuture<void> {
 private:
-    class HttpConnectionFuture final : public IFuture<void> {
+    class ConnectionFuture final : public IFuture<void> {
     public:
-        HttpConnectionFuture() = delete;
-        ~HttpConnectionFuture() override;
-        HttpConnectionFuture(HttpConnectionFuture&& other) noexcept;
-        explicit HttpConnectionFuture(net::TcpStream&& stream);
+        ConnectionFuture() = delete;
+        ~ConnectionFuture() override;
+        ConnectionFuture(ConnectionFuture&& other) noexcept;
+        explicit ConnectionFuture(net::TcpStream&& stream);
         auto poll(Waker&& waker) -> PollResult<void> override;
 
     private:
@@ -43,16 +43,18 @@ private:
         } state
             = Listen;
         optional<Request> req;
-        LegacyHttpResponse res;
+        optional<Response> res;
+        optional<ioruntime::IoCopyFuture> copier;
         net::TcpStream stream;
         optional<RequestParser> parser;
+        optional<ResponseReader> reader;
         TimeoutFuture timeout;
         RH handler;
     };
 
 public:
-    HttpServer() = delete;
-    explicit HttpServer(net::IpAddress address, uint16_t port, RH fn);
+    Server() = delete;
+    explicit Server(net::IpAddress address, uint16_t port, RH fn);
     auto poll(Waker&& waker) -> PollResult<void> override;
     static void handle_connection(net::TcpStream& stream);
     static void handle_exception(std::exception& e);
@@ -64,6 +66,6 @@ private:
 
 }
 
-#include "HttpServer.ipp"
+#include "Server.ipp"
 
 #endif //WEBSERV_HTTPSERVER_HPP

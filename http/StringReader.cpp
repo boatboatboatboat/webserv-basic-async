@@ -2,19 +2,19 @@
 // Created by boat on 8/22/20.
 //
 
-#include "StringBody.hpp"
+#include "StringReader.hpp"
 
 #include <utility>
 
 namespace http {
 
-StringBody::StringBody(std::string body, bool stream_like)
+StringReader::StringReader(std::string body, bool stream_like)
     : stream_like(stream_like)
     , body(std::move(body))
 {
 }
 
-auto StringBody::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
+auto StringReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
 {
     auto left_to_write = std::min(buffer.size(), body.length() - written);
     memcpy(buffer.data(), body.c_str() + written, left_to_write);

@@ -13,7 +13,7 @@ Body::Body(Body&& other) noexcept
     if (other._tag == ReaderTag) {
         new (&_reader) BoxPtr<IAsyncRead>(move(other._reader));
     } else if (other._tag == CgiTag) {
-        new (&_cgi) Cgi(move(_cgi));
+        new (&_cgi) Cgi(move(other._cgi));
     }
     _tag = other._tag;
 }
@@ -28,9 +28,10 @@ auto Body::operator=(Body&& other) noexcept -> Body&
     if (other._tag == ReaderTag) {
         new (&_reader) BoxPtr<IAsyncRead>(move(other._reader));
     } else if (other._tag == CgiTag) {
-        new (&_cgi) Cgi(move(_cgi));
+        new (&_cgi) Cgi(move(other._cgi));
     }
     _tag = other._tag;
+    return *this;
 }
 
 Body::~Body()
@@ -75,6 +76,8 @@ auto Body::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<ioruntim
         return _reader->poll_read(buffer, move(waker));
     } else if (_tag == CgiTag) {
         return _cgi.poll_read(buffer, move(waker));
+    } else {
+        throw std::logic_error("Unreachable");
     }
 }
 

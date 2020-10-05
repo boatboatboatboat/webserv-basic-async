@@ -12,7 +12,9 @@ namespace http {
 inline std::string_view SP = " ";
 inline std::string_view CLRF = "\r\n";
 
+
 namespace parser_utils {
+using std::string_view;
 inline auto is_alpha_lower(char c) -> bool
 {
     return c >= 'a' && c <= 'z';

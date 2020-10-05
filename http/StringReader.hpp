@@ -11,9 +11,9 @@ using ioruntime::IoResult;
 
 namespace http {
 
-class StringBody : public ioruntime::IAsyncRead {
+class StringReader : public ioruntime::IAsyncRead {
 public:
-    explicit StringBody(std::string body, bool stream_like = false);
+    explicit StringReader(std::string body, bool stream_like = false);
     auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
 
 private:

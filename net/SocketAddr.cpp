@@ -85,7 +85,7 @@ auto operator<<(std::ostream& os, const net::SocketAddr& sa) -> std::ostream&
         bool pdouble = false;
         while (idx < 8) {
             if (ip[idx] == 0 && idx != 7 && ip[idx + 1] == 0) {
-                while (ip[idx] == 0 && idx < 8)
+                while (idx < 8 && ip[idx] == 0)
                     idx += 1;
                 if (pdouble)
                     os << ":";

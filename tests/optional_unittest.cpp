@@ -9,18 +9,6 @@ using option::optional;
 
 namespace {
 
-TEST(OptionalTests, optional_default_ctor_eq_false)
-{
-    optional<int> x;
-    EXPECT_FALSE(x);
-}
-
-TEST(OptionalTests, optional_cctor_nullopt_eq_false)
-{
-    optional<int> x = option::nullopt;
-    EXPECT_FALSE(x);
-}
-
 TEST(OptionalTests, optional_cctor_nullopt_has_value)
 {
     optional<int> x = option::nullopt;
@@ -81,7 +69,7 @@ TEST(OptionalTests, optional_deref_move)
     auto x = optional<std::string> { "hello" };
     auto y = *std::move(x);
 
-    EXPECT_FALSE(x);
+    EXPECT_FALSE(x.has_value());
     EXPECT_STREQ(y.c_str(), "hello");
 }
 

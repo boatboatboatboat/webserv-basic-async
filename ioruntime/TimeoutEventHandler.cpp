@@ -63,7 +63,7 @@ void TimeoutEventHandler::register_timeout_real(uint64_t ms, BoxFunctor&& callba
     clocks->insert(std::pair(ms, CallbackInfo { .used = false, .functor = std::move(callback) }));
 }
 
-bool TimeoutEventHandler::is_clocks_empty()
+auto TimeoutEventHandler::is_clocks_empty() -> bool
 {
     auto clocks = clocks_mutex.lock();
     return clocks->empty();

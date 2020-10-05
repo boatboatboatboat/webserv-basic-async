@@ -10,12 +10,11 @@
 #include "futures/ForEachFuture.hpp"
 #include "futures/SelectFuture.hpp"
 #include "http/DirectoryReader.hpp"
-#include "http/HttpParser.hpp"
-#include "http/HttpServer.hpp"
 #include "http/InfiniteBody.hpp"
 #include "http/Request.hpp"
 #include "http/Response.hpp"
-#include "http/StringBody.hpp"
+#include "http/Server.hpp"
+#include "http/StringReader.hpp"
 #include "ioruntime/FdLineStream.hpp"
 #include "ioruntime/FdStringReadFuture.hpp"
 #include "ioruntime/TimeoutEventHandler.hpp"
@@ -32,9 +31,10 @@ using futures::ForEachFuture;
 using futures::IFuture;
 using futures::PollResult;
 using http::DirectoryReader;
-using http::HttpServer;
 using http::ResponseBuilder;
-using http::StringBody;
+using http::ResponseBuilder;
+using http::StringReader;
+using http::Server;
 using ioruntime::GlobalIoEventHandler;
 using ioruntime::GlobalRuntime;
 using ioruntime::IoEventHandler;
@@ -561,7 +561,7 @@ auto main(int argc, const char** argv) -> int
             auto bind_addresses = server.get_bind_addresses();
             if (bind_addresses.has_value()) {
                 for (auto& [address, port] : *bind_addresses) {
-                    GlobalRuntime::spawn(HttpServer(
+                    GlobalRuntime::spawn(Server(
                         address,
                         port,
                         [](http::Request& req, net::SocketAddr const& socket_addr) {
@@ -614,10 +614,9 @@ auto main(int argc, const char** argv) -> int
                                             }
                                             {
                                                 // it already executes here.
-                                                auto cgi_body = cgi::Cgi(search_path, req, socket_addr);
+                                                auto cgi_body = cgi::Cgi(search_path, move(req), socket_addr);
                                                 return ResponseBuilder()
                                                     .status(http::status::OK)
-                                                    .body(BoxPtr<cgi::Cgi>::make(std::move(cgi_body)))
                                                     .cgi(std::move(cgi_body))
                                                     .build();
                                             }
