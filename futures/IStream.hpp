@@ -18,6 +18,7 @@ class StreamPollResult;
 template <typename T>
 class IStream {
 public:
+    typedef T result_type;
     virtual ~IStream() = 0;
     virtual StreamPollResult<T> poll_next(Waker&& waker) = 0;
 };

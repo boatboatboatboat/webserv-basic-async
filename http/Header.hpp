@@ -28,6 +28,7 @@ namespace header {
     // HTTP header names are case insensitive (RFC 2616 Section 4.2.)
     inline HeaderName ACCEPT { "Accept" };
     inline HeaderName ALLOW { "Allow" };
+    inline HeaderName AUTHORIZATION { "Authorization" };
     inline HeaderName CONNECTION { "Connection" };
     inline HeaderName CONTENT_LENGTH { "Content-Length" };
     inline HeaderName CONTENT_TYPE { "Content-Type" };
@@ -38,6 +39,7 @@ namespace header {
     inline HeaderName UPGRADE { "Upgrade" };
     inline HeaderName USER_AGENT { "User-Agent" };
     inline HeaderName TRANSFER_ENCODING { "Transfer-Encoding" };
+    inline HeaderName SERVER { "Server" };
 }
 
 }

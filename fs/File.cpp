@@ -27,7 +27,7 @@ auto fs::File::open_no_traversal(std::string const& path) -> fs::File
 
     if (fd == -1) {
         if (errno == ENOENT) {
-            throw std::invalid_argument("No such file or directory");
+            throw fs::FileNotFound();
         }
         DBGPRINT(strerror(errno));
         throw std::system_error(errno, std::system_category());
@@ -42,7 +42,7 @@ auto fs::File::open(std::string const& path) -> fs::File
 
     if (fd == -1) {
         if (errno == ENOENT) {
-            throw std::invalid_argument("No such file or directory");
+            throw fs::FileNotFound();
         }
         throw std::system_error(errno, std::system_category());
     }
@@ -64,7 +64,7 @@ auto fs::File::from_raw_fd(int fd) -> fs::File
     // we only accept files
     if (!S_ISREG(sbuf.st_mode)) {
         ::close(fd);
-        throw std::invalid_argument("Is directory");
+        throw fs::FileIsDirectory();
     }
 
     return fs::File(FileDescriptor(fd));
@@ -80,4 +80,20 @@ auto fs::File::size() -> size_t
     }
 
     return sbuf.st_size;
+}
+
+fs::FileNotFound::FileNotFound()
+    : FileError("File not found")
+{
+}
+
+fs::FileIsDirectory::FileIsDirectory()
+    : FileError("File is directory")
+{
+}
+
+fs::FileError::FileError(const char *w)
+    : std::runtime_error(w)
+{
+
 }

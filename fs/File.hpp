@@ -11,6 +11,22 @@ namespace fs {
 
 using ioruntime::FileDescriptor;
 
+class FileError : public std::runtime_error {
+public:
+    FileError() = delete;
+    explicit FileError(const char *w);
+};
+
+class FileNotFound : public FileError {
+public:
+    FileNotFound();
+};
+
+class FileIsDirectory : public FileError {
+public:
+    FileIsDirectory();
+};
+
 class File : public FileDescriptor {
 public:
     File() = delete;

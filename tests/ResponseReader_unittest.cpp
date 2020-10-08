@@ -107,12 +107,12 @@ TEST(ResponseReaderTests, rr_header_2)
     auto builder = ResponseBuilder();
     auto response = builder
                         .status(status::OK)
-                        .header("X-Useless-Header", "funny")
+                        .header("X-Useless-Header", "request_perl_tests")
                         .header("X-Useless-Header2", "funny2")
                         .build();
 
     string result = rr_read_to_string(move(response));
-    EXPECT_EQ(result, "HTTP/1.1 200 OK\r\nX-Useless-Header: funny\r\nX-Useless-Header2: funny2\r\n\r\n");
+    EXPECT_EQ(result, "HTTP/1.1 200 OK\r\nX-Useless-Header: request_perl_tests\r\nX-Useless-Header2: funny2\r\n\r\n");
 }
 
 TEST(ResponseReaderTests, rr_header_3)

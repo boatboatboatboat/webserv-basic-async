@@ -57,11 +57,36 @@ auto ServerConfig::get_bind_addresses() const -> optional<vector<tuple<IpAddress
     return bind_addresses;
 }
 
-ServerConfig::ServerConfig(optional<vector<string>>&& server_names, optional<vector<tuple<IpAddress, uint16_t>>>&& bind_addresses, optional<table<Regex, LocationConfig>>&& locations, BaseConfig&& bc)
+ServerConfig::ServerConfig(
+    optional<vector<string>>&& server_names,
+    optional<vector<tuple<IpAddress, uint16_t>>>&& bind_addresses,
+    optional<table<Regex, LocationConfig>>&& locations,
+    optional<size_t> body_limit,
+    optional<size_t> buffer_limit,
+    optional<size_t> inactivity_timeout,
+    BaseConfig&& bc)
     : LocationConfig(std::move(locations), option::nullopt, std::move(bc))
     , server_names(std::move(server_names))
     , bind_addresses(std::move(bind_addresses))
+    , body_limit(std::move(body_limit))
+    , buffer_limit(std::move(buffer_limit))
+    , inactivity_timeout(std::move(inactivity_timeout))
 {
+}
+
+auto ServerConfig::get_body_limit() const -> optional<size_t>
+{
+    return body_limit;
+}
+
+auto ServerConfig::get_buffer_limit() const -> optional<size_t>
+{
+    return buffer_limit;
+}
+
+auto ServerConfig::get_inactivity_timeout() const -> optional<size_t>
+{
+    return inactivity_timeout;
 }
 
 auto LocationConfig::get_locations() const -> optional<table<Regex, LocationConfig>> const&

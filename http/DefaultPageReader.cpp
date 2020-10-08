@@ -2,16 +2,16 @@
 // Created by boat on 8/23/20.
 //
 
-#include "DefaultPageBody.hpp"
+#include "DefaultPageReader.hpp"
 
 namespace http {
 
-DefaultPageBody::DefaultPageBody(Status code)
+DefaultPageReader::DefaultPageReader(Status code)
     : code(code)
 {
 }
 
-auto DefaultPageBody::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
+auto DefaultPageReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
 {
     char buf[8];
     std::string_view str;
@@ -39,11 +39,10 @@ auto DefaultPageBody::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResu
     written += left_to_write;
     if (left_to_write == 0) {
         if (state != PageEnd) {
-            auto oldw = written;
             written = 0;
             // the enums are consecutive, we can just increase by one
             state = static_cast<State>(static_cast<int>(state) + 1);
-            return poll_read(buffer.remove_prefix(oldw), std::move(waker));
+            return poll_read(buffer, std::move(waker));
         }
     }
     waker();

@@ -6,3 +6,10 @@ Hello, world!
 POST http://localhost:1234/cgi/body_echo.lua
 
 Hello, world!
+###
+POST http://localhost:1234/cgi/body_echo.lua
+
+small
+###
+GET http://www.nginx.com/
+User-Agent: garbage

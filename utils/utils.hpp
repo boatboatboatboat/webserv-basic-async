@@ -205,6 +205,18 @@ inline auto hexstring_to_uint64(std::string_view n) -> option::optional<uint64_t
     return num;
 }
 
+inline auto to_uppercase(char c) -> char {
+    if (c >= 'a' && c <= 'z')
+        c ^= 32;
+    return c;
+}
+
+inline auto to_lowercase(char c ) -> char {
+    if (c >= 'A' && c <= 'Z')
+        c ^= 32;
+    return c;
+}
+
 }
 
 #endif //WEBSERV_UTIL_HPP

@@ -1,6 +1,6 @@
 #include "Response.hpp"
 #include "../net/Socket.hpp"
-#include "DefaultPageBody.hpp"
+#include "DefaultPageReader.hpp"
 #include "Header.hpp"
 #include "Request.hpp"
 #include "RfcConstants.hpp"
@@ -68,6 +68,18 @@ auto ResponseBuilder::version(Version version) -> ResponseBuilder&
 auto ResponseBuilder::cgi(Cgi&& proc) -> ResponseBuilder&
 {
     _cgi = std::move(proc);
+    return *this;
+}
+
+auto ResponseBuilder::headers(Headers&& headers) -> ResponseBuilder&
+{
+    if (_headers.has_value()) {
+        for (auto&& p_header : headers) {
+            _headers->push_back(move(p_header));
+        }
+    } else {
+        _headers = move(headers);
+    }
     return *this;
 }
 

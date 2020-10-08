@@ -60,13 +60,26 @@ private:
 
 class ServerConfig : public LocationConfig {
 public:
-    ServerConfig(optional<vector<string>>&& server_names, optional<vector<tuple<IpAddress, uint16_t>>>&& bind_addresses, optional<table<Regex, LocationConfig>>&& locations, BaseConfig&& bc);
+    ServerConfig(
+        optional<vector<string>>&& server_names,
+        optional<vector<tuple<IpAddress, uint16_t>>>&& bind_addresses,
+        optional<table<Regex, LocationConfig>>&& locations,
+        optional<size_t> body_limit,
+        optional<size_t> buffer_limit,
+        optional<size_t> inactivity_timeout,
+        BaseConfig&& bc);
     [[nodiscard]] auto get_server_names() const -> optional<vector<string>> const&;
     [[nodiscard]] auto get_bind_addresses() const -> optional<vector<tuple<IpAddress, uint16_t>>> const&;
+    [[nodiscard]] auto get_body_limit() const -> optional<size_t>;
+    [[nodiscard]] auto get_buffer_limit() const -> optional<size_t>;
+    [[nodiscard]] auto get_inactivity_timeout() const -> optional<size_t>;
 
 private:
     optional<vector<string>> server_names;
     optional<vector<tuple<IpAddress, uint16_t>>> bind_addresses;
+    optional<size_t> body_limit;
+    optional<size_t> buffer_limit;
+    optional<size_t> inactivity_timeout;
 };
 
 class HttpConfig : public BaseConfig {

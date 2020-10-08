@@ -9,7 +9,7 @@
 #include "../ioruntime/IoCopyFuture.hpp"
 #include "../net/Socket.hpp"
 #include "Body.hpp"
-#include "DefaultPageBody.hpp"
+#include "DefaultPageReader.hpp"
 #include "Header.hpp"
 #include "Request.hpp"
 #include "RfcConstants.hpp"
@@ -42,6 +42,7 @@ public:
     auto version(Version version) -> ResponseBuilder&;
     auto status(Status status) -> ResponseBuilder&;
     auto header(HeaderName name, const HeaderValue& value) -> ResponseBuilder&;
+    auto headers(Headers&& headers) -> ResponseBuilder&;
     auto body(BoxPtr<ioruntime::IAsyncRead>&& body) -> ResponseBuilder&;
     auto body(BoxPtr<ioruntime::IAsyncRead>&& body, size_t content_length) -> ResponseBuilder&;
     auto cgi(Cgi&& proc) -> ResponseBuilder&;

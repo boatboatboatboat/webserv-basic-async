@@ -17,10 +17,8 @@ futures::PollResult<void> ioruntime::TimeoutFuture::poll(futures::Waker&& waker)
     }
     auto finished = timed_out->lock();
     if (*finished) {
-        DBGPRINT("TF complete");
         return futures::PollResult<void>::ready();
     } else {
-        DBGPRINT("TF pend");
         return futures::PollResult<void>::pending();
     }
 }

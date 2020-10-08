@@ -3,6 +3,9 @@
     "http": {
         "servers": [
             {
+                "body-limit": 8192,
+                "buffer-limit": 65535,
+                "inactivity-timeout": 5000,
                 "names": [
                     "localhost"
                 ],
@@ -11,15 +14,15 @@
                 ],
                 "locations": {
                     "^/": {
-                        "root": "/home/boat/CLionProjects/webserv-ssh/",
+                        "root": "/home/boat/CLionProjects/webserv-basic-async2/tests/html",
                         "index": [
                             "index.html",
                             "index.php"
                         ],
-                        "allowed_methods": [
+                        "allowed-methods": [
                             "GET"
                         ],
-                        "autoindex": true
+                        "autoindex": false
                     },
                     "^/dirtest/?": {
                         "root": "/home/boat/CLionProjects/webserv-basic-async2/ioruntime",
@@ -33,18 +36,23 @@
                                 "root": "/"
                             }
                         },
-                        "allowed_methods": [
+                        "allowed-methods": [
                             "GET"
                         ],
                         "autoindex": true
                     },
                     "^/cgi/?": {
                         "final": false,
-                        "root" : "/home/boat/CLionProjects/webserv-ssh/tests/cgi_test",
-                        "allowed_methods": [ "GET", "POST" ],
-                        "use_cgi": true,
+                        "root": "/home/boat/CLionProjects/webserv-basic-async2/tests/cgi_test",
+                        "allowed-methods": [
+                            "GET",
+                            "POST"
+                        ],
+                        "cgi": true,
                         "locations": {
-                            ".+$": { "final": true }
+                            ".+$": {
+                                "final": true
+                            }
                         },
                         "autoindex": true
                     }

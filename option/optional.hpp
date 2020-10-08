@@ -8,6 +8,7 @@
 #include "../utils/mem_copy.hpp"
 #include <algorithm>
 
+
 namespace option {
 
 struct nullopt_t {

@@ -8,18 +8,18 @@ namespace futures {
 
 template <typename T>
 template <typename St>
-ForEachFuture<St, T> IStreamExt<T>::for_each(void (*function)(T&))
+ForEachFuture<St> IStreamExt<T>::for_each(typename ForEachFuture<St>::callback_type function)
 {
     auto& x = static_cast<St&>(*this);
-    return ForEachFuture<St, T>(std::move(x), function);
+    return ForEachFuture<St>(std::move(x), function);
 };
 
 template <typename T>
 template <typename St>
-ForEachFuture<St, T> IStreamExt<T>::for_each(void (*function)(T&), void (*eh)(std::exception& e))
+ForEachFuture<St> IStreamExt<T>::for_each(typename ForEachFuture<St>::callback_type function, void (*eh)(std::exception& e))
 {
     auto& x = static_cast<St&>(*this);
-    return ForEachFuture<St, T>(std::move(x), function, eh);
+    return ForEachFuture<St>(std::move(x), function, eh);
 };
 
 }

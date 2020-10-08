@@ -131,6 +131,8 @@ private:
     optional<uint64_t> content_length;
     size_t last_chunk_size;
     bool chunked;
+    bool host_set = false;
+    bool is_http_1_1 = false;
     IAsyncRead& source;
     vector<uint8_t> buffer;
     optional<vector<uint8_t>> decoded_body;

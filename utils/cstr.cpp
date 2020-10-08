@@ -14,4 +14,28 @@ auto strlen(const char* s) -> size_t
     return l;
 }
 
+auto safe_streq(std::string_view unsafe, std::string_view safe) -> bool {
+    size_t usl = unsafe.length();
+    size_t sl = safe.length();
+
+    volatile size_t i = 0;
+    volatile size_t j = 0;
+    volatile size_t k = 0;
+
+    int eq = 0;
+
+    while (i < usl) {
+        eq |= unsafe[i] ^ safe[j];
+
+        if (i >= sl) {
+            k = k + 1;
+        } else {
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+
+    return eq == 0;
+}
+
 }

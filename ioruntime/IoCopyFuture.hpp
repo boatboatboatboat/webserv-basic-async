@@ -23,15 +23,18 @@ public:
     IoCopyFuture() = delete;
     explicit IoCopyFuture(IAsyncRead& reader, IAsyncWrite& writer);
     auto poll(Waker&& waker) -> PollResult<void> override;
+    [[nodiscard]] auto get_bytes_written() const -> size_t;
+    [[nodiscard]] auto has_written_bytes() const -> bool;
 private:
-    uint8_t buffer[8192];
+    uint8_t _buffer[8192];
     optional<span<uint8_t>> _span;
+    size_t _bytes_written = 0;
     enum State {
         Reading,
         Writing
     } state = Reading;
-    IAsyncRead& reader;
-    IAsyncWrite& writer;
+    IAsyncRead& _reader;
+    IAsyncWrite& _writer;
 };
 
 }
