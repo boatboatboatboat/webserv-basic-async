@@ -1,0 +1,70 @@
+### SHOULD RETURN: autoindex
+GET http://localhost:1234/ HTTP/1.1
+
+### SHOULD RETURN: autoindex
+POST http://localhost:1234/ HTTP/1.1
+
+### SHOULD RETURN: no body, get headers
+HEAD http://localhost:1234/ HTTP/1.1
+
+### SHOULD RETURN: youpi.bad_extension
+GET http://localhost:1234/directory HTTP/1.1
+
+### SHOULD RETURN: youpi.bad_extension
+GET http://localhost:1234/directory/youpi.bad_extension
+
+### SHOULD RETURN: cgi
+GET http://localhost:1234/directory/youpi.bla
+
+###EXPECT 404
+GET  http://localhost:1234/directory/oulalala
+
+###
+GET http://localhost:1234/directory/nop
+
+###
+PUT http://localhost:1234/put_test/balls
+
+oh
+ik ben al zo'n beetje in de tuin aant zoeken maar k vind t niet
+in de tuin?
+ja ik ben over de schutting geklommen achter
+ik geloof dat je helemaal gek bent man
+nee jij bent gek man
+achterlijke zak
+ik moet die velgen hebben man
+doalijk kom ik s ff naar buite dan sloop ik je
+ja kom maar
+ja dan wacht maar s effe jij
+
+
+###
+PUT http://localhost:1234/put_test/
+
+oh
+ik ben al zo'n beetje in de tuin aant zoeken maar k vind t niet
+in de tuin?
+ja ik ben over de schutting geklommen achter
+ik geloof dat je helemaal gek bent man
+nee jij bent gek man
+achterlijke zak
+ik moet die velgen hebben man
+doalijk kom ik s ff naar buite dan sloop ik je
+ja kom maar
+ja dan wacht maar s effe jij
+
+### 0 char post test
+POST http://localhost:1234/post_body
+
+### 100 char post test
+POST http://localhost:1234/post_body
+
+oh
+ik ben al zo'n beetje in de tuin aant zoeken maar k vind t niet
+in de tuin?
+ja ik ben over de sch
+
+### abcd
+POST http://localhost:1234/directory/youpi.bla
+
+Hello, world!

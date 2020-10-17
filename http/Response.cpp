@@ -28,14 +28,14 @@ auto ResponseBuilder::header(HeaderName name, const HeaderValue& value) -> Respo
 
 auto ResponseBuilder::body(BoxPtr<ioruntime::IAsyncRead>&& body) -> ResponseBuilder&
 {
-    _body = Body(move(body));
+    _body = ResponseBody(move(body));
     header(http::header::TRANSFER_ENCODING, "chunked");
     return *this;
 }
 
 auto ResponseBuilder::body(BoxPtr<ioruntime::IAsyncRead>&& body, size_t content_length) -> ResponseBuilder&
 {
-    _body = Body(move(body));
+    _body = ResponseBody(move(body));
     return header(http::header::CONTENT_LENGTH, std::to_string(content_length));
 }
 
@@ -45,7 +45,7 @@ auto ResponseBuilder::build() -> Response
         throw std::runtime_error("ResponseBuilder: no status set");
     }
     if (!_body.has_value() && _cgi.has_value()) {
-        _body = Body(move(*_cgi));
+        _body = ResponseBody(move(*_cgi));
     }
     return Response(
         move(_headers),
@@ -83,7 +83,7 @@ auto ResponseBuilder::headers(Headers&& headers) -> ResponseBuilder&
     return *this;
 }
 
-Response::Response(optional<Headers>&& headers, Version version, Status status, optional<Body>&& body)
+Response::Response(optional<Headers>&& headers, Version version, Status status, optional<ResponseBody>&& body)
     : _version(version)
     , _status(status)
 {
@@ -110,12 +110,12 @@ auto Response::get_status() const -> Status const&
     return _status;
 }
 
-auto Response::get_body() const -> optional<Body> const&
+auto Response::get_body() const -> optional<ResponseBody> const&
 {
     return _body;
 }
 
-auto Response::get_body() -> optional<Body>&
+auto Response::get_body() -> optional<ResponseBody>&
 {
     return _body;
 }
@@ -128,6 +128,11 @@ auto Response::get_header(HeaderName const& needle_name) const -> optional<Heade
         }
     }
     return option::nullopt;
+}
+
+void Response::drop_body()
+{
+    _body = option::nullopt;
 }
 
 ResponseReader::ResponseReader(Response& response)
@@ -395,7 +400,7 @@ auto ResponseReader::HeadersReader::poll_read(span<uint8_t> buffer, Waker&& wake
     return PollResult<IoResult>::ready(written);
 }
 
-ResponseReader::BodyReader::BodyReader(Body& body)
+ResponseReader::BodyReader::BodyReader(ResponseBody& body)
     : _body(body)
 {
 }
@@ -405,7 +410,7 @@ auto ResponseReader::BodyReader::poll_read(span<uint8_t> buffer, Waker&& waker) 
     return _body.poll_read(buffer, move(waker));
 }
 
-ResponseReader::ChunkedBodyReader::ChunkedBodyReader(Body& body)
+ResponseReader::ChunkedBodyReader::ChunkedBodyReader(ResponseBody& body)
     : _state(Clrf2)
     , _current(_data_buf, 0)
     , _current_body(_data_buf, 0)

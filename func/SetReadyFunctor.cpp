@@ -14,3 +14,8 @@ void SetReadyFunctor::operator()()
     auto cread_guard = ready_mutex->lock();
     *cread_guard = true;
 }
+
+auto SetReadyFunctor::dbg_get_mutex() -> RcPtr<Mutex<bool>>&
+{
+    return ready_mutex;
+}

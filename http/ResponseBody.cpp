@@ -2,13 +2,13 @@
 // Created by Djevayo Pattij on 10/2/20.
 //
 
-#include "Body.hpp"
+#include "ResponseBody.hpp"
 
 namespace http {
 
 using std::move;
 
-Body::Body(Body&& other) noexcept
+ResponseBody::ResponseBody(ResponseBody&& other) noexcept
 {
     if (other._tag == ReaderTag) {
         new (&_reader) BoxPtr<IAsyncRead>(move(other._reader));
@@ -18,7 +18,7 @@ Body::Body(Body&& other) noexcept
     _tag = other._tag;
 }
 
-auto Body::operator=(Body&& other) noexcept -> Body&
+auto ResponseBody::operator=(ResponseBody&& other) noexcept -> ResponseBody&
 {
     if (_tag == ReaderTag) {
         _reader.~BoxPtr();
@@ -34,7 +34,7 @@ auto Body::operator=(Body&& other) noexcept -> Body&
     return *this;
 }
 
-Body::~Body()
+ResponseBody::~ResponseBody()
 {
     if (_tag == ReaderTag) {
         _reader.~BoxPtr();
@@ -43,34 +43,34 @@ Body::~Body()
     }
 }
 
-Body::Body(BoxPtr<ioruntime::IAsyncRead>&& reader)
+ResponseBody::ResponseBody(BoxPtr<ioruntime::IAsyncRead>&& reader)
 {
     _tag = ReaderTag;
     new (&_reader) BoxPtr<IAsyncRead>(move(reader));
 }
 
-Body::Body(Cgi&& cgi)
+ResponseBody::ResponseBody(Cgi&& cgi)
 {
     _tag = CgiTag;
     new (&_cgi) Cgi(move(cgi));
 }
 
-auto Body::is_reader() const -> bool
+auto ResponseBody::is_reader() const -> bool
 {
     return _tag == ReaderTag;
 }
 
-auto Body::is_cgi() const -> bool
+auto ResponseBody::is_cgi() const -> bool
 {
     return _tag == CgiTag;
 }
 
-auto Body::get_cgi() -> Cgi&
+auto ResponseBody::get_cgi() -> Cgi&
 {
     return _cgi;
 }
 
-auto Body::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<ioruntime::IoResult>
+auto ResponseBody::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<ioruntime::IoResult>
 {
     if (_tag == ReaderTag) {
         return _reader->poll_read(buffer, move(waker));

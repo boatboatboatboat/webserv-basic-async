@@ -8,25 +8,33 @@
 #include "../boxed/RcPtr.hpp"
 #include "../futures/IFuture.hpp"
 #include "../mutex/mutex.hpp"
+#include "GlobalTimeoutEventHandler.hpp"
+#include "../option/optional.hpp"
 
 using boxed::RcPtr;
 using futures::IFuture;
 using mutex::Mutex;
+using option::optional;
 
 namespace ioruntime {
 
 class TimeoutFuture : public IFuture<void> {
 public:
-    static TimeoutFuture dead_timer();
+    TimeoutFuture() = delete;
+    TimeoutFuture(TimeoutFuture const&) = delete;
+    TimeoutFuture& operator=(TimeoutFuture const&) = delete;
+    TimeoutFuture(TimeoutFuture&& other) noexcept;
+    TimeoutFuture& operator=(TimeoutFuture&& other) noexcept;
+    ~TimeoutFuture() override;
     explicit TimeoutFuture(uint64_t ms);
     futures::PollResult<void> poll(futures::Waker&& waker) override;
 
 private:
-    TimeoutFuture();
-    bool dead = false;
-    bool waker_set = false;
-    RcPtr<Mutex<bool>> timed_out = RcPtr(Mutex(false));
-    uint64_t tick;
+    bool _dead = false;
+   // bool waker_set = false;
+    RcPtr<Mutex<bool>> _timed_out = RcPtr(Mutex(false));
+    optional<TimeoutEventConnection> _connection;
+    uint64_t _tick;
 };
 
 }

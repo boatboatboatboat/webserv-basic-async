@@ -5,6 +5,7 @@
 #ifndef WEBSERV_CGI_CGI_HPP
 #define WEBSERV_CGI_CGI_HPP
 
+#include "../http/RequestBody.hpp"
 #include "../http/RequestParser.hpp"
 #include "../ioruntime/FileDescriptor.hpp"
 #include "../ioruntime/GlobalChildProcessHandler.hpp"
@@ -41,6 +42,7 @@ public:
 
     Cgi(Cgi&&) noexcept = default;
     explicit Cgi(const string& path, Request&& req, SocketAddr const& addr);
+    ~Cgi() override;
 
     auto poll_success(Waker&& waker) -> bool;
 
@@ -56,6 +58,7 @@ private:
     void do_child_logic();
     void child_indicate_failure();
     void switch_process();
+    void verify_executable();
     // members
     int output_redirection_fds[2];
     int input_redirection_fds[2];
@@ -68,7 +71,7 @@ private:
     vector<string> env;
     string const& _path;
     Request _request;
-    span<uint8_t> _body_span;
+    optional<ioruntime::RefIoCopyFuture> _ricf;
 };
 
 }

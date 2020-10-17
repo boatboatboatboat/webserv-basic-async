@@ -33,9 +33,6 @@ void Runtime::naive_run()
         for (auto& handler : handlers) {
             handler->reactor_step();
         }
-        // usleep(0) will 'yield' the thread
-        // it basically hints the cpu to not spin like crazy
-        usleep(0);
     } while (executor->step());
 }
 

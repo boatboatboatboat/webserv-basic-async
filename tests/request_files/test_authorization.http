@@ -1,0 +1,18 @@
+### nokey
+GET http://localhost:1234/authtest
+
+
+### badkey
+GET http://localhost:1234/authtest
+Authorization: Basic aA==
+
+### goodkey
+GET http://localhost:1234/authtest
+Authorization: Basic aGVsbG86d29ybGQ=
+
+### bad64
+GET http://localhost:1234/authtest
+Authorization: Basic a??????
+
+###
+GET http://localhost:1234/

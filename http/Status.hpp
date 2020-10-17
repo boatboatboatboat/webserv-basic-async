@@ -33,7 +33,7 @@ namespace status {
     100-continue expectation, the client can simply discard this interim
         response.
 */
-    inline const Status CONTINUE { 300, "Continue" };
+    inline const Status CONTINUE { 100, "Continue" };
 
     /*
  The 101 (Switching Protocols) status code indicates that the server
@@ -439,7 +439,7 @@ The 200 (OK) status code indicates that the request has succeeded.
    not define any standard for such automatic selection, as described in
    Section 6.4.1.
 */
-    inline const Status NOT_ACCEPTABLE { 406, "Request Timeout" };
+    inline const Status NOT_ACCEPTABLE { 406, "Not Acceptable" };
 
     /*
    The 408 (Request Timeout) status code indicates that the server did

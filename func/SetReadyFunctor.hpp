@@ -17,6 +17,7 @@ public:
     explicit SetReadyFunctor(RcPtr<Mutex<bool>>&& cr_source);
     ~SetReadyFunctor() override = default;
     void operator()() override;
+    auto dbg_get_mutex() -> RcPtr<Mutex<bool>>&;
 
 private:
     RcPtr<Mutex<bool>> ready_mutex;

@@ -12,8 +12,8 @@ namespace ioruntime {
 class GlobalTimeoutEventHandler {
 public:
     static void set(TimeoutEventHandler* new_event_handler);
-    static void register_timeout(uint64_t ms, BoxFunctor&& callback);
-    static void register_timeout_real(uint64_t ms, BoxFunctor&& callback);
+    static auto register_timeout(uint64_t ms, BoxFunctor&& callback) -> TimeoutEventConnection;
+    static auto register_timeout_real(uint64_t ms, BoxFunctor&& callback) -> TimeoutEventConnection;
     static bool is_clocks_empty();
 
 private:

@@ -3,7 +3,9 @@
 //
 
 #include "Cgi.hpp"
-#include "../constants/constants.hpp"
+#include "../utils/base64.hpp"
+#include "../constants/config.hpp"
+#include "../fs/Path.hpp"
 
 namespace cgi {
 
@@ -26,8 +28,8 @@ Cgi::ForkFailed::ForkFailed()
 Cgi::Cgi(const string& path, Request&& req, const SocketAddr& addr)
     : _path(path)
     , _request(move(req))
-    , _body_span(const_cast<uint8_t*>(_request.get_body().data()), _request.get_body().size())
 {
+    verify_executable();
     generate_env(_request, addr);
     create_pipe();
     fork_process();
@@ -60,23 +62,22 @@ auto Cgi::poll_success(Waker&& waker) -> bool
 
 auto Cgi::poll_write_body(Waker&& waker) -> PollResult<IoResult>
 {
-    if (child_input.has_value()) {
-        auto poll_res = child_input->poll_write(_body_span, move(waker));
-        if (poll_res.is_ready()) {
-            auto res = poll_res.get();
-            if (res.is_error()) {
-                // probably a broken pipe or something
-                // we can't do anything and we don't care either
-                WARNPRINT("CGI body write failure");
-            } else if (res.is_eof()) {
-                // eof: destroy child_input!
-                child_input = option::nullopt;
-            } else if (res.is_success()) {
-                _body_span.remove_prefix_inplace(res.get_bytes_read());
-            }
+    if (!_request.get_body().has_value()) {
+        child_input = option::nullopt;
+        return PollResult<IoResult>::ready(IoResult::eof());
+    } else if (child_input.has_value()) {
+        if (!_ricf.has_value()) {
+            _ricf = ioruntime::RefIoCopyFuture(*_request.get_body(), *child_input);
         }
-        return poll_res;
+        auto pr = _ricf->poll(move(waker));
+        if (pr.is_ready()) {
+            child_input = option::nullopt;
+            return PollResult<IoResult>::ready(IoResult::eof());
+        } else {
+            return PollResult<IoResult>::pending();
+        }
     } else {
+        child_input = option::nullopt;
         return PollResult<IoResult>::ready(IoResult::eof());
     }
 }
@@ -94,15 +95,41 @@ auto Cgi::poll_write(const span<uint8_t> buffer, Waker&& waker) -> PollResult<Io
 
 void Cgi::generate_env(Request const& req, SocketAddr const& addr)
 {
-    // TODO: set auth_type metavar
+    // Set AUTH_TYPE and REMOTE_USER metavar
+    {
+        auto at = req.get_header(http::header::AUTHORIZATION);
+
+        if (at.has_value()) {
+            auto field = *at;
+            if (field.empty()) {
+                env.emplace_back("AUTH_TYPE=");
+            }
+            auto scheme_end = field.find(' ');
+            auto scheme = field.substr(0,scheme_end);
+            if (std::all_of(scheme.begin(), scheme.end(), http::parser_utils::is_tchar)) {
+                std::stringstream var;
+                var << "AUTH_TYPE=" << scheme;
+                env.emplace_back(var.str());
+                if (scheme == "Basic") {
+                    auto info = field.substr(scheme_end + 1);
+                    auto decoded = utils::base64::decode_string(info);
+                    auto user_end = decoded.find(':');
+                    if (decoded.find(':') != std::string::npos) {
+                        std::stringstream uinfo;
+                        uinfo << "REMOTE_USER=" << decoded.substr(0, user_end);
+                        env.emplace_back(uinfo.str());
+                    }
+                }
+            }
+        }
+    }
     // Set CONTENT_LENGTH metavar
     {
         auto cl = req.get_header("Content-Length");
 
-        // FIXME: all requests have bodies - this needs to be determined in a better way
-        if (!req.get_body().empty()) {
+        if (req.get_body().has_value()) {
             std::stringstream var;
-            var << "CONTENT_LENGTH=" << req.get_body().size();
+            var << "CONTENT_LENGTH=" << req.get_body()->size();
             env.push_back(var.str());
         }
     }
@@ -111,7 +138,7 @@ void Cgi::generate_env(Request const& req, SocketAddr const& addr)
         auto cl = req.get_header("Content-Type");
 
         // It should only be set if there's a message body.
-        if (cl.has_value()) {
+        if (req.get_body().has_value() && cl.has_value()) {
             std::string var("CONTENT_TYPE=");
             var += *cl;
             env.push_back(std::move(var));
@@ -183,7 +210,6 @@ void Cgi::generate_env(Request const& req, SocketAddr const& addr)
         // not to return available identity data.
         env.emplace_back("REMOTE_IDENT=");
     }
-    // TODO: REMOTE_USER metavar
     // Set REQUEST_METHOD metavar
     {
         std::string rm("REQUEST_METHOD=");
@@ -327,7 +353,13 @@ void Cgi::do_child_logic()
         child_indicate_failure();
     }
 
+    // close everything
     close(error_indication_fds[0]);
+    close(error_indication_fds[1]);
+    close(input_redirection_fds[0]);
+    close(input_redirection_fds[1]);
+    close(output_redirection_fds[0]);
+    close(output_redirection_fds[1]);
     try {
         switch_process();
         // if failed abort
@@ -376,6 +408,30 @@ void Cgi::switch_process()
     auto switch_result = execve(argv[0], reinterpret_cast<char* const*>(argv), const_cast<char* const*>(envp.data()));
     if (switch_result < 0) {
         throw std::runtime_error("execve failed");
+    }
+}
+
+Cgi::~Cgi()
+{
+    if (process_ran.get() != nullptr) {
+        auto ran = process_ran->lock();
+        if (!*ran) {
+            if (pid > 0) {
+                kill(pid, SIGTERM);
+            }
+        }
+    }
+}
+
+void Cgi::verify_executable()
+{
+    auto exe = fs::Path::path(_path);
+
+    if (!exe.exists()) {
+        throw fs::FileNotFound();
+    }
+    if (!exe.is_executable()) {
+        throw CgiError("cgi: file is non-executable");
     }
 }
 

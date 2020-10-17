@@ -27,10 +27,16 @@ ThreadlessExecutor::ThreadlessExecutor()
 
 bool ThreadlessExecutor::step()
 {
+    auto te = tasks.empty();
+    if (te) {
+        usleep(0);
+        return (tasks_until_completion > 0);
+    }
     while (!tasks.empty()) {
+        auto task = tasks.front();
+        BoxPtr<IFuture<void>> future_slot(nullptr);
+
         try {
-            auto task = tasks.front();
-            BoxPtr<IFuture<void>> future_slot(nullptr);
             // create new waker by cloning the RcPtr
             auto waker = Waker(RcPtr(task));
             if (task->consume(future_slot)) { // stale task

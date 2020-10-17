@@ -52,7 +52,7 @@ auto ServerBuilder::error_page_handler(ErrorPageHandler error_page_handler) -> S
 auto ServerBuilder::serve(RequestHandler request_handler) -> Server
 {
     if (!_error_page_handler.has_value()) {
-        _error_page_handler = [](Status status) {
+        _error_page_handler = [](Status const& status) {
             return BoxPtr<DefaultPageReader>::make(status);
         };
     }
@@ -116,11 +116,17 @@ Server::ConnectionFuture::ConnectionFuture(TcpStream&& stream, ServerProperties 
 
 void Server::ConnectionFuture::switch_to_respond_mode()
 {
+    // lol
+    if (_request.has_value() && _request->get_method() == method::HEAD) {
+        _response->drop_body();
+    }
     _reader = ResponseReader(*_response);
-    _copier = ioruntime::IoCopyFuture(*_reader, _stream.get_socket());
+    _copier = ioruntime::IoCopyFuture<void, void>(*_reader, _stream.get_socket());
+    _timeout = TimeoutFuture(_properties._inactivity_timeout);
     _state = Respond;
 }
 
+// For handlers, HttpRequest is guaranteed to live until the end of the response
 auto Server::ConnectionFuture::poll(Waker&& waker) -> PollResult<void>
 {
     switch (_state) {
@@ -135,7 +141,7 @@ auto Server::ConnectionFuture::poll(Waker&& waker) -> PollResult<void>
                     switch_to_respond_mode();
                     return poll(move(waker));
                 }
-                auto timer_result = _timeout.poll(Waker(waker));
+                auto timer_result = _timeout->poll(Waker(waker));
                 if (timer_result.is_ready()) {
                     throw TimeoutError();
                 }
@@ -143,7 +149,6 @@ auto Server::ConnectionFuture::poll(Waker&& waker) -> PollResult<void>
                 _timeout = TimeoutFuture(_properties._inactivity_timeout);
                 return PollResult<void>::pending();
             } catch (std::exception const& err) {
-                // it's a warning because we can still recover
                 WARNPRINT("Request handler failed: " << err.what());
                 try {
                     auto builder = ResponseBuilder();
@@ -175,11 +180,14 @@ auto Server::ConnectionFuture::poll(Waker&& waker) -> PollResult<void>
                         builder.header(header::CONNECTION, "close");
                     } catch (fs::FileNotFound const&) {
                         status = status::NOT_FOUND;
-                    } catch (HandlerStatusError const& hse) {
+                    } catch (HandlerStatusError& hse) {
                         status = hse.status();
-
-                    } catch (...) {
+                        if (hse.headers().has_value()) {
+                            builder.headers(move(*hse.headers()));
+                        }
+                    } catch (std::exception const& err) {
                         // status is already set to INTERNAL_SERVER_ERROR
+                        WARNPRINT("Request handler failed: " << err.what());
                     }
 
                     builder
@@ -196,7 +204,23 @@ auto Server::ConnectionFuture::poll(Waker&& waker) -> PollResult<void>
         } break;
         case Respond: {
             try {
-                return _copier->poll(Waker(waker));
+                auto copy_result = _copier->poll(Waker(waker));
+                if (copy_result.is_ready()) {
+                    return copy_result;
+                } else {
+                    if (_byte_activity != _copier->get_bytes_written()) {
+                        // if we're woken up, it's active, so reset the timer
+                        _timeout = TimeoutFuture(_properties._inactivity_timeout);
+                        _byte_activity = _copier->get_bytes_written();
+                    }
+                }
+
+                auto timer_result = _timeout->poll(Waker(waker));
+                if (timer_result.is_ready()) {
+                    WARNPRINT("timed out");
+                    throw TimeoutError();
+                }
+                return copy_result;
             } catch (std::exception const& err) {
                 if (_is_recovering) {
                     // we errored in recovery mode
@@ -217,6 +241,8 @@ auto Server::ConnectionFuture::poll(Waker&& waker) -> PollResult<void>
                             // CGI "init" errors are thrown inside of the ResponseReader.
                             WARNPRINT("CGI error: " << cgi_err.what());
                             status = status::BAD_GATEWAY;
+                        } catch (TimeoutError const&) {
+                            status = status::GATEWAY_TIMEOUT;
                         } catch (...) {
                             // status is already set to INTERNAL_SERVER_ERROR
                         }

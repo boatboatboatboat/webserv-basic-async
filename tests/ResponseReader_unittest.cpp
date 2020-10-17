@@ -204,16 +204,15 @@ TEST(ResponseReaderTests, rr_cgi_fail)
     auto request = move(reqbuilder).build();
     sockaddr_in funny { .sin_port = 0, .sin_addr = { 0 } };
 
-    auto builder = ResponseBuilder();
-    auto response = builder
-                        .status(status::OK)
-                        .cgi(Cgi("DAFSDFASDFASDFASDFASDFASDFasdfASDFASDFASDFASDF", move(request), net::SocketAddr(funny)))
-                        .build();
+    EXPECT_ANY_THROW({
+        auto builder = ResponseBuilder();
+        auto response = builder
+                            .status(status::OK)
+                            .cgi(Cgi("DAFSDFASDFASDFASDFASDFASDFasdfASDFASDFASDFASDF", move(request), net::SocketAddr(funny)))
+                            .build();
 
-    EXPECT_THROW({
         string result = rr_read_to_string_ioenabled(ioe, move(response));
-    },
-        std::runtime_error);
+    });
 }
 
 TEST(ResponseReaderTests, rr_cgi_body_reqbody)
@@ -233,7 +232,7 @@ TEST(ResponseReaderTests, rr_cgi_body_reqbody)
     reqbody.push_back('o');
 
     auto reqbuilder = RequestBuilder();
-    reqbuilder.uri(Uri("example.com")).method("POST").version(version::v1_1).body(move(reqbody));
+    reqbuilder.uri(Uri("example.com")).method("POST").version(version::v1_1).body(RequestBody(move(reqbody)));
     auto request = move(reqbuilder).build();
     sockaddr_in funny { .sin_port = 0, .sin_addr = { 0 } };
 

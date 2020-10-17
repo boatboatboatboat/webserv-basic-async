@@ -11,12 +11,11 @@ GlobalChildProcessHandler::ChildProcessHandler::ChildProcessHandler()
 {
     auto res = signal(SIGCHLD, [](int _) {
         (void)_;
-
         int wstatus;
 
         // WNOHANG is set because otherwise we'll have a hanging interrupt
         // also if SIGCHLD is fired, there *should* be a process ready,
-        auto pid = waitpid(-1, &wstatus, WNOHANG);
+        auto pid = waitpid(0, &wstatus, 0);
 
         if (pid > 0) {
             std::vector<BoxFunctor> callbacks;
@@ -33,7 +32,7 @@ GlobalChildProcessHandler::ChildProcessHandler::ChildProcessHandler()
                     it = processes->erase(it);
                 }
             }
-            if (WIFEXITED(wstatus) && WEXITSTATUS(wstatus) != 0) {
+            if (WIFEXITED(wstatus)) {
                 for (auto& cb : callbacks) {
                     (*cb)();
                 }

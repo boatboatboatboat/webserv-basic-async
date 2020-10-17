@@ -32,7 +32,7 @@ auto RequestBuilder::header(string&& header_name, string&& header_value) -> Requ
     return *this;
 }
 
-auto RequestBuilder::body(vector<uint8_t>&& body) -> RequestBuilder&
+auto RequestBuilder::body(RequestBody&& body) -> RequestBuilder&
 {
     _body = std::move(body);
     return *this;
@@ -51,7 +51,7 @@ auto RequestBuilder::build() && -> Request
         std::move(_body));
 }
 
-Request::Request(Method method, Uri uri, Version version, Headers headers, vector<uint8_t> body)
+Request::Request(Method method, Uri uri, Version version, Headers headers, optional<RequestBody> body)
     : _method(method)
     , _uri(std::move(uri))
     , _version(version)
@@ -80,7 +80,12 @@ auto Request::get_headers() const -> Headers const&
     return _headers;
 }
 
-auto Request::get_body() const -> vector<uint8_t> const&
+auto Request::get_body() -> optional<RequestBody>&
+{
+    return _body;
+}
+
+auto Request::get_body() const -> optional<RequestBody> const&
 {
     return _body;
 }
@@ -93,6 +98,15 @@ auto Request::get_header(string_view name) const -> optional<string_view>
         }
     }
     return option::nullopt;
+}
+
+void Request::debug_print() const
+{
+    DBGPRINT("method: " << get_method());
+    DBGPRINT("ver: " << get_version().version_string);
+    for (auto& header : _headers) {
+        DBGPRINT(header.name << ": " << header.value);
+    }
 }
 
 }

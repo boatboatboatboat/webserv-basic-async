@@ -13,14 +13,14 @@ void GlobalTimeoutEventHandler::set(TimeoutEventHandler* new_event_handler)
     event_handler = new_event_handler;
 }
 
-void GlobalTimeoutEventHandler::register_timeout(uint64_t ms, BoxFunctor&& callback)
+auto GlobalTimeoutEventHandler::register_timeout(uint64_t ms, BoxFunctor&& callback) -> TimeoutEventConnection
 {
-    event_handler->register_timeout(ms, std::move(callback));
+    return event_handler->register_timeout(ms, std::move(callback));
 }
 
-void GlobalTimeoutEventHandler::register_timeout_real(uint64_t ms, BoxFunctor&& callback)
+auto GlobalTimeoutEventHandler::register_timeout_real(uint64_t ms, BoxFunctor&& callback) -> TimeoutEventConnection
 {
-    event_handler->register_timeout_real(ms, std::move(callback));
+    return event_handler->register_timeout_real(ms, std::move(callback));
 }
 
 bool GlobalTimeoutEventHandler::is_clocks_empty()

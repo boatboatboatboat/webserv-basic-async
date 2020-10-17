@@ -3,10 +3,9 @@
 //
 
 #include "Config.hpp"
+#include <utility>
 
 using option::make_optional;
-
-#include <utility>
 
 auto BaseConfig::get_root() const -> optional<string> const&
 {
@@ -37,14 +36,29 @@ auto BaseConfig::get_autoindex() const -> optional<bool> const&
 {
     return autoindex;
 }
-BaseConfig::BaseConfig(optional<string> root, optional<vector<string>> index_pages, optional<map<uint16_t, string>> error_pages, optional<bool> use_cgi, optional<vector<Method>> allowed_methods, optional<bool> autoindex)
+
+BaseConfig::BaseConfig(optional<string> root, optional<vector<string>> index_pages, optional<map<uint16_t, string>> error_pages, optional<bool> use_cgi, optional<vector<Method>> allowed_methods, optional<bool> autoindex,
+    optional<AuthConfig>&& authcfg, optional<UploadConfig>&& upcfg, optional<size_t> body_limit)
     : root(std::move(root))
     , index_pages(std::move(index_pages))
     , error_pages(std::move(error_pages))
     , use_cgi(std::move(use_cgi))
     , allowed_methods(std::move(allowed_methods))
     , autoindex(std::move(autoindex))
+    , auth_config(std::move(authcfg))
+    , upload_config(std::move(upcfg))
+    , body_limit(std::move(body_limit))
 {
+}
+
+auto BaseConfig::get_auth_config() const -> optional<AuthConfig> const&
+{
+    return auth_config;
+}
+
+auto BaseConfig::get_upload_config() const -> optional<UploadConfig> const&
+{
+    return upload_config;
 }
 
 auto ServerConfig::get_server_names() const -> optional<vector<string>> const&
@@ -61,20 +75,18 @@ ServerConfig::ServerConfig(
     optional<vector<string>>&& server_names,
     optional<vector<tuple<IpAddress, uint16_t>>>&& bind_addresses,
     optional<table<Regex, LocationConfig>>&& locations,
-    optional<size_t> body_limit,
     optional<size_t> buffer_limit,
     optional<size_t> inactivity_timeout,
     BaseConfig&& bc)
     : LocationConfig(std::move(locations), option::nullopt, std::move(bc))
     , server_names(std::move(server_names))
     , bind_addresses(std::move(bind_addresses))
-    , body_limit(std::move(body_limit))
     , buffer_limit(std::move(buffer_limit))
     , inactivity_timeout(std::move(inactivity_timeout))
 {
 }
 
-auto ServerConfig::get_body_limit() const -> optional<size_t>
+auto BaseConfig::get_body_limit() const -> optional<size_t>
 {
     return body_limit;
 }
@@ -140,4 +152,42 @@ auto RootConfigSingleton::get() -> RootConfig const&
 void RootConfigSingleton::set(RootConfig&& rcv)
 {
     rc = std::move(rcv);
+}
+
+AuthConfig::AuthConfig(string&& username, string&& password, optional<string>&& realm)
+    : _username(move(username))
+    , _password(move(password))
+    , _realm(move(realm))
+{
+}
+
+auto AuthConfig::get_username() const -> string const&
+{
+    return _username;
+}
+
+auto AuthConfig::get_password() const -> string const&
+{
+    return _password;
+}
+
+auto AuthConfig::get_realm() const -> optional<string> const&
+{
+    return _realm;
+}
+
+UploadConfig::UploadConfig(string&& directory, optional<size_t>&& max_size)
+    : _directory(move(directory))
+    , _max_size(std::move(max_size))
+{
+}
+
+auto UploadConfig::get_directory() const -> string const&
+{
+    return _directory;
+}
+
+auto UploadConfig::get_max_size() const -> optional<size_t> const&
+{
+    return _max_size;
 }

@@ -157,7 +157,8 @@ inline auto bswap32(int32_t x) -> int32_t
     return ((((x)&0xff000000) >> 24) | (((x)&0x00ff0000) >> 8) | (((x)&0x0000ff00) << 8) | (((x)&0x000000ff) << 24));
 }
 
-inline auto str_eq_case_insensitive(std::string_view a, std::string_view b) -> bool {
+inline auto str_eq_case_insensitive(std::string_view a, std::string_view b) -> bool
+{
     if (a.length() != b.length())
         return false;
     while (!a.empty() && tolower(a.front()) == tolower(b.front())) {
@@ -167,7 +168,8 @@ inline auto str_eq_case_insensitive(std::string_view a, std::string_view b) -> b
     return a.empty();
 }
 
-inline auto string_to_uint64(std::string_view n) -> option::optional<uint64_t> {
+inline auto string_to_uint64(std::string_view n) -> option::optional<uint64_t>
+{
     using namespace http::parser_utils;
     uint64_t num = 0;
 
@@ -186,7 +188,11 @@ inline auto string_to_uint64(std::string_view n) -> option::optional<uint64_t> {
     return num;
 }
 
-inline auto hexstring_to_uint64(std::string_view n) -> option::optional<uint64_t> {
+inline auto hexstring_to_uint64(std::string_view n) -> option::optional<uint64_t>
+{
+    if (n.empty())
+        return option::nullopt;
+
     using namespace http::parser_utils;
     uint64_t num = 0;
 
@@ -205,13 +211,15 @@ inline auto hexstring_to_uint64(std::string_view n) -> option::optional<uint64_t
     return num;
 }
 
-inline auto to_uppercase(char c) -> char {
+inline auto to_uppercase(char c) -> char
+{
     if (c >= 'a' && c <= 'z')
         c ^= 32;
     return c;
 }
 
-inline auto to_lowercase(char c ) -> char {
+inline auto to_lowercase(char c) -> char
+{
     if (c >= 'A' && c <= 'Z')
         c ^= 32;
     return c;

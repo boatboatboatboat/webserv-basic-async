@@ -70,8 +70,13 @@ RequestParser::RequestParser(RequestParser&& other) noexcept
     , character_max(other.character_max)
     , buffer_limit(other.buffer_limit)
     , body_limit(other.body_limit)
+    , last_chunk_size(other.last_chunk_size)
+    , chunked(other.chunked)
+    , host_set(other.host_set)
+    , is_http_1_1(other.is_http_1_1)
     , source(other.source)
     , buffer(move(other.buffer))
+    , decoded_body(move(other.decoded_body))
     , builder(move(other.builder))
 {
     utils::memcpy(character_buffer, other.character_buffer);
@@ -83,20 +88,170 @@ RequestParser::RequestParser(RequestParser&& other, IAsyncRead& new_stream) noex
     , character_max(other.character_max)
     , buffer_limit(other.buffer_limit)
     , body_limit(other.body_limit)
+    , last_chunk_size(other.last_chunk_size)
+    , chunked(other.chunked)
+    , host_set(other.host_set)
+    , is_http_1_1(other.is_http_1_1)
     , source(new_stream)
     , buffer(move(other.buffer))
+    , decoded_body(move(other.decoded_body))
     , builder(move(other.builder))
 {
     utils::memcpy(character_buffer, other.character_buffer);
     other.moved = true;
 }
 
+// validates field name
+static inline void validate_field_name(string_view field_name)
+{
+    // validate field_name
+    if (field_name.empty()) {
+        // field name must at least have 1 tchar
+        throw RequestParser::MalformedRequest();
+    }
+
+    auto field_name_is_invalid = std::any_of(
+        field_name.begin(), field_name.end(),
+        [](char c) { return !parser_utils::is_tchar(c); });
+
+    if (field_name_is_invalid) {
+        throw RequestParser::MalformedRequest();
+    }
+}
+
+inline static void trim_field_value(string_view& field_value)
+{
+    // trim OWS from field value
+    while (!field_value.empty() && (field_value.front() == ' ' || field_value.front() == '\t')) {
+        field_value.remove_prefix(1);
+    }
+    while (!field_value.empty() && (field_value.back() == ' ' || field_value.back() == '\t')) {
+        field_value.remove_suffix(1);
+    }
+}
+
+inline static void validate_field_value(string_view field_value)
+{
+    bool last_was_separator = false;
+
+    for (auto c : field_value) {
+        if (parser_utils::is_vchar(c)) {
+            last_was_separator = false;
+        } else if (c == ' ' || c == '\t') {
+            last_was_separator = true;
+        } else {
+            throw RequestParser::MalformedRequest();
+        }
+    }
+    if (last_was_separator) {
+        throw RequestParser::MalformedRequest();
+    }
+}
+
+inline static void validate_accept_charset(string_view field_value)
+{
+    using namespace parser_utils;
+    enum p_state {
+        take_charset,
+        take_weight
+    } state
+        = take_charset;
+    bool not_first = true;
+    // a ; q=1,
+    for (;;) {
+        if (state == take_charset) {
+            if (not_first) {
+                not_first = false;
+            } else if (parse_optional(field_value, ",")) {
+                parse_optional(field_value, " ");
+            }
+            parse_while(field_value, is_tchar, 1);
+            parse_optional(field_value, " ");
+            if (field_value.empty()) {
+                break;
+            }
+            if (parse_optional(field_value, ";")) {
+                state = take_weight;
+            }
+        } else if (state == take_weight) {
+            parse_optional(field_value, " ");
+            parse_expect(field_value, "q");
+            parse_expect(field_value, "=");
+            parse_expect(field_value, "01");
+            if (parse_optional(field_value, ".")) {
+                parse_while(field_value, is_digit);
+            }
+            if (field_value.empty()) {
+                break;
+            }
+            parse_optional(field_value, " ");
+            state = take_charset;
+        }
+    }
+}
+
+inline static void validate_accept_language(string_view field_value)
+{
+    using namespace parser_utils;
+    enum p_state {
+        take_language,
+        take_weight
+    } state
+        = take_language;
+    bool not_first = true;
+    // a ; q=1,
+    for (;;) {
+        if (state == take_language) {
+            if (not_first) {
+                not_first = false;
+            } else if (parse_optional(field_value, ",")) {
+                parse_optional(field_value, " ");
+            }
+            if (parse_optional(field_value, "*")) {
+                if (field_value.empty()) {
+                    break;
+                }
+                parse_look_expect(field_value, ";, ");
+            } else {
+                parse_while(field_value, is_alpha, 1, 8);
+                if (parse_optional(field_value, "-")) {
+                    if (parse_optional(field_value, "*")) {
+                        parse_look_expect(field_value, ";, ");
+                    } else {
+                        parse_while(field_value, is_alphanumeric, 1, 8);
+                    }
+                }
+            }
+            parse_optional(field_value, " ");
+            if (field_value.empty()) {
+                break;
+            }
+            if (parse_optional(field_value, ";")) {
+                state = take_weight;
+            }
+        } else if (state == take_weight) {
+            parse_optional(field_value, " ");
+            parse_expect(field_value, "q");
+            parse_expect(field_value, "=");
+            parse_expect(field_value, "01");
+            if (parse_optional(field_value, ".")) {
+                parse_while(field_value, is_digit);
+            }
+            if (field_value.empty()) {
+                break;
+            }
+            parse_optional(field_value, " ");
+            state = take_language;
+        }
+    }
+}
+
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "EndlessLoop"
-auto RequestParser::poll(Waker&& waker) -> PollResult<Request>
+auto RequestParser::inner_poll(Waker&& waker) -> CallState
 {
     if (moved)
-        return PollResult<Request>::pending();
+        return Pending;
     auto poll_result = poll_character(Waker(waker));
     using Status = StreamPollResult<uint8_t>::Status;
 
@@ -117,6 +272,7 @@ auto RequestParser::poll(Waker&& waker) -> PollResult<Request>
                         buffer.pop_back();
                     }
                 } break;
+                case AppendToBody:
                 case ChunkedBodyData:
                 case Body: {
                     matched = true;
@@ -136,6 +292,18 @@ auto RequestParser::poll(Waker&& waker) -> PollResult<Request>
             }
             if (matched) {
                 string_view str_in_buf(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+#ifdef DEBUG_REQUEST_PARSER_STRINGBUFS
+                switch (state) {
+                    case ReadMethod:
+                    case ReadUri:
+                    case ReadVersion:
+                    case HeaderLine: {
+                        DBGPRINT("sibu: " << str_in_buf);
+                    } break;
+                    default:
+                        break;
+                }
+#endif
                 switch (state) {
                     case ReadMethod: {
                         auto method = get_method(str_in_buf);
@@ -168,6 +336,7 @@ auto RequestParser::poll(Waker&& waker) -> PollResult<Request>
                     } break;
                     case HeaderLine: {
                         if (str_in_buf.empty()) {
+                            // the header line is empty
                             if (is_http_1_1 && !host_set) {
                                 // RFC 7230 5.4.
                                 // HTTP/1.1 must have Host header field
@@ -175,76 +344,149 @@ auto RequestParser::poll(Waker&& waker) -> PollResult<Request>
                                 throw MalformedRequest();
                             }
                             if (!method_has_body(current_method)) {
-                                return PollResult<Request>::ready(move(builder).build());
+                                // we have a method without a defined body,
+                                // we should stop parsing
+                                return Completed;
                             }
                             if (content_length.has_value()) {
+                                // content-length was set,
+                                // so we know the length ahead of time,
+                                if (*content_length == 0) {
+                                    // switching to body mode with cl=0 will cause
+                                    //  the future to never finish.
+                                    // instead, return ready now
+                                    builder.body(RequestBody());
+                                    return Completed;
+                                }
+                                // use the regular body parser
                                 state = Body;
                             } else if (chunked) {
+                                // we do NOT know the length ahead of time,
+                                // but Transfer-Encoding: chunked was set,
+                                // so we can use the chunked body parser
                                 state = ChunkedBodySize;
                             } else {
+                                // No length indication was given,
+                                // throw the appropriate status error
                                 throw UndeterminedLength();
                             }
                         } else {
+                            // the header line is NOT empty
+                            // check for ':'
                             auto separator = str_in_buf.find(':');
-
                             if (separator == string_view::npos) {
+                                // there is no ':', so the headerline is invalid
                                 throw MalformedRequest();
                             }
 
+                            // field name is everything before the ':'
                             auto field_name = str_in_buf.substr(0, separator);
+                            // field value is inside the pseudo-rule `OWS field-value OWS`,
+                            // after the ':'
                             auto field_value = str_in_buf.substr(separator + 1);
 
-                            // validate field_name
-                            if (field_name.empty()) {
-                                // field name must at least have 1 tchar
-                                throw MalformedRequest();
-                            }
-                            for (auto c : field_name) {
-                                // field name = token = 1*tchar
-                                if (!parser_utils::is_tchar(c)) {
-                                    // not a tchar = invalid request
-                                    throw MalformedRequest();
+                            // check whether it's a valid header main-rulewise
+                            validate_field_name(field_name);
+                            trim_field_value(field_value);
+                            validate_field_value(field_value);
+
+                            // check whether it's a valid header header-rulewise
+                            {
+                                constexpr auto streq = utils::str_eq_case_insensitive;
+                                if (streq(field_name, header::CONTENT_LENGTH)) {
+                                    // validate Content-Length
+                                    auto length = utils::string_to_uint64(field_value);
+
+                                    if (length.has_value()) {
+                                        content_length = *length;
+                                    } else {
+                                        throw MalformedRequest();
+                                    }
+                                } else if (streq(field_name, header::TRANSFER_ENCODING)) {
+                                    // validate Transfer-Encoding
+                                    // because the subject doesn't allow zlib,
+                                    // we'll consider the transfer encoding invalid
+                                    if (field_value != "chunked") {
+                                        throw BadTransferEncoding();
+                                    }
+                                    chunked = true;
+                                } else if (streq(field_name, header::HOST)) {
+                                    // validate Host header
+                                    // TODO: check uri
+                                    if (host_set) {
+                                        // RFC 7230 5.4.
+                                        // if there's more than 1 Host header it's an invalid request
+                                        throw MalformedRequest();
+                                    }
+                                    host_set = true;
+                                } else if (streq(field_name, header::USER_AGENT)) {
+                                    // validate User-Agent header
+                                    auto last_was_space = false;
+                                    auto last_was_ver = false;
+                                    auto is_token = false;
+                                    for (char c : field_value) {
+                                        if (c == ' ' || c == '\t') {
+                                            if (last_was_ver) {
+                                                throw MalformedRequest();
+                                            }
+                                            last_was_space = true;
+                                            last_was_ver = false;
+                                        } else if (c == '/') {
+                                            if (last_was_space || !is_token) {
+                                                throw MalformedRequest();
+                                            }
+                                            last_was_space = false;
+                                            last_was_ver = true;
+                                        } else {
+                                            is_token = true;
+                                            last_was_space = false;
+                                            last_was_ver = false;
+                                        }
+                                    }
+                                    if (!is_token || last_was_space || last_was_ver) {
+                                        throw MalformedRequest();
+                                    }
+                                } else if (streq(field_name, header::REFERER)) {
+                                    // validate Referer [sic] header
+                                    // a Referer = absolute-URI / partial-URI
+                                    // a partial-URI can be checked with origin-form mode
+                                    auto referer_value = Uri(field_value);
+                                    switch (referer_value.get_target_form()) {
+                                        case Uri::AbsoluteForm: {
+                                        } break;
+                                        case Uri::OriginForm: {
+                                            // origin form has pqf, so we can deref
+                                            // a partial-URI is OriginForm without a fragment
+                                            if (referer_value.get_pqf()->get_fragment().has_value()) {
+                                                throw MalformedRequest();
+                                            }
+                                        } break;
+                                        default: {
+                                            throw MalformedRequest();
+                                        } break;
+                                    }
+                                } else if (streq(field_name, header::ACCEPT_CHARSET)) {
+                                    try {
+                                        validate_accept_charset(field_value);
+                                    } catch (...) {
+                                        throw MalformedRequest();
+                                    }
+                                } else if (streq(field_name, header::ACCEPT_LANGUAGE)) {
+                                    try {
+                                        validate_accept_language(field_value);
+                                    } catch (...) {
+                                        throw MalformedRequest();
+                                    }
                                 }
                             }
-
-                            // trim OWS from header value
-                            while (!field_value.empty() && (field_value.front() == ' ' || field_value.front() == '\t')) {
-                                field_value.remove_prefix(1);
-                            }
-                            while (!field_value.empty() && (field_value.back() == ' ' || field_value.back() == '\t')) {
-                                field_value.remove_suffix(1);
-                            }
-
-                            if (utils::str_eq_case_insensitive(field_name, header::CONTENT_LENGTH)) {
-                                auto length = utils::string_to_uint64(field_value);
-
-                                if (length.has_value()) {
-                                    content_length = *length;
-                                } else {
-                                    throw MalformedRequest();
-                                }
-                            } else if (utils::str_eq_case_insensitive(field_name, header::TRANSFER_ENCODING)) {
-                                if (field_value != "chunked") {
-                                    throw BadTransferEncoding();
-                                }
-                                chunked = true;
-                            } else if (utils::str_eq_case_insensitive(field_name, header::HOST)) {
-                                if (host_set) {
-                                    // RFC 7230 5.4.
-                                    // if there's more than 1 Host header it's an invalid request
-                                    throw MalformedRequest();
-                                }
-                                host_set = true;
-                            }
-
                             builder.header(string(field_name), string(field_value));
                         }
                         buffer.clear();
                     } break;
                     case Body: {
                         if (buffer.size() == *content_length) {
-                            builder.body(move(buffer));
-                            return PollResult<Request>::ready(move(builder).build());
+                            builder.body(RequestBody(move(buffer)));
+                            return Completed;
                         }
                     } break;
                     case ChunkedBodySize: {
@@ -270,8 +512,12 @@ auto RequestParser::poll(Waker&& waker) -> PollResult<Request>
                         if (decoded_size.has_value()) {
                             last_chunk_size = decoded_size.value();
                             if (decoded_size.value() == 0) {
-                                builder.body(move(*decoded_body));
-                                return PollResult<Request>::ready(move(builder).build());
+                                if (decoded_body.has_value()) {
+                                    builder.body(move(*decoded_body));
+                                } else {
+                                    builder.body(RequestBody());
+                                }
+                                return Completed;
                             }
                             // check if this would exceed the limit
                             if (decoded_body.has_value()) {
@@ -298,28 +544,46 @@ auto RequestParser::poll(Waker&& waker) -> PollResult<Request>
                                 throw MalformedRequest();
                             }
                             buffer.pop_back();
-                            // initialize decoded_body
+                            // switch to atb
+                            state = AppendToBody;
+                        }
+                    } break;
+                    case AppendToBody: {
+                        // idk even
+                        //                        DBGPRINT("Shiftback ATB re " << poll_result.get() << " " << character_head);
+                        shift_back = true;
+                        if (!span_reader.has_value()) {
+                            span_reader = ioruntime::SpanReader(span(buffer.data(), buffer.size()));
                             if (!decoded_body.has_value()) {
-                                decoded_body = vector<uint8_t>();
+                                decoded_body = RequestBody();
                             }
-                            // check if concatenation would exceed the limit
                             if ((decoded_body->size() + buffer.size()) > body_limit) {
                                 throw BodyExceededLimit();
                             }
-                            // append buffer to body
-                            decoded_body->insert(decoded_body->end(), buffer.begin(), buffer.end());
-                            // reset the buffer
-                            buffer.clear();
-                            // switch back to size
-                            state = ChunkedBodySize;
+                            ricf = ioruntime::RefIoCopyFuture(*span_reader, *decoded_body);
+                        }
+                        auto icf_res = ricf->poll(Waker(waker));
+                        if (icf_res.is_ready()) {
+                            if (chunked) {
+                                // reset buffer
+                                buffer.clear();
+                                span_reader = option::nullopt;
+                                // switch back to size
+                                state = ChunkedBodySize;
+                            } else {
+                                builder.body(move(*decoded_body));
+                                return Completed;
+                            }
+                        } else {
+                            return Pending;
                         }
                     } break;
                 }
             }
-            return poll(move(waker));
+            return Running;
         } break;
         case Status::Pending: {
-            return PollResult<Request>::pending();
+            return Pending;
         } break;
         case Status::Finished: {
             // All EOFs are unexpected, we want either TCE or CL
@@ -331,10 +595,17 @@ auto RequestParser::poll(Waker&& waker) -> PollResult<Request>
 
 auto RequestParser::poll_character(Waker&& waker) -> StreamPollResult<uint8_t>
 {
-    if (character_head == 0) {
+    if (shift_back) {
+        shift_back = false;
+        character_head -= 1;
+        character_buffer_exhausted = false;
+    }
+    if (character_buffer_exhausted) {
         auto poll_result = source.poll_read(span(character_buffer, sizeof(character_buffer)), move(waker));
 
         if (poll_result.is_ready()) {
+            character_buffer_exhausted = false;
+            character_head = 0;
             auto result = poll_result.get();
             if (result.is_error()) {
                 throw std::runtime_error("StreamingHttpRequestParser: poll_character: read returned negative");
@@ -344,13 +615,28 @@ auto RequestParser::poll_character(Waker&& waker) -> StreamPollResult<uint8_t>
             return StreamPollResult<uint8_t>::pending();
         }
     }
-    character_head += 1;
     if (character_max == 0)
         return StreamPollResult<uint8_t>::finished();
-    uint8_t c = character_buffer[character_head - 1];
-    if (character_head == character_max)
-        character_head = 0;
+    uint8_t c = character_buffer[character_head];
+    character_head += 1;
+    if (character_head == character_max) {
+        character_buffer_exhausted = true;
+    }
     return StreamPollResult<uint8_t>::ready(uint8_t(c)); // LOL
+}
+
+auto RequestParser::poll(Waker&& waker) -> PollResult<Request>
+{
+    auto status = Running;
+    while (status == Running) {
+        // i think waker copies are cheap so this shouldn't be an issue
+        status = inner_poll(Waker(waker));
+    }
+    if (status == Pending) {
+        return PollResult<Request>::pending();
+    } else {
+        return PollResult<Request>::ready(move(builder).build());
+    }
 }
 
 }

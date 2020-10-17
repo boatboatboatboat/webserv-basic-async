@@ -25,13 +25,24 @@ auto Socket::read(void* buffer, size_t size) -> ssize_t
     // shhh don't tell anyone
     if (fcntl(descriptor, F_SETFL, O_NONBLOCK) < 0)
         return -1;
+    ssize_t res;
 #ifdef __linux__
     // MSG_NOSIGNAL disables SIGPIPE being called on a broken pipe
-    return recv(descriptor, buffer, size, MSG_NOSIGNAL);
+    res = recv(descriptor, buffer, size, MSG_NOSIGNAL);
 #endif
 #ifdef __APPLE__
-    return recv(descriptor, buffer, size, 0);
+    res = recv(descriptor, buffer, size, 0);
 #endif
+#ifdef DEBUG_SOCKET_PRINTER
+    if (res > 0) {
+        DBGPRINT("SOCKET " << res << " " << std::string_view((const char*)buffer, res));
+    } else if (res == 0) {
+        DBGPRINT("SOCKET EOF");
+    } else {
+        DBGPRINT("SOCKET ERR");
+    }
+#endif
+    return res;
 }
 
 auto Socket::write(void const* buffer, size_t size) -> ssize_t
@@ -52,6 +63,7 @@ Socket::Socket(int fd, SocketAddr addr)
     : FileDescriptor(fd)
     , _addr(addr)
 {
+    TRACEPRINT("socket register "<< fd);
     GlobalIoEventHandler::register_special_callback(descriptor, BoxFunctor(new FunnyFunctor()), false, 0);
 }
 

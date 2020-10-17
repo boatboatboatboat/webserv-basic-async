@@ -149,4 +149,15 @@ auto FileDescriptor::can_write() -> bool
     return *write_ready;
 }
 
+auto FileDescriptor::operator=(FileDescriptor&& other) noexcept -> FileDescriptor&
+{
+    if (this == &other)
+        return *this;
+    descriptor = other.descriptor;
+    ready_to_read = std::move(other.ready_to_read);
+    ready_to_write = std::move(other.ready_to_write);
+    other.descriptor = -1;
+    return *this;
+}
+
 }

@@ -1,1 +1,10 @@
+GET http://localhost:1234/ HTTP/1.1
+
+###
 GET http://localhost:1234/cgi HTTP/1.1
+
+###
+GET http://localhost:1234/cgi/body_echo.lua HTTP/1.1
+
+### bs test
+GET http://localhost:1234/cgi/read_forever.lua HTTP/1.1

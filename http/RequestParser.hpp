@@ -108,6 +108,12 @@ public:
     auto poll_character(Waker&& waker) -> StreamPollResult<uint8_t>;
 
 private:
+    enum CallState {
+        Pending,
+        Running,
+        Completed,
+    };
+    auto inner_poll(Waker&& waker) -> CallState;
     enum State {
         ReadMethod,
         ReadUri,
@@ -120,11 +126,15 @@ private:
         // Chunked body
         ChunkedBodySize,
         ChunkedBodyData,
+
+        // hack
+        AppendToBody,
     } state
         = ReadMethod;
-    uint8_t character_buffer[128] {};
+    uint8_t character_buffer[32192] {};
     size_t character_head = 0;
     size_t character_max = 0;
+    bool character_buffer_exhausted = true;
     size_t buffer_limit;
     size_t body_limit;
     Method current_method;
@@ -135,9 +145,12 @@ private:
     bool is_http_1_1 = false;
     IAsyncRead& source;
     vector<uint8_t> buffer;
-    optional<vector<uint8_t>> decoded_body;
+    optional<ioruntime::SpanReader> span_reader;
+    optional<ioruntime::RefIoCopyFuture> ricf;
+    optional<RequestBody> decoded_body;
     RequestBuilder builder;
     bool moved = false;
+    bool shift_back = false;
 };
 
 }

@@ -28,15 +28,51 @@ using table = vector<pair<K, V>>;
 using http::Method;
 using net::IpAddress;
 
+class AuthConfig {
+public:
+    AuthConfig(string&& username, string&& password, optional<string>&& realm);
+    [[nodiscard]] auto get_username() const -> string const&;
+    [[nodiscard]] auto get_password() const -> string const&;
+    [[nodiscard]] auto get_realm() const -> optional<string> const&;
+
+private:
+    string _username;
+    string _password;
+    optional<string> _realm;
+};
+
+class UploadConfig {
+public:
+    UploadConfig(string&& directory, optional<size_t>&& max_size);
+    [[nodiscard]] auto get_directory() const -> string const&;
+    [[nodiscard]] auto get_max_size() const -> optional<size_t> const&;
+
+private:
+    string _directory;
+    optional<size_t> _max_size;
+};
+
 class BaseConfig {
 public:
-    BaseConfig(optional<string> root, optional<vector<string>> index_pages, optional<map<uint16_t, string>> error_pages, optional<bool> use_cgi, optional<vector<Method>> allowed_methods, optional<bool> autoindex);
+    BaseConfig(
+        optional<string> root,
+        optional<vector<string>> index_pages,
+        optional<map<uint16_t, string>> error_pages,
+        optional<bool> use_cgi,
+        optional<vector<Method>> allowed_methods,
+        optional<bool> autoindex,
+        optional<AuthConfig>&& authcfg,
+        optional<UploadConfig>&& uploadcfg,
+        optional<size_t> body_limit);
     [[nodiscard]] auto get_root() const -> optional<string> const&;
     [[nodiscard]] auto get_index_pages() const -> optional<vector<string>> const&;
     [[nodiscard]] auto get_error_pages() const -> optional<map<uint16_t, string>> const&;
     [[nodiscard]] auto get_use_cgi() const -> optional<bool> const&;
     [[nodiscard]] auto get_allowed_methods() const -> optional<vector<Method>> const&;
     [[nodiscard]] auto get_autoindex() const -> optional<bool> const&;
+    [[nodiscard]] auto get_auth_config() const -> optional<AuthConfig> const&;
+    [[nodiscard]] auto get_upload_config() const -> optional<UploadConfig> const&;
+    [[nodiscard]] auto get_body_limit() const -> optional<size_t>;
 
 private:
     optional<string> root;
@@ -45,6 +81,9 @@ private:
     optional<bool> use_cgi;
     optional<vector<Method>> allowed_methods;
     optional<bool> autoindex;
+    optional<AuthConfig> auth_config;
+    optional<UploadConfig> upload_config;
+    optional<size_t> body_limit;
 };
 
 class LocationConfig : public BaseConfig {
@@ -64,20 +103,17 @@ public:
         optional<vector<string>>&& server_names,
         optional<vector<tuple<IpAddress, uint16_t>>>&& bind_addresses,
         optional<table<Regex, LocationConfig>>&& locations,
-        optional<size_t> body_limit,
         optional<size_t> buffer_limit,
         optional<size_t> inactivity_timeout,
         BaseConfig&& bc);
     [[nodiscard]] auto get_server_names() const -> optional<vector<string>> const&;
     [[nodiscard]] auto get_bind_addresses() const -> optional<vector<tuple<IpAddress, uint16_t>>> const&;
-    [[nodiscard]] auto get_body_limit() const -> optional<size_t>;
     [[nodiscard]] auto get_buffer_limit() const -> optional<size_t>;
     [[nodiscard]] auto get_inactivity_timeout() const -> optional<size_t>;
 
 private:
     optional<vector<string>> server_names;
     optional<vector<tuple<IpAddress, uint16_t>>> bind_addresses;
-    optional<size_t> body_limit;
     optional<size_t> buffer_limit;
     optional<size_t> inactivity_timeout;
 };

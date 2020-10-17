@@ -7,6 +7,7 @@
 
 #include "Header.hpp"
 #include "Method.hpp"
+#include "RequestBody.hpp"
 #include "Uri.hpp"
 #include "Version.hpp"
 #include <map>
@@ -25,7 +26,7 @@ public:
     auto uri(Uri&& uri) -> RequestBuilder&;
     auto version(Version version) -> RequestBuilder&;
     auto header(string&& header_name, string&& header_value) -> RequestBuilder&;
-    auto body(vector<uint8_t>&& body) -> RequestBuilder&;
+    auto body(RequestBody&& body) -> RequestBuilder&;
     auto build() && -> Request;
 
 private:
@@ -33,7 +34,7 @@ private:
     optional<Uri> _uri;
     Version _version;
     Headers _headers;
-    vector<uint8_t> _body;
+    optional<RequestBody> _body;
 };
 
 class Request {
@@ -43,20 +44,22 @@ public:
         Uri uri,
         Version version,
         Headers headers,
-        vector<uint8_t> body);
+        optional<RequestBody> body);
     [[nodiscard]] auto get_method() const -> Method const&;
     [[nodiscard]] auto get_uri() const -> Uri const&;
     [[nodiscard]] auto get_version() const -> Version const&;
     [[nodiscard]] auto get_headers() const -> Headers const&;
     [[nodiscard]] auto get_header(string_view name) const -> optional<string_view>;
-    [[nodiscard]] auto get_body() const -> vector<uint8_t> const&;
+    [[nodiscard]] auto get_body() -> optional<RequestBody>&;
+    [[nodiscard]] auto get_body() const -> optional<RequestBody> const&;
+    void debug_print() const;
 
 private:
     Method _method;
     Uri _uri;
     Version _version;
     Headers _headers;
-    vector<uint8_t> _body;
+    optional<RequestBody> _body;
 };
 
 }

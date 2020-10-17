@@ -13,7 +13,7 @@
 
 namespace ioruntime {
 
-using std::multimap;
+using std::map;
 using option::optional;
 
 class GlobalChildProcessHandler {
@@ -23,7 +23,7 @@ public:
         ChildProcessHandler();
         void register_handler(pid_t process, BoxFunctor&& callback);
 
-        Mutex<multimap<pid_t, BoxFunctor>> _process_handlers_mutex;
+        Mutex<map<pid_t, BoxFunctor>> _process_handlers_mutex;
     };
     class SignalHandlerError : public std::runtime_error {
     public:

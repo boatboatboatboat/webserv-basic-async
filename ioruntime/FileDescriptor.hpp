@@ -19,6 +19,7 @@ class FileDescriptor : public IAsyncRead, public IAsyncWrite {
 public:
     explicit FileDescriptor(int fd);
     FileDescriptor(FileDescriptor&& other) noexcept;
+    auto operator=(FileDescriptor&& other) noexcept -> FileDescriptor&;
     ~FileDescriptor() override;
     virtual auto read(void* buffer, size_t size) -> ssize_t;
     virtual auto write(void const* buffer, size_t size) -> ssize_t;

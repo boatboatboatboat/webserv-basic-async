@@ -24,11 +24,25 @@ void TimeoutEventHandler::reactor_step()
     {
         auto clocks = clocks_mutex.lock();
 
-        for (auto it = clocks->begin(); it != clocks->upper_bound(present_time); it++) {
+        for (auto it = clocks->begin(); it != clocks->end();) {
             auto& timeout = *it;
-            callbacks.push_back(std::move(timeout.second.functor));
-            // Mark timeout as used, so we know it has been called.
-            timeout.second.used = true;
+            if (timeout.first <= present_time) {
+                callbacks.push_back(std::move(timeout.second.functor));
+                // Mark timeout as used, so we know it has been called.
+                timeout.second.used = true;
+            } else {
+                // check if disconnected
+                bool disc;
+                {
+                    auto ulock = timeout.second.disconnected->lock();
+                    disc = *ulock;
+                }
+                if (disc) {
+                    it = clocks->erase(it);
+                    continue;
+                }
+            }
+            it++;
         }
     }
     // Now we can safely call the callbacks.
@@ -42,7 +56,8 @@ void TimeoutEventHandler::reactor_step()
         auto it = clocks->begin();
         while (it != clocks->upper_bound(present_time)) {
             auto& timeout = *it;
-            if (timeout.second.used)
+            auto used = timeout.second.used;
+            if (used)
                 it = clocks->erase(it);
             else
                 it++;
@@ -50,23 +65,63 @@ void TimeoutEventHandler::reactor_step()
     }
 }
 
-void TimeoutEventHandler::register_timeout(uint64_t ms, BoxFunctor&& callback)
+auto TimeoutEventHandler::register_timeout(uint64_t ms, BoxFunctor&& callback) -> TimeoutEventConnection
 {
     auto tick = get_time_ms() + ms;
     auto clocks = clocks_mutex.lock();
-    clocks->insert(std::pair(tick, CallbackInfo { .used = false, .functor = std::move(callback) }));
+    auto uptr = RcPtr(Mutex(false));
+    clocks->insert(std::pair(tick, CallbackInfo { .disconnected = RcPtr(uptr), .functor = std::move(callback), .used = false }));
+    return TimeoutEventConnection(std::move(uptr));
 }
 
-void TimeoutEventHandler::register_timeout_real(uint64_t ms, BoxFunctor&& callback)
+auto TimeoutEventHandler::register_timeout_real(uint64_t ms, BoxFunctor&& callback) -> TimeoutEventConnection
 {
     auto clocks = clocks_mutex.lock();
-    clocks->insert(std::pair(ms, CallbackInfo { .used = false, .functor = std::move(callback) }));
+    auto uptr = RcPtr(Mutex(false));
+    clocks->insert(std::pair(ms, CallbackInfo { .disconnected = RcPtr(uptr), .functor = std::move(callback), .used = false }));
+    return TimeoutEventConnection(std::move(uptr));
 }
 
 auto TimeoutEventHandler::is_clocks_empty() -> bool
 {
     auto clocks = clocks_mutex.lock();
     return clocks->empty();
+}
+
+TimeoutEventConnection::TimeoutEventConnection(RcPtr<Mutex<bool>>&& handle)
+    : _handle(std::move(handle))
+{
+}
+
+TimeoutEventConnection::~TimeoutEventConnection()
+{
+    disconnect();
+}
+
+void TimeoutEventConnection::disconnect()
+{
+    if (!_disconnected) {
+        auto hlock = _handle->lock();
+        *hlock = true;
+        _disconnected = true;
+    }
+}
+
+TimeoutEventConnection::TimeoutEventConnection(TimeoutEventConnection&& other) noexcept
+    : _handle(std::move(other._handle))
+{
+    _disconnected = other._disconnected;
+    other._disconnected = true;
+}
+
+TimeoutEventConnection& TimeoutEventConnection::operator=(TimeoutEventConnection&& other) noexcept
+{
+    if (this == &other)
+        return *this;
+    _handle = std::move(other._handle);
+    _disconnected = other._disconnected;
+    other._disconnected = true;
+    return *this;
 }
 
 }

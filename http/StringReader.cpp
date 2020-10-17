@@ -8,15 +8,20 @@
 
 namespace http {
 
-StringReader::StringReader(std::string body, bool stream_like)
+StringReader::StringReader(std::string body, bool stream_like, size_t fake_cap)
     : stream_like(stream_like)
+    , fake_cap(fake_cap)
     , body(std::move(body))
 {
 }
 
 auto StringReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
 {
-    auto left_to_write = std::min(buffer.size(), body.length() - written);
+    auto max_size = buffer.size();
+    if (fake_cap != 0) {
+        max_size = std::min(fake_cap, buffer.size());
+    }
+    auto left_to_write = std::min(max_size, body.length() - written);
     memcpy(buffer.data(), body.c_str() + written, left_to_write);
     written += left_to_write;
     waker();

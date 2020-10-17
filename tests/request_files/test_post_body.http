@@ -1,15 +1,24 @@
 POST http://localhost:1234/cgi/test.pl
 Content-Type: text/plain
+Authorization: Basic aGVsbG86d29ybGQ=
 
 Hello, world!
-###
+### test 'big'
 POST http://localhost:1234/cgi/body_echo.lua
 
 Hello, world!
-###
+### test small
 POST http://localhost:1234/cgi/body_echo.lua
 
 small
-###
-GET http://www.nginx.com/
-User-Agent: garbage
+### test none
+POST http://localhost:1234/cgi/body_echo.lua
+
+### test none
+POST http://localhost:1234/post_body
+
+### funny
+GET http://localhost:1234/
+
+Accept-Charset: balls?  sa
+Referer: test

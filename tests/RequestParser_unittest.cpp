@@ -7,6 +7,7 @@
 #include "../http/StringReader.hpp"
 #include "../ioruntime/RuntimeBuilder.hpp"
 
+#include "../ioruntime/GlobalTimeoutEventHandler.hpp"
 #include "gtest/gtest.h"
 
 using namespace http;
@@ -106,6 +107,11 @@ TEST(ShrpTests, shrp_basic_authority)
 
 TEST(ShrpTests, shrp_basic_post_with_body)
 {
+    auto ioe = ioruntime::IoEventHandler();
+    ioruntime::GlobalIoEventHandler::set(&ioe);
+    auto to = ioruntime::TimeoutEventHandler();
+    ioruntime::GlobalTimeoutEventHandler::set(&to);
+
     const string request = "POST /form?inline=test HTTP/1.1\r\nHost: test\r\nContent-Length: 13\r\n\r\nHello, world!";
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
@@ -115,6 +121,7 @@ TEST(ShrpTests, shrp_basic_post_with_body)
     RequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
+        ioe.reactor_step();
         auto res = parser.poll(Waker::dead());
         if (res.is_ready()) {
             auto val = std::move(res.get());
@@ -123,8 +130,40 @@ TEST(ShrpTests, shrp_basic_post_with_body)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_query().value(), "inline=test");
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
             EXPECT_EQ(
-                string_view(reinterpret_cast<const char*>(val.get_body().data()), val.get_body().size()),
+                string_view(reinterpret_cast<const char*>(val.get_body()->debug_body(ioe).data()), val.get_body()->size()),
                 "Hello, world!");
+            break;
+        }
+    }
+}
+
+TEST(ShrpTests, shrp_basic_post_without_body)
+{
+    auto ioe = ioruntime::IoEventHandler();
+    ioruntime::GlobalIoEventHandler::set(&ioe);
+    auto to = ioruntime::TimeoutEventHandler();
+    ioruntime::GlobalTimeoutEventHandler::set(&to);
+
+    const string request = "POST /form?inline=test HTTP/1.1\r\nHost: test\r\nContent-Length: 0\r\n\r\n";
+    const size_t buffer_limit = 8192;
+    const size_t body_limit = 8192;
+
+    StringReader sbody(request, true);
+
+    RequestParser parser(sbody, buffer_limit, body_limit);
+
+    while (true) {
+        auto res = parser.poll(Waker::dead());
+        ioe.reactor_step();
+        if (res.is_ready()) {
+            auto val = std::move(res.get());
+            EXPECT_EQ(val.get_method(), method::POST);
+            EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/form");
+            EXPECT_EQ(val.get_uri().get_pqf().value().get_query().value(), "inline=test");
+            EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
+            EXPECT_EQ(
+                string_view(reinterpret_cast<const char*>(val.get_body()->debug_body(ioe).data()), val.get_body()->size()),
+                "");
             break;
         }
     }
@@ -132,6 +171,11 @@ TEST(ShrpTests, shrp_basic_post_with_body)
 
 TEST(ShrpTests, shrp_basic_post_with_chunked_body)
 {
+    auto ioe = ioruntime::IoEventHandler();
+    ioruntime::GlobalIoEventHandler::set(&ioe);
+    auto to = ioruntime::TimeoutEventHandler();
+    ioruntime::GlobalTimeoutEventHandler::set(&to);
+
     const string request = "POST /form?inline=test HTTP/1.1\r\nHost: test\r\nTRANSFER-encoding:chunked\r\n\r\n5\r\nHello\r\n2\r\n, \r\n6\r\nworld!\r\n0\r\n\r\n";
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
@@ -141,6 +185,7 @@ TEST(ShrpTests, shrp_basic_post_with_chunked_body)
     RequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
+        ioe.reactor_step();
         auto res = parser.poll(Waker::dead());
         if (res.is_ready()) {
             auto val = std::move(res.get());
@@ -149,8 +194,104 @@ TEST(ShrpTests, shrp_basic_post_with_chunked_body)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_query().value(), "inline=test");
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
             EXPECT_EQ(
-                string_view(reinterpret_cast<const char*>(val.get_body().data()), val.get_body().size()),
+                string_view(reinterpret_cast<const char*>(val.get_body()->debug_body(ioe).data()), val.get_body()->size()),
                 "Hello, world!");
+            break;
+        }
+    }
+}
+
+TEST(ShrpTests, shrp_basic_post_with_chunked_body_sc_fakecap1)
+{
+    auto ioe = ioruntime::IoEventHandler();
+    ioruntime::GlobalIoEventHandler::set(&ioe);
+    auto to = ioruntime::TimeoutEventHandler();
+    ioruntime::GlobalTimeoutEventHandler::set(&to);
+
+    const string request = "POST /form?inline=test HTTP/1.1\r\nHost: test\r\nTransfer-Encoding: chunked\r\n\r\nb\r\nabcdefghijk\r\n0\r\n\r\n";
+    const size_t buffer_limit = 8192;
+    const size_t body_limit = 8192;
+
+    StringReader sbody(request, true, 1);
+
+    RequestParser parser(sbody, buffer_limit, body_limit);
+
+    while (true) {
+        ioe.reactor_step();
+        auto res = parser.poll(Waker::dead());
+        if (res.is_ready()) {
+            auto val = std::move(res.get());
+            EXPECT_EQ(val.get_method(), method::POST);
+            EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/form");
+            EXPECT_EQ(val.get_uri().get_pqf().value().get_query().value(), "inline=test");
+            EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
+            EXPECT_EQ(
+                string_view(reinterpret_cast<const char*>(val.get_body()->debug_body(ioe).data()), val.get_body()->size()),
+                "abcdefghijk");
+            break;
+        }
+    }
+}
+
+TEST(ShrpTests, shrp_basic_post_with_chunked_body_sc_fakecap2)
+{
+    auto ioe = ioruntime::IoEventHandler();
+    ioruntime::GlobalIoEventHandler::set(&ioe);
+    auto to = ioruntime::TimeoutEventHandler();
+    ioruntime::GlobalTimeoutEventHandler::set(&to);
+
+    const string request = "POST /form?inline=test HTTP/1.1\r\nHost: test\r\nTransfer-Encoding: chunked\r\n\r\nb\r\nabcdefghijk\r\n0\r\n\r\n";
+    const size_t buffer_limit = 8192;
+    const size_t body_limit = 8192;
+
+    StringReader sbody(request, true, 2);
+
+    RequestParser parser(sbody, buffer_limit, body_limit);
+
+    while (true) {
+        ioe.reactor_step();
+        auto res = parser.poll(Waker::dead());
+        if (res.is_ready()) {
+            auto val = std::move(res.get());
+            EXPECT_EQ(val.get_method(), method::POST);
+            EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/form");
+            EXPECT_EQ(val.get_uri().get_pqf().value().get_query().value(), "inline=test");
+            EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
+            EXPECT_EQ(
+                string_view(reinterpret_cast<const char*>(val.get_body()->debug_body(ioe).data()), val.get_body()->size()),
+                "abcdefghijk");
+            break;
+        }
+    }
+}
+
+TEST(ShrpTests, shrp_basic_post_with_chunked_body_sc_fakecap3)
+{
+    auto ioe = ioruntime::IoEventHandler();
+    ioruntime::GlobalIoEventHandler::set(&ioe);
+    auto to = ioruntime::TimeoutEventHandler();
+    ioruntime::GlobalTimeoutEventHandler::set(&to);
+
+    const string request = "POST /form?inline=test HTTP/1.1\r\nHost: test\r\nTransfer-Encoding: chunked\r\n\r\nb\r\nabcdefghijk\r\n0\r\n\r\n";
+    const size_t buffer_limit = 8192;
+    const size_t body_limit = 8192;
+
+    StringReader sbody(request, true, 3);
+
+    RequestParser parser(sbody, buffer_limit, body_limit);
+
+    while (true) {
+        ioe.reactor_step();
+        auto res = parser.poll(Waker::dead());
+        if (res.is_ready()) {
+            auto val = std::move(res.get());
+            EXPECT_EQ(val.get_method(), method::POST);
+            EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/form");
+            EXPECT_EQ(val.get_uri().get_pqf().value().get_query().value(), "inline=test");
+            EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
+            EXPECT_EQ(
+                string_view(reinterpret_cast<const char*>(val.get_body()->debug_body(ioe).data()), val.get_body()->size()),
+                "abcdefghijk");
             break;
         }
     }
@@ -158,6 +299,11 @@ TEST(ShrpTests, shrp_basic_post_with_chunked_body)
 
 TEST(ShrpTests, shrp_basic_post_with_chunked_body_shk)
 {
+    auto ioe = ioruntime::IoEventHandler();
+    ioruntime::GlobalIoEventHandler::set(&ioe);
+    auto to = ioruntime::TimeoutEventHandler();
+    ioruntime::GlobalTimeoutEventHandler::set(&to);
+
     const string request = "POST /form?inline=test HTTP/1.1\r\nHost: test\r\nTransfer-Encoding: chunked\r\n\r\nb\r\nabcdefghijk\r\n2\r\nlm\r\n6\r\nnopqrs\r\n0\r\n\r\n";
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
@@ -167,6 +313,7 @@ TEST(ShrpTests, shrp_basic_post_with_chunked_body_shk)
     RequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
+        ioe.reactor_step();
         auto res = parser.poll(Waker::dead());
         if (res.is_ready()) {
             auto val = std::move(res.get());
@@ -175,7 +322,7 @@ TEST(ShrpTests, shrp_basic_post_with_chunked_body_shk)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_query().value(), "inline=test");
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
             EXPECT_EQ(
-                string_view(reinterpret_cast<const char*>(val.get_body().data()), val.get_body().size()),
+                string_view(reinterpret_cast<const char*>(val.get_body()->debug_body(ioe).data()), val.get_body()->size()),
                 "abcdefghijklmnopqrs");
             break;
         }
@@ -184,6 +331,11 @@ TEST(ShrpTests, shrp_basic_post_with_chunked_body_shk)
 
 TEST(ShrpTests, shrp_basic_post_with_chunked_body_ddk)
 {
+    auto ioe = ioruntime::IoEventHandler();
+    ioruntime::GlobalIoEventHandler::set(&ioe);
+    auto to = ioruntime::TimeoutEventHandler();
+    ioruntime::GlobalTimeoutEventHandler::set(&to);
+
     const string request = "POST /form?inline=test HTTP/1.1\r\nHost: test\r\nTransfer-Encoding: chunked\r\n\r\n11\r\n0123456789ABCDEF1\r\n2\r\nlm\r\n6\r\nnopqrs\r\n0\r\n\r\n";
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
@@ -194,6 +346,7 @@ TEST(ShrpTests, shrp_basic_post_with_chunked_body_ddk)
 
     while (true) {
         auto res = parser.poll(Waker::dead());
+        ioe.reactor_step();
         if (res.is_ready()) {
             auto val = std::move(res.get());
             EXPECT_EQ(val.get_method(), method::POST);
@@ -201,8 +354,54 @@ TEST(ShrpTests, shrp_basic_post_with_chunked_body_ddk)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_query().value(), "inline=test");
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
             EXPECT_EQ(
-                string_view(reinterpret_cast<const char*>(val.get_body().data()), val.get_body().size()),
+                string_view(reinterpret_cast<const char*>(val.get_body()->debug_body(ioe).data()), val.get_body()->size()),
                 "0123456789ABCDEF1lmnopqrs");
+            break;
+        }
+    }
+}
+
+TEST(ShrpTests, shrp_basic_post_with_chunked_body_ones)
+{
+    auto ioe = ioruntime::IoEventHandler();
+    ioruntime::GlobalIoEventHandler::set(&ioe);
+    auto to = ioruntime::TimeoutEventHandler();
+    ioruntime::GlobalTimeoutEventHandler::set(&to);
+
+    const string request = "POST /form?inline=test HTTP/1.1\r\n"
+                           "Host: test\r\n"
+                           "TRANSFER-encoding:chunked\r\n"
+                           "\r\n"
+                           "1\r\na\r\n"
+                           "1\r\nb\r\n"
+                           "2\r\ncd\r\n"
+                           "1\r\ne\r\n"
+                           "1\r\nf\r\n"
+                           "2\r\ngh\r\n"
+                           "1\r\ni\r\n"
+                           "1\r\nj\r\n"
+                           "2\r\nkl\r\n"
+                           "1\r\nm\r\n"
+                           "0\r\n\r\n";
+    const size_t buffer_limit = 8192;
+    const size_t body_limit = 8192;
+
+    StringReader sbody(request, true, 6);
+
+    RequestParser parser(sbody, buffer_limit, body_limit);
+
+    while (true) {
+        ioe.reactor_step();
+        auto res = parser.poll(Waker::dead());
+        if (res.is_ready()) {
+            auto val = std::move(res.get());
+            EXPECT_EQ(val.get_method(), method::POST);
+            EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/form");
+            EXPECT_EQ(val.get_uri().get_pqf().value().get_query().value(), "inline=test");
+            EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
+            EXPECT_EQ(
+                string_view(reinterpret_cast<const char*>(val.get_body()->debug_body(ioe).data()), val.get_body()->size()),
+                "abcdefghijklm");
             break;
         }
     }
@@ -210,6 +409,11 @@ TEST(ShrpTests, shrp_basic_post_with_chunked_body_ddk)
 
 TEST(ShrpTests, shrp_body_limit)
 {
+    auto ioe = ioruntime::IoEventHandler();
+    ioruntime::GlobalIoEventHandler::set(&ioe);
+    auto to = ioruntime::TimeoutEventHandler();
+    ioruntime::GlobalTimeoutEventHandler::set(&to);
+
     const string request = "POST /form?inline=test HTTP/1.1\r\nHost: test\r\nContent-Length: 13\r\n\r\nHello, world!";
     const size_t buffer_limit = 8192;
     const size_t body_limit = 10;
@@ -220,6 +424,7 @@ TEST(ShrpTests, shrp_body_limit)
 
     EXPECT_THROW({
         while (true) {
+            ioe.reactor_step();
             auto res = parser.poll(Waker::dead());
             ASSERT_FALSE(res.is_ready());
         }
@@ -441,5 +646,426 @@ TEST(ShrpTests, shrp_empty_header_value_untrimmed)
         }
     }
 }
+
+TEST(ShrpTests, shrp_header_user_agent_valid)
+{
+    const string request = "GET / HTTP/1.1\r\nHost: test\r\nUser-Agent: webserv_utests\r\n\r\n";
+    const size_t buffer_limit = 8192;
+    const size_t body_limit = 8192;
+
+    StringReader sbody(request, true);
+
+    RequestParser parser(sbody, buffer_limit, body_limit);
+
+    while (true) {
+        auto res = parser.poll(Waker::dead());
+        if (res.is_ready()) {
+            auto val = std::move(res.get());
+            EXPECT_EQ(val.get_method(), method::GET);
+            EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
+            EXPECT_FALSE(val.get_uri().get_pqf().value().get_query().has_value());
+            EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
+            EXPECT_EQ(val.get_headers().size(), 2);
+            EXPECT_EQ(val.get_header("User-Agent").value(), "webserv_utests");
+            break;
+        }
+    }
+}
+
+TEST(ShrpTests, shrp_header_user_agent_valid_productver)
+{
+    const string request = "GET / HTTP/1.1\r\nHost: test\r\nUser-Agent: webserv_utests/42.42ft\r\n\r\n";
+    const size_t buffer_limit = 8192;
+    const size_t body_limit = 8192;
+
+    StringReader sbody(request, true);
+
+    RequestParser parser(sbody, buffer_limit, body_limit);
+
+    while (true) {
+        auto res = parser.poll(Waker::dead());
+        if (res.is_ready()) {
+            auto val = std::move(res.get());
+            EXPECT_EQ(val.get_method(), method::GET);
+            EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
+            EXPECT_FALSE(val.get_uri().get_pqf().value().get_query().has_value());
+            EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
+            EXPECT_EQ(val.get_headers().size(), 2);
+            EXPECT_EQ(val.get_header("User-Agent").value(), "webserv_utests/42.42ft");
+            break;
+        }
+    }
+}
+
+TEST(ShrpTests, shrp_header_user_agent_invalid_empty)
+{
+    const string request = "GET / HTTP/1.1\r\nHost: test\r\nUser-Agent:\r\n\r\n";
+    const size_t buffer_limit = 8192;
+    const size_t body_limit = 8192;
+
+    StringReader sbody(request, true);
+
+    RequestParser parser(sbody, buffer_limit, body_limit);
+
+    EXPECT_THROW({
+        while (true) {
+            auto res = parser.poll(Waker::dead());
+            ASSERT_FALSE(res.is_ready());
+        }
+    },
+        RequestParser::MalformedRequest);
+}
+
+TEST(ShrpTests, shrp_header_user_agent_invalid_no_product)
+{
+    const string request = "GET / HTTP/1.1\r\nHost: test\r\nUser-Agent: /hello\r\n\r\n";
+    const size_t buffer_limit = 8192;
+    const size_t body_limit = 8192;
+
+    StringReader sbody(request, true);
+
+    RequestParser parser(sbody, buffer_limit, body_limit);
+
+    EXPECT_THROW({
+        while (true) {
+            auto res = parser.poll(Waker::dead());
+            ASSERT_FALSE(res.is_ready());
+        }
+    },
+        RequestParser::MalformedRequest);
+}
+
+TEST(ShrpTests, shrp_header_user_agent_invalid_no_product_version)
+{
+    const string request = "GET / HTTP/1.1\r\nHost: test\r\nUser-Agent: hello/\r\n\r\n";
+    const size_t buffer_limit = 8192;
+    const size_t body_limit = 8192;
+
+    StringReader sbody(request, true);
+
+    RequestParser parser(sbody, buffer_limit, body_limit);
+
+    EXPECT_THROW({
+        while (true) {
+            auto res = parser.poll(Waker::dead());
+            ASSERT_FALSE(res.is_ready());
+        }
+    },
+        RequestParser::MalformedRequest);
+}
+
+TEST(ShrpTests, shrp_header_user_agent_invalid_multi_no_product)
+{
+    const string request = "GET / HTTP/1.1\r\nHost: test\r\nUser-Agent: te/st /hello te/st\r\n\r\n";
+    const size_t buffer_limit = 8192;
+    const size_t body_limit = 8192;
+
+    StringReader sbody(request, true);
+
+    RequestParser parser(sbody, buffer_limit, body_limit);
+
+    EXPECT_THROW({
+        while (true) {
+            auto res = parser.poll(Waker::dead());
+            ASSERT_FALSE(res.is_ready());
+        }
+    },
+        RequestParser::MalformedRequest);
+}
+
+TEST(ShrpTests, shrp_header_user_agent_invalid_multi_no_product_version)
+{
+    const string request = "GET / HTTP/1.1\r\nHost: test\r\nUser-Agent: te/st hello/ te/st\r\n\r\n";
+    const size_t buffer_limit = 8192;
+    const size_t body_limit = 8192;
+
+    StringReader sbody(request, true);
+
+    RequestParser parser(sbody, buffer_limit, body_limit);
+
+    EXPECT_THROW({
+        while (true) {
+            auto res = parser.poll(Waker::dead());
+            ASSERT_FALSE(res.is_ready());
+        }
+    },
+        RequestParser::MalformedRequest);
+}
+
+
+TEST(ShrpTests, shrp_header_accept_charset_valid)
+{
+    const string request = "GET / HTTP/1.1\r\nHost: test\r\nAccept-Charset: webserv_utests\r\n\r\n";
+    const size_t buffer_limit = 8192;
+    const size_t body_limit = 8192;
+
+    StringReader sbody(request, true);
+
+    RequestParser parser(sbody, buffer_limit, body_limit);
+
+    while (true) {
+        auto res = parser.poll(Waker::dead());
+        if (res.is_ready()) {
+            auto val = std::move(res.get());
+            EXPECT_EQ(val.get_method(), method::GET);
+            EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
+            EXPECT_FALSE(val.get_uri().get_pqf().value().get_query().has_value());
+            EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
+            EXPECT_EQ(val.get_headers().size(), 2);
+            EXPECT_EQ(val.get_header("Accept-Charset").value(), "webserv_utests");
+            break;
+        }
+    }
+}
+
+TEST(ShrpTests, shrp_header_accept_charset_valid_odd)
+{
+    const string request = "GET / HTTP/1.1\r\nHost: test\r\nAccept-Charset: someset , SOMESET;q=0 ,some-set ; q=1.123\r\n\r\n";
+    const size_t buffer_limit = 8192;
+    const size_t body_limit = 8192;
+
+    StringReader sbody(request, true);
+
+    RequestParser parser(sbody, buffer_limit, body_limit);
+
+    while (true) {
+        auto res = parser.poll(Waker::dead());
+        if (res.is_ready()) {
+            auto val = std::move(res.get());
+            EXPECT_EQ(val.get_method(), method::GET);
+            EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
+            EXPECT_FALSE(val.get_uri().get_pqf().value().get_query().has_value());
+            EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
+            EXPECT_EQ(val.get_headers().size(), 2);
+            EXPECT_EQ(val.get_header("Accept-Charset").value(), "someset , SOMESET;q=0 ,some-set ; q=1.123");
+            break;
+        }
+    }
+}
+
+
+TEST(ShrpTests, shrp_header_accept_charset_valid_common)
+{
+    const string request = "GET / HTTP/1.1\r\nHost: test\r\nAccept-Charset: utf-8;q=1, iso-8859-1;q=0.8\r\n\r\n";
+    const size_t buffer_limit = 8192;
+    const size_t body_limit = 8192;
+
+    StringReader sbody(request, true);
+
+    RequestParser parser(sbody, buffer_limit, body_limit);
+
+    while (true) {
+        auto res = parser.poll(Waker::dead());
+        if (res.is_ready()) {
+            auto val = std::move(res.get());
+            EXPECT_EQ(val.get_method(), method::GET);
+            EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
+            EXPECT_FALSE(val.get_uri().get_pqf().value().get_query().has_value());
+            EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
+            EXPECT_EQ(val.get_headers().size(), 2);
+            EXPECT_EQ(val.get_header("Accept-Charset").value(), "utf-8;q=1, iso-8859-1;q=0.8");
+            break;
+        }
+    }
+}
+
+TEST(ShrpTests, shrp_header_accept_charset_valid_wildcard)
+{
+    const string request = "GET / HTTP/1.1\r\nHost: test\r\nAccept-Charset: utf-8;q=1, iso-8859-1;q=0.8, *\r\n\r\n";
+    const size_t buffer_limit = 8192;
+    const size_t body_limit = 8192;
+
+    StringReader sbody(request, true);
+
+    RequestParser parser(sbody, buffer_limit, body_limit);
+
+    while (true) {
+        auto res = parser.poll(Waker::dead());
+        if (res.is_ready()) {
+            auto val = std::move(res.get());
+            EXPECT_EQ(val.get_method(), method::GET);
+            EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
+            EXPECT_FALSE(val.get_uri().get_pqf().value().get_query().has_value());
+            EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
+            EXPECT_EQ(val.get_headers().size(), 2);
+            EXPECT_EQ(val.get_header("Accept-Charset").value(), "utf-8;q=1, iso-8859-1;q=0.8, *");
+            break;
+        }
+    }
+}
+
+
+TEST(ShrpTests, shrp_header_accept_charset_many_wildcard)
+{
+    const string request = "GET / HTTP/1.1\r\nHost: test\r\nAccept-Charset: *, * , *;q=0.5\r\n\r\n";
+    const size_t buffer_limit = 8192;
+    const size_t body_limit = 8192;
+
+    StringReader sbody(request, true);
+
+    RequestParser parser(sbody, buffer_limit, body_limit);
+
+    while (true) {
+        auto res = parser.poll(Waker::dead());
+        if (res.is_ready()) {
+            auto val = std::move(res.get());
+            EXPECT_EQ(val.get_method(), method::GET);
+            EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
+            EXPECT_FALSE(val.get_uri().get_pqf().value().get_query().has_value());
+            EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
+            EXPECT_EQ(val.get_headers().size(), 2);
+            EXPECT_EQ(val.get_header("Accept-Charset").value(), "*, * , *;q=0.5");
+            break;
+        }
+    }
+}
+
+TEST(ShrpTests, shrp_header_accept_charset_invalid_empty)
+{
+    const string request = "GET / HTTP/1.1\r\nHost: test\r\nAccept-Charset:\r\n\r\n";
+    const size_t buffer_limit = 8192;
+    const size_t body_limit = 8192;
+
+    StringReader sbody(request, true);
+
+    RequestParser parser(sbody, buffer_limit, body_limit);
+
+    EXPECT_THROW(
+    while (true) {
+        auto res = parser.poll(Waker::dead());
+        if (res.is_ready()) {
+            throw std::runtime_error("success");
+            break;
+        }
+    }, http::RequestParser::MalformedRequest);
+}
+
+TEST(ShrpTests, shrp_header_accept_charset_invalid_start_comma)
+{
+    const string request = "GET / HTTP/1.1\r\nHost: test\r\nAccept-Charset: ,hello\r\n\r\n";
+    const size_t buffer_limit = 8192;
+    const size_t body_limit = 8192;
+
+    StringReader sbody(request, true);
+
+    RequestParser parser(sbody, buffer_limit, body_limit);
+
+    EXPECT_THROW(
+        while (true) {
+            auto res = parser.poll(Waker::dead());
+            if (res.is_ready()) {
+                throw std::runtime_error("success");
+                break;
+            }
+        }, http::RequestParser::MalformedRequest);
+}
+
+TEST(ShrpTests, shrp_header_accept_charset_invalid_inner_spaced)
+{
+    const string request = "GET / HTTP/1.1\r\nHost: test\r\nAccept-Charset: hello,  hello\r\n\r\n";
+    const size_t buffer_limit = 8192;
+    const size_t body_limit = 8192;
+
+    StringReader sbody(request, true);
+
+    RequestParser parser(sbody, buffer_limit, body_limit);
+
+    EXPECT_THROW(
+        while (true) {
+            auto res = parser.poll(Waker::dead());
+            if (res.is_ready()) {
+                throw std::runtime_error("success");
+                break;
+            }
+        }, http::RequestParser::MalformedRequest);
+}
+
+TEST(ShrpTests, shrp_header_accept_charset_invalid_comma_empty)
+{
+    const string request = "GET / HTTP/1.1\r\nHost: test\r\nAccept-Charset: hello,\r\n\r\n";
+    const size_t buffer_limit = 8192;
+    const size_t body_limit = 8192;
+
+    StringReader sbody(request, true);
+
+    RequestParser parser(sbody, buffer_limit, body_limit);
+
+    EXPECT_THROW(
+        while (true) {
+            auto res = parser.poll(Waker::dead());
+            if (res.is_ready()) {
+                throw std::runtime_error("success");
+                break;
+            }
+        }, http::RequestParser::MalformedRequest);
+}
+
+TEST(ShrpTests, shrp_header_accept_charset_invalid_comma_empty_space)
+{
+    const string request = "GET / HTTP/1.1\r\nHost: test\r\nAccept-Charset: hello, \r\n\r\n";
+    const size_t buffer_limit = 8192;
+    const size_t body_limit = 8192;
+
+    StringReader sbody(request, true);
+
+    RequestParser parser(sbody, buffer_limit, body_limit);
+
+    EXPECT_THROW(
+        while (true) {
+            auto res = parser.poll(Waker::dead());
+            if (res.is_ready()) {
+                throw std::runtime_error("success");
+                break;
+            }
+        }, http::RequestParser::MalformedRequest);
+}
+
+
+TEST(ShrpTests, shrp_header_accept_language_invalid_wildcard)
+{
+    const string request = "GET / HTTP/1.1\r\nHost: test\r\nAccept-Language: t3-st\r\n\r\n";
+    const size_t buffer_limit = 8192;
+    const size_t body_limit = 8192;
+
+    StringReader sbody(request, true);
+
+    RequestParser parser(sbody, buffer_limit, body_limit);
+
+    EXPECT_THROW(
+        while (true) {
+            auto res = parser.poll(Waker::dead());
+            if (res.is_ready()) {
+                throw std::runtime_error("success");
+                break;
+            }
+        }, http::RequestParser::MalformedRequest);
+}
+
+
+TEST(ShrpTests, shrp_header_accept_language_valid)
+{
+    const string request = "GET / HTTP/1.1\r\nHost: test\r\nAccept-Language: nl;q=1, en-GB;q=0.9, en-US, *\r\n\r\n";
+    const size_t buffer_limit = 8192;
+    const size_t body_limit = 8192;
+
+    StringReader sbody(request, true);
+
+    RequestParser parser(sbody, buffer_limit, body_limit);
+
+    while (true) {
+        auto res = parser.poll(Waker::dead());
+        if (res.is_ready()) {
+            auto val = std::move(res.get());
+            EXPECT_EQ(val.get_method(), method::GET);
+            EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
+            EXPECT_FALSE(val.get_uri().get_pqf().value().get_query().has_value());
+            EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
+            EXPECT_EQ(val.get_headers().size(), 2);
+            EXPECT_EQ(val.get_header("Accept-Language").value(), "nl;q=1, en-GB;q=0.9, en-US, *");
+            break;
+        }
+    }
+}
+
 
 }

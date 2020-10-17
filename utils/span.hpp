@@ -21,6 +21,12 @@ public:
     {
     }
 
+    span(const T* ptr, std::size_t len) noexcept
+        : m_ptr { const_cast<T*>(ptr) } // meh
+        , m_len { len }
+    {
+    }
+
     T& operator[](ssize_t i) noexcept
     {
         return *m_ptr[i];

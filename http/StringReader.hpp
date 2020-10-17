@@ -13,11 +13,12 @@ namespace http {
 
 class StringReader : public ioruntime::IAsyncRead {
 public:
-    explicit StringReader(std::string body, bool stream_like = false);
+    explicit StringReader(std::string body, bool stream_like = false, size_t fake_cap = 0);
     auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
 
 private:
     bool stream_like;
+    size_t fake_cap;
     std::string body;
     size_t written {};
 };

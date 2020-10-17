@@ -6,28 +6,25 @@
 #include "args/Args.hpp"
 #include "cgi/Cgi.hpp"
 #include "config/Config.hpp"
-#include "constants/constants.hpp"
+#include "constants/config.hpp"
+#include "constants/mimetypes.hpp"
 #include "fs/File.hpp"
+#include "fs/Path.hpp"
 #include "futures/ForEachFuture.hpp"
-#include "futures/SelectFuture.hpp"
 #include "http/DirectoryReader.hpp"
-#include "http/InfiniteReader.hpp"
+#include "http/FutureSeReader.hpp"
 #include "http/Request.hpp"
 #include "http/Response.hpp"
 #include "http/Server.hpp"
-#include "http/StringReader.hpp"
-#include "ioruntime/FdLineStream.hpp"
 #include "ioruntime/FdStringReadFuture.hpp"
-#include "ioruntime/TimeoutEventHandler.hpp"
-#include "ioruntime/TimeoutFuture.hpp"
 #include "net/SocketAddr.hpp"
-#include "net/TcpListener.hpp"
 #include "regex/Regex.hpp"
+#include "utils/base64.hpp"
+#include "utils/localtime.hpp"
 #include "utils/utils.hpp"
 #include "json/Json.hpp"
 #include <csignal>
 
-using futures::FdLineStream;
 using futures::ForEachFuture;
 using futures::IFuture;
 using futures::PollResult;
@@ -35,7 +32,6 @@ using http::DirectoryReader;
 using http::HandlerStatusError;
 using http::ResponseBuilder;
 using http::Server;
-using http::StringReader;
 using ioruntime::GlobalIoEventHandler;
 using ioruntime::GlobalRuntime;
 using ioruntime::IoEventHandler;
@@ -59,14 +55,14 @@ auto base_config_from_json(json::Json const& config) -> BaseConfig
     optional<bool> config_use_cgi;
     optional<vector<Method>> config_allowed_methods;
     optional<bool> config_autoindex;
+    optional<AuthConfig> config_auth;
+    optional<UploadConfig> config_upload;
 
     // set root field
     {
         auto key_root = config[CONFIG_KEY_ROOT.data()];
         if (key_root.is_string()) {
             auto root = key_root.string_value();
-            if (!root.ends_with('/'))
-                root += '/';
             config_root = std::move(root);
         } else if (!key_root.is_null()) {
             throw std::runtime_error("http.servers[?].root is not a string");
@@ -155,6 +151,8 @@ auto base_config_from_json(json::Json const& config) -> BaseConfig
                     methods.push_back(http::method::POST);
                 } else if (m == http::method::PUT) {
                     methods.push_back(http::method::PUT);
+                } else if (m == http::method::HEAD) {
+                    methods.push_back(http::method::HEAD);
                 } else {
                     throw std::runtime_error("allowed-methods contains invalid method");
                 }
@@ -174,13 +172,109 @@ auto base_config_from_json(json::Json const& config) -> BaseConfig
             throw std::runtime_error("http.servers[?].autoindex is not a boolean");
         }
     }
+
+    // set auth
+    {
+        auto auth_key = config[CONFIG_KEY_AUTHENTICATE.data()];
+        if (auth_key.is_object()) {
+            auto username_key = auth_key[CONFIG_KEY_USERNAME.data()];
+            optional<string> config_username;
+            if (username_key.is_string()) {
+                config_username = string(username_key.string_value());
+            } else {
+                throw std::runtime_error("auth.username is not a string");
+            }
+            auto password_key = auth_key[CONFIG_KEY_PASSWORD.data()];
+            optional<string> config_password;
+            if (password_key.is_string()) {
+                config_password = string(password_key.string_value());
+            } else {
+                throw std::runtime_error("auth.password is not a string");
+            }
+            auto realm_key = auth_key[CONFIG_KEY_REALM.data()];
+            optional<string> config_realm;
+            if (realm_key.is_string()) {
+                auto sv = realm_key.string_value();
+                std::stringstream realmbuilder;
+                for (char c : sv) {
+                    if (c == '\\' || c == '"') {
+                        realmbuilder << '\\';
+                    }
+                    realmbuilder << c;
+                }
+
+                config_realm = realmbuilder.str();
+            } else if (!realm_key.is_null()) {
+                throw std::runtime_error("auth.realm is not a string");
+            }
+            config_auth = AuthConfig(move(*config_username), move(*config_password), move(config_realm));
+        } else if (!auth_key.is_null()) {
+            throw std::runtime_error("base.auth is not an object");
+        }
+    }
+
+    // set upload
+    {
+        auto upload_key = config[CONFIG_KEY_UPLOAD.data()];
+        if (upload_key.is_object()) {
+            auto directory_key = upload_key[CONFIG_KEY_UPLOAD_DIRECTORY.data()];
+            optional<string> config_directory;
+            if (directory_key.is_string()) {
+                config_directory = string(directory_key.string_value());
+            } else {
+                throw std::runtime_error("base.upload.directory is not an object");
+            }
+            auto max_size_key = upload_key[CONFIG_KEY_UPLOAD_MAX_SIZE.data()];
+            optional<size_t> config_max_size;
+            if (max_size_key.is_number()) {
+                auto as_double = max_size_key.number_value();
+                auto as_size_t = (size_t)as_double;
+                if (as_double < 0) {
+                    throw std::runtime_error("base.upload.max_size is negative");
+                }
+                if (as_double >= (double)UINT64_MAX) {
+                    throw std::runtime_error("base.upload.max_size is too big");
+                }
+                if (as_size_t != 0) {
+                    config_max_size = as_size_t;
+                }
+            } else if (max_size_key.is_null()) {
+                config_max_size = size_t(CONFIG_DEFAULT_UPLOAD_MAX_SIZE);
+            } else {
+                throw std::runtime_error("base.upload.max_size is not a number");
+            }
+            config_upload = UploadConfig(move(*config_directory), move(config_max_size));
+        } else if (!upload_key.is_null()) {
+            throw std::runtime_error("base.upload is not an object");
+        }
+    }
+
+    optional<size_t> body_limit;
+    {
+        auto body_limit_key = config[CONFIG_KEY_BODY_LIMIT.data()];
+        if (body_limit_key.is_number()) {
+            auto lim = body_limit_key.number_value();
+            if ((lim - 1.0) > (double)SIZE_MAX) {
+                throw std::runtime_error("body limit is greater than SIZE_MAx");
+            } else if (lim < 1) {
+                throw std::runtime_error("body limit is less than one");
+            }
+            body_limit = lim;
+        } else if (!body_limit_key.is_null()) {
+            throw std::runtime_error("body limit is not a number");
+        }
+    }
+
     return BaseConfig(
         move(config_root),
         move(config_index_pages),
         move(config_error_pages),
         move(config_use_cgi),
         move(config_allowed_methods),
-        move(config_autoindex));
+        move(config_autoindex),
+        move(config_auth),
+        move(config_upload),
+        move(body_limit));
 }
 
 auto recursive_locations(json::Json const& cfg) -> optional<table<Regex, LocationConfig>>
@@ -257,6 +351,7 @@ auto config_from_json(json::Json const& config) -> RootConfig
                     throw std::runtime_error("names is not an array");
                 }
             }
+
             optional<vector<tuple<IpAddress, uint16_t>>> bind_addresses = option::nullopt;
             {
                 auto listen_key = server[CONFIG_KEY_LISTEN.data()];
@@ -305,30 +400,14 @@ auto config_from_json(json::Json const& config) -> RootConfig
                     throw std::runtime_error("listen is not an array");
                 }
             }
-            optional<table<Regex, LocationConfig>> locations;
 
+            optional<table<Regex, LocationConfig>> locations;
             {
                 auto locations_key = server[CONFIG_KEY_LOCATIONS.data()];
                 if (locations_key.is_object()) {
                     locations = recursive_locations(server);
                 } else if (!locations_key.is_null()) {
                     throw std::runtime_error("server.location is not a map");
-                }
-            }
-
-            optional<size_t> body_limit;
-            {
-                auto body_limit_key = server[CONFIG_KEY_BODY_LIMIT.data()];
-                if (body_limit_key.is_number()) {
-                    auto lim = body_limit_key.number_value();
-                    if ((lim - 1.0) > (double)SIZE_MAX) {
-                        throw std::runtime_error("body limit is greater than SIZE_MAx");
-                    } else if (lim < 1) {
-                        throw std::runtime_error("body limit is less than one");
-                    }
-                    body_limit = lim;
-                } else if (!body_limit_key.is_null()) {
-                    throw std::runtime_error("body limit is not a number");
                 }
             }
 
@@ -366,7 +445,7 @@ auto config_from_json(json::Json const& config) -> RootConfig
 
             servers.emplace_back(move(server_names), move(bind_addresses),
                 move(locations),
-                move(body_limit), move(buffer_limit), move(inactivity_timeout),
+                move(buffer_limit), move(inactivity_timeout),
                 move(base));
         }
 
@@ -431,22 +510,24 @@ void match_location_i(LocationConfig const& cfg, const char*& path, vector<Locat
         if (!lout->is_final())
             path += len;
         TRACEPRINT("Path adjusted: (" << path << ")");
-        // TODO: this should probably be a tuple<string, LocationConfig> to not match twice
         abcd.push_back(lout);
         match_location_i(*lout, path, abcd);
     }
-    // return lout == nullptr ? std::nullopt : std::optional { lout };
 }
 
 auto match_location(LocationConfig const& cfg, http::Request& req) -> optional<tuple<vector<LocationConfig const*>, string>>
 {
     vector<LocationConfig const*> location_list;
-    auto path = req.get_uri().get_pqf()->get_path_escaped().value();
+    const auto& pqf = req.get_uri().get_pqf();
+    string_view path = "/";
+    if (pqf.has_value()) {
+        path = pqf->get_path_escaped().value_or("/");
+    }
     auto* path_cstr = path.data(); // path happens to point to string
 
     match_location_i(cfg, path_cstr, location_list);
 
-    // workaround for C++ bug
+    // workaround for C++ issue
     optional<tuple<vector<LocationConfig const*>, string>> x;
     if (!location_list.empty()) {
         x = tuple { location_list, string(path_cstr) };
@@ -463,6 +544,10 @@ auto match_base_config(RootConfig const& rcfg, http::Request& req) -> tuple<Base
     auto const& scfg = match_server(host, hcfg.get_servers());
     auto const& lcfg_o = match_location(scfg, req);
 
+    if (!lcfg_o.has_value()) {
+        // eh
+        throw fs::FileNotFound();
+    }
     auto matched_path = std::get<1>(lcfg_o.value());
 
     TRACEPRINT("matched path " << matched_path);
@@ -473,6 +558,9 @@ auto match_base_config(RootConfig const& rcfg, http::Request& req) -> tuple<Base
     optional<bool> use_cgi;
     optional<vector<Method>> allowed_methods;
     optional<bool> autoindex;
+    optional<AuthConfig> authcfg;
+    optional<UploadConfig> upcfg;
+    optional<size_t> body_limit;
 
     if (lcfg_o.has_value()) {
         auto& [lcfg_v, lcfg_p] = *lcfg_o;
@@ -499,9 +587,19 @@ auto match_base_config(RootConfig const& rcfg, http::Request& req) -> tuple<Base
             if (!autoindex.has_value() && lcfg->get_autoindex().has_value()) {
                 autoindex = lcfg->get_autoindex();
             }
+            if (!authcfg.has_value() && lcfg->get_auth_config().has_value()) {
+                authcfg = lcfg->get_auth_config();
+            }
+            if (!upcfg.has_value() && lcfg->get_upload_config().has_value()) {
+                upcfg = lcfg->get_upload_config();
+            }
+            if (!body_limit.has_value() && lcfg->get_body_limit().has_value()) {
+                body_limit = lcfg->get_body_limit();
+            }
         }
     }
 
+    // SCFG
     if (!root.has_value() && scfg.get_root().has_value()) {
         root = scfg.get_root();
     }
@@ -520,6 +618,16 @@ auto match_base_config(RootConfig const& rcfg, http::Request& req) -> tuple<Base
     if (!autoindex.has_value() && scfg.get_autoindex().has_value()) {
         autoindex = scfg.get_autoindex();
     }
+    if (!authcfg.has_value() && scfg.get_auth_config().has_value()) {
+        authcfg = scfg.get_auth_config();
+    }
+    if (!upcfg.has_value() && scfg.get_upload_config().has_value()) {
+        upcfg = scfg.get_upload_config();
+    }
+    if (!body_limit.has_value() && scfg.get_body_limit().has_value()) {
+        body_limit = scfg.get_body_limit();
+    }
+    // HCFG
     if (!root.has_value() && hcfg.get_root().has_value()) {
         root = hcfg.get_root();
     }
@@ -538,6 +646,15 @@ auto match_base_config(RootConfig const& rcfg, http::Request& req) -> tuple<Base
     if (!autoindex.has_value() && hcfg.get_autoindex().has_value()) {
         autoindex = hcfg.get_autoindex();
     }
+    if (!authcfg.has_value() && hcfg.get_auth_config().has_value()) {
+        authcfg = hcfg.get_auth_config();
+    }
+    if (!upcfg.has_value() && hcfg.get_upload_config().has_value()) {
+        upcfg = hcfg.get_upload_config();
+    }
+    if (!body_limit.has_value() && hcfg.get_body_limit().has_value()) {
+        body_limit = hcfg.get_body_limit();
+    }
     return tuple {
         BaseConfig(
             move(root),
@@ -545,9 +662,212 @@ auto match_base_config(RootConfig const& rcfg, http::Request& req) -> tuple<Base
             move(error_pages),
             move(use_cgi),
             move(allowed_methods),
-            move(autoindex)),
+            move(autoindex),
+            move(authcfg),
+            move(upcfg),
+            move(body_limit)),
         string(matched_path)
     };
+}
+
+inline static void process_cl_args(args::Args arguments, string& config_file_path)
+{
+    // let's just hardcode it instead of using getopt
+    auto it = arguments.begin();
+    it += 1;
+    while (it != arguments.end()) {
+        if (*it == "--help" || *it == "-h") {
+            std::cout
+                << "usage: webserv [--config config_file_path]"
+                << std::endl;
+            exit(0);
+        } else if (*it == "--config" || *it == "-c") {
+            ++it;
+            if (it == arguments.end()) {
+                throw std::runtime_error("expected config file after parameter '-c'");
+            } else {
+                const auto& argument = *it;
+                const auto parent_directory_end = argument.rfind('/');
+                if (parent_directory_end != string::npos) {
+                    // there's a /, so chdir
+                    const auto parent_directory = string(argument.substr(0, parent_directory_end));
+
+                    if (chdir(parent_directory.c_str()) < 0) {
+                        ERRORPRINT("bad directory for '-c', (" << parent_directory << ")");
+                        std::cout
+                            << "usage: webserv [-c config_file_path]"
+                            << std::endl;
+                        exit(1);
+                    };
+                }
+                config_file_path = argument.substr(parent_directory_end + 1);
+            }
+        } else {
+            ERRORPRINT("unknown argument: '" << *it << "'");
+            std::cout
+                << "usage: webserv [-c config_file_path]"
+                << std::endl;
+            exit(1);
+        }
+        ++it;
+    }
+}
+
+inline static void check_method_and_set_allow(BaseConfig const& bcfg, Method method, ResponseBuilder& builder)
+{
+    // set Allow header, check allowed methods
+    bool method_allowed = false;
+    auto allowed_methods = bcfg.get_allowed_methods();
+
+    std::stringstream allow_field_value;
+    http::Headers allow_header;
+
+    if (allowed_methods.has_value()) {
+        bool first = false;
+        for (auto& allowed_method : *allowed_methods) {
+            if (first) {
+                allow_field_value << ", ";
+            } else {
+                first = true;
+            }
+            allow_field_value << allowed_method;
+            if (allowed_method == method) {
+                method_allowed = true;
+            }
+        }
+    } else if (method == http::method::GET || method == http::method::HEAD) {
+        // default to allowed methods GET and HEAD
+        method_allowed = true;
+        allow_field_value << "GET, HEAD";
+    }
+
+    allow_header.push_back(http::Header { http::header::ALLOW, allow_field_value.str() });
+    if (!method_allowed) {
+        throw HandlerStatusError(http::status::METHOD_NOT_ALLOWED, move(allow_header));
+    }
+
+    builder.headers(move(allow_header));
+}
+
+inline static auto load_config_from_path(std::string const& path) -> json::Json
+{
+    auto rt = RuntimeBuilder()
+                  .without_workers()
+                  .build();
+    rt.globalize();
+
+    std::string config_str;
+    GlobalRuntime::spawn(ioruntime::FdStringReadFuture(fs::File::open(path), config_str));
+    rt.naive_run();
+
+    std::string error;
+
+    auto cfg = json::Json::parse(config_str, error);
+
+    if (!error.empty()) {
+        ERRORPRINT("failed to load config: " << path);
+        throw std::runtime_error("bad config");
+    }
+
+    return cfg;
+}
+
+inline static void check_inner_body_limit(optional<http::RequestBody> const& body, BaseConfig const& bcfg)
+{
+    if (body.has_value() && bcfg.get_body_limit().has_value()) {
+        if (body->size() > *bcfg.get_body_limit()) {
+            throw HandlerStatusError(http::status::PAYLOAD_TOO_LARGE);
+        }
+    }
+}
+
+inline static auto is_request_upload(http::Method method, BaseConfig const& bcfg) -> bool
+{
+    return method == http::method::PUT && bcfg.get_upload_config().has_value();
+}
+
+inline static auto try_download(
+    http::ResponseBuilder& builder,
+    std::string_view base_path,
+    std::string const& matched_path,
+    optional<http::RequestBody>& body,
+    BaseConfig const& bcfg) -> bool
+{
+    // method is PUT and upload_config is set
+    const auto& upload_config = *bcfg.get_upload_config();
+    auto upload_directory_info = fs::Path::path(upload_config.get_directory());
+    auto concat_info = fs::Path::path(upload_config.get_directory() + "/" + matched_path);
+
+    if (concat_info.exists() && concat_info.is_directory()) {
+        return false;
+    }
+    if (upload_directory_info.exists() && upload_directory_info.is_directory()) {
+        // this is vulnerable to some toctou bs
+        // but do we really care? blame the sysadmin
+        string concatenated = upload_config.get_directory();
+        concatenated += "/";
+        concatenated += matched_path;
+        auto file = fs::File::create_no_traversal(concatenated);
+        if (body.has_value()) {
+            auto& span_reader = *body;
+            auto copy_future = ioruntime::IoCopyFuture<typeof(span_reader), typeof(file)>(move(span_reader), move(file));
+            builder
+                .status(http::status::CREATED)
+                .header(http::header::CONTENT_LOCATION, string(base_path)) // RFC 7231-3.1.4.2.
+                .header(http::header::LOCATION, string(base_path))
+                .body(BoxPtr<http::FutureSeReader<typeof(copy_future)>>::make(move(copy_future)));
+        }
+        return true;
+    }
+    return false;
+}
+
+inline static void check_authorization(http::Request const& req, BaseConfig const& cfg)
+{
+    auto auth_enabled = cfg.get_auth_config();
+    if (!auth_enabled.has_value()) {
+        return;
+    }
+
+    auto exit_reason = http::status::UNAUTHORIZED;
+    auto auth_header = req.get_header(http::header::AUTHORIZATION);
+
+    if (auth_header.has_value()) {
+        auto const& auth_value = *auth_header;
+        // credentials field can't be empty because of the : requirement
+        if (auth_value.starts_with("Basic ")) {
+            auto encoded = auth_value.substr(6);
+            string decoded;
+            try {
+                decoded = utils::base64::decode_string(encoded);
+            } catch (utils::base64::Base64DecodeError const&) {
+                exit_reason = http::status::BAD_REQUEST;
+            }
+            auto user_end = decoded.find(':');
+            if (user_end != std::string::npos) {
+                auto user = decoded.substr(0, user_end);
+                auto password = decoded.substr(user_end + 1);
+                if (std::all_of(user.begin(), user.end(), http::parser_utils::is_text)) {
+                    if (std::all_of(password.begin(), password.end(), http::parser_utils::is_text)) {
+                        volatile auto x = utils::safe_streq(user, auth_enabled->get_username());
+                        x = x & utils::safe_streq(password, auth_enabled->get_password());
+                        if (x) {
+                            return;
+                        }
+                    } else {
+                        exit_reason = http::status::BAD_REQUEST;
+                    }
+                } else {
+                    exit_reason = http::status::BAD_REQUEST;
+                }
+            } else {
+                exit_reason = http::status::BAD_REQUEST;
+            }
+        }
+    }
+    http::Headers www_auth;
+    www_auth.push_back(http::Header { http::header::WWW_AUTHENTICATE, "Basic realm=\"" + auth_enabled->get_realm().value_or("none") + "\"" });
+    throw HandlerStatusError(exit_reason, move(www_auth));
 }
 
 auto main(int argc, const char** argv) -> int
@@ -558,78 +878,12 @@ auto main(int argc, const char** argv) -> int
     signal(SIGPIPE, SIG_IGN);
     try {
         std::string config_file_path = "./config.json";
+        process_cl_args(args::Args(argc, argv), config_file_path);
 
-        {
-            args::Args arguments(argc, argv);
-
-            // let's just hardcode it instead of using getopt
-            auto it = arguments.begin();
-            it += 1;
-            while (it != arguments.end()) {
-                if (*it == "--help" || *it == "-h") {
-                    std::cout
-                        << "usage: webserv [--config config_file_path]"
-                        << std::endl;
-                    return 0;
-                } else if (*it == "--config" || *it == "-c") {
-                    ++it;
-                    if (it == arguments.end()) {
-                        throw std::runtime_error("expected config file after parameter '-c'");
-                    } else {
-                        // TODO: change working directory to config_file_path's parent directory
-                        auto parent_directory_end = config_file_path.rfind('/');
-                        if (parent_directory_end != string::npos) {
-                            // there's a /, so chdir
-                            auto parent_directory = config_file_path.substr(parent_directory_end + 1);
-
-                            if (chdir(parent_directory.c_str()) < 0) {
-                                ERRORPRINT("bad directory for '-c'");
-                                std::cout
-                                    << "usage: webserv [-c config_file_path]"
-                                    << std::endl;
-                                return 1;
-                            };
-                        }
-                        config_file_path = *it;
-                    }
-                } else {
-                    ERRORPRINT("unknown argument: '" << *it << "'");
-                    std::cout
-                        << "usage: webserv [-c config_file_path]"
-                        << std::endl;
-                    return 1;
-                }
-                ++it;
-            }
-        }
-
-        json::Json config;
-        std::string error;
-
-        {
-            auto rt = RuntimeBuilder()
-                          .without_workers()
-                          .build();
-
-            rt.globalize();
-
-            std::string config_str;
-            GlobalRuntime::spawn(ioruntime::FdStringReadFuture(fs::File::open(config_file_path), config_str));
-            rt.naive_run();
-
-            config = json::Json::parse(config_str, error);
-        }
-
-        if (!error.empty()) {
-            ERRORPRINT("bad config: " << error);
-            throw std::runtime_error("Config error");
-        }
-
-        RootConfigSingleton::set(config_from_json(config));
-        auto const& cfg = RootConfigSingleton::get();
+        auto config = load_config_from_path(config_file_path);
+        auto const& cfg = config_from_json(config);
 
         auto builder = RuntimeBuilder();
-
         {
             auto wc = cfg.get_worker_count().value_or(0);
 
@@ -652,109 +906,150 @@ auto main(int argc, const char** argv) -> int
                     auto service =
                         [&cfg = std::as_const(cfg), server_address = address, server_port = port](
                             http::Request& req, net::SocketAddr const& socket_addr) {
+                            if (req.get_version().version_string != http::version::v1_1.version_string) {
+                                // we're http/1.1, we don't care about the other ones
+                                throw HandlerStatusError(http::status::VERSION_NOT_SUPPORTED);
+                            }
                             (void)server_address;
                             (void)server_port;
-                            auto host = req.get_header(http::header::HOST);
-                            auto method = req.get_method();
-                            auto& uri = req.get_uri();
+                            // host is guaranteed because we're http/1.1
+                            auto const& host = *req.get_header(http::header::HOST);
+                            auto const& method = req.get_method();
+                            auto const& uri = req.get_uri();
+                            auto const& pqf = uri.get_pqf();
+                            auto& body = req.get_body();
 
-                            auto path = uri.get_pqf()->get_path_escaped().value();
-
-                            auto builder = ResponseBuilder();
-                            builder.status(http::status::OK);
-
-                            const auto [bcfg, matched_path] = match_base_config(cfg, req);
-                            {
-                                // set Allow header, check allowed methods
-                                bool method_allowed = false;
-                                auto allowed_methods = bcfg.get_allowed_methods();
-
-                                std::stringstream allow_field_value;
-                                http::Headers allow_header;
-
-                                if (allowed_methods.has_value()) {
-                                    bool first = false;
-                                    for (auto& allowed_method : *allowed_methods) {
-                                        if (first) {
-                                            allow_field_value << ", ";
-                                        } else {
-                                            first = true;
-                                        }
-                                        allow_field_value << allowed_method;
-                                        if (allowed_method == method) {
-                                            method_allowed = true;
-                                        }
-                                    }
-                                } else if (method == http::method::GET || method == http::method::HEAD) {
-                                    // default to allowed methods GET and HEAD
-                                    method_allowed = true;
-                                    allow_field_value << "GET, HEAD";
-                                }
-
-                                allow_header.push_back(http::Header { http::header::ALLOW, allow_field_value.str() });
-                                if (!method_allowed) {
-                                    throw HandlerStatusError(http::status::METHOD_NOT_ALLOWED, move(allow_header));
-                                }
-
-                                builder.headers(move(allow_header));
+                            string_view path = "/";
+                            if (pqf.has_value()) {
+                                path = pqf->get_path_escaped().value_or("/");
                             }
-                            // set software name
-                            builder.header(http::header::SERVER, string(SERVER_SOFTWARE_NAME));
+                            string hv_location(path);
+                            string hv_content_location(path);
 
-                            // find files
-                            {
+                            (void)host;
+                            auto builder = ResponseBuilder();
+                            builder
+                                .status(http::status::OK)
+                                .header(http::header::CONNECTION, "close");
+                            const auto [bcfg, matched_path] = match_base_config(cfg, req);
+                            // check if authorized
+                            check_authorization(req, bcfg);
+                            // set allow header
+                            check_method_and_set_allow(bcfg, method, builder);
+                            // set software name header
+                            builder.header(http::header::SERVER, string(SERVER_SOFTWARE_NAME));
+                            // set date
+                            builder.header(http::header::DATE, utils::get_http_date_now());
+                            // check "inner" body limit
+                            check_inner_body_limit(body, bcfg);
+                            if (is_request_upload(method, bcfg)) {
+                                if (try_download(builder, path, matched_path, body, bcfg)) {
+                                    return move(builder).build();
+                                } else {
+                                    throw fs::FileNotFound();
+                                }
+                            } else {
+                                // Find and serve files
                                 auto auto_index = bcfg.get_autoindex().value_or(false);
                                 auto const& root = bcfg.get_root();
 
-                                if (root.has_value()) {
-                                    auto search_path = string(*root).append(matched_path);
-                                    auto use_cgi = bcfg.get_use_cgi();
+                                if (!root.has_value()) {
+                                    throw fs::FileNotFound();
+                                }
 
-                                    try {
-                                        if (use_cgi.has_value() && *use_cgi) {
-                                            // This is (for now) ran for its error side effects
-                                            // TODO: write a better file-exists check
-                                            (void)fs::File::open_no_traversal(search_path);
-                                            // it already executes here.
-                                            auto cgi_body = cgi::Cgi(search_path, move(req), socket_addr);
-                                            builder.cgi(move(cgi_body));
-                                        } else {
-                                            auto file = BoxPtr(fs::File::open_no_traversal(search_path));
-                                            auto file_size = file->size();
-                                            builder.body(move(file), file_size);
+                                auto search_path = string(*root);
+                                auto root_path_info = fs::Path::no_traversal(*root);
+
+                                if (!root_path_info.exists()) {
+                                    throw fs::FileNotFound();
+                                } else if (root_path_info.is_directory()) {
+                                    if (!search_path.ends_with('/')) {
+                                        search_path += '/';
+                                    }
+                                }
+                                search_path.append(matched_path);
+
+                                auto search_path_info = fs::Path::no_traversal(search_path);
+                                if (!search_path_info.exists()) {
+                                    throw fs::FileNotFound();
+                                } else if (search_path_info.is_directory()) {
+                                    if (auto_index) {
+                                        auto directory = BoxPtr<DirectoryReader>::make(search_path, path);
+                                        return move(builder
+                                                        .header(http::header::CONTENT_ENCODING, "text/html")
+                                                        .header(http::header::LOCATION, string(path))
+                                                        .header(http::header::LAST_MODIFIED, utils::get_http_date(*search_path_info.get_last_modification_time()))
+                                                        .body(move(directory)))
+                                            .build();
+                                    } else {
+                                        if (!search_path.ends_with('/')) {
+                                            search_path += '/';
                                         }
-                                        return move(builder).build();
-                                    } catch (fs::FileIsDirectory& e) {
-                                        if (auto_index) {
-                                            auto dir = BoxPtr<DirectoryReader>::make(search_path, path);
-                                            builder.body(move(dir));
-                                            return move(builder).build();
-                                        } else if (bcfg.get_index_pages().has_value()) {
-                                            auto& pages = *bcfg.get_index_pages();
-                                            for (auto& page_name : pages) {
-                                                try {
-                                                    auto file = BoxPtr(fs::File::open_no_traversal(search_path + page_name));
-                                                    auto file_size = file->size();
-                                                    builder.body(std::move(file), file_size);
-                                                    return move(builder).build();
-                                                } catch (fs::FileError& e) {
-                                                    /* don't do anything if the file isn't found/is directory */
+                                        if (!hv_content_location.ends_with('/')) {
+                                            hv_content_location += '/';
+                                        }
+                                        // find first matching index
+                                        auto index_pages = bcfg.get_index_pages();
+                                        bool matched = false;
+                                        if (index_pages.has_value()) {
+                                            for (auto const& filename : *index_pages) {
+                                                auto file_path = search_path + filename;
+                                                auto index_path_info = fs::Path::path(file_path);
+                                                if (index_path_info.exists() && index_path_info.is_file()) {
+                                                    matched = true;
+                                                    search_path = move(file_path);
+                                                    hv_content_location += filename;
+                                                    break;
                                                 }
                                             }
-                                            throw fs::FileNotFound();
-                                        } else {
+                                        }
+                                        if (!matched) {
                                             throw fs::FileNotFound();
                                         }
                                     }
                                 }
+
+                                auto const& is_cgi_enabled = bcfg.get_use_cgi().value_or(false);
+                                if (is_cgi_enabled) {
+                                    builder.cgi(cgi::Cgi(search_path, move(req), socket_addr));
+                                } else {
+                                    auto file_info = fs::Path::no_traversal(search_path);
+                                    auto const& file_ext = file_info.get_extension();
+                                    if (file_ext.has_value()) {
+                                        auto mime_type = constants::get_mime_type(*file_ext);
+                                        builder.header(http::header::CONTENT_TYPE, string(mime_type))
+                                            .header(http::header::CONTENT_LOCATION, hv_content_location)
+                                            .header(http::header::LAST_MODIFIED, utils::get_http_date(*file_info.get_last_modification_time()))
+                                            .header(http::header::LOCATION, hv_location);
+                                    }
+                                    auto file = BoxPtr(fs::File::open_no_traversal(search_path));
+                                    auto file_size = file->size();
+                                    builder.body(move(file), file_size);
+                                }
+                                return move(builder).build();
                             }
                             throw fs::FileNotFound();
                         };
+                    auto error_page_handler = [&cfg = std::as_const(cfg)](http::Status const& status) {
+                        auto const& pages = cfg.get_http_config().get_error_pages();
+                        if (pages.has_value()) {
+                            try {
+                                for (const auto& [code, file] : *pages) {
+                                    if (status.code == code) {
+                                        return BoxPtr<IAsyncRead>(BoxPtr(fs::File::open(file)));
+                                    }
+                                }
+                            } catch (...) {
+                            }
+                        }
+                        return BoxPtr<IAsyncRead>(BoxPtr<http::DefaultPageReader>::make(status));
+                    };
                     GlobalRuntime::spawn(
                         Server::bind(address, port)
                             .body_limit(server.get_body_limit().value_or(size_t(http::DEFAULT_BODY_LIMIT)))
                             .buffer_limit(server.get_buffer_limit().value_or(size_t(http::DEFAULT_BUFFER_LIMIT)))
                             .inactivity_timeout(server.get_inactivity_timeout().value_or(size_t(5000)))
+                            .error_page_handler(error_page_handler)
                             .serve(service));
                 }
             }

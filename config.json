@@ -1,11 +1,26 @@
 {
     "workers": 0,
     "http": {
+        "error-pages": {
+            "404": "../html/index.html"
+        },
         "servers": [
+            {
+                "names": ["localhost"],
+                "listen": [
+                    "127.0.0.1:1235"
+                ],
+                "locations": {
+                    "^/$": {
+                        "root": "/home/boat/CLionProjects/webserv-basic-async2/tests/html",
+                        "autoindex": true
+                    }
+                }
+            },
             {
                 "body-limit": 8192,
                 "buffer-limit": 65535,
-                "inactivity-timeout": 5000,
+                "timeout": 5000,
                 "names": [
                     "localhost"
                 ],
@@ -23,6 +38,15 @@
                             "GET"
                         ],
                         "autoindex": false
+                    },
+                    "^/authtest/?": {
+                        "root": "/home/boat/CLionProjects/webserv-basic-async2/ioruntime",
+                        "auth": {
+                            "username": "hello",
+                            "password": "world",
+                            "realm": "\\Weird\"Realm"
+                        },
+                        "autoindex": true
                     },
                     "^/dirtest/?": {
                         "root": "/home/boat/CLionProjects/webserv-basic-async2/ioruntime",
@@ -49,6 +73,11 @@
                             "POST"
                         ],
                         "cgi": true,
+                        "auth": {
+                            "username": "hello",
+                            "password": "world",
+                            "realm": "\\Weird\"Realm"
+                        },
                         "locations": {
                             ".+$": {
                                 "final": true

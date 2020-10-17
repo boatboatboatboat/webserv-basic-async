@@ -173,7 +173,6 @@ public:
     }
     constexpr auto operator=(const optional& other) -> optional&
     {
-        reset();
         if (other.has_value())
             t_set(other.value());
         some = other.has_value();
@@ -181,7 +180,6 @@ public:
     }
     constexpr auto operator=(optional&& other) noexcept -> optional&
     {
-        reset();
         if (other.has_value())
             t_move(std::move(other.value()));
         some = other.has_value();
@@ -191,7 +189,6 @@ public:
     template <class U>
     auto operator=(const optional<U>& other) -> optional&
     {
-        reset();
         if (other.has_value())
             t_set(other.value());
         some = other.has_value();
@@ -200,7 +197,6 @@ public:
     template <class U>
     auto operator=(optional<U>&& other) -> optional&
     {
-        reset();
         if (other.has_value())
             t_move(std::move(other.value()));
         some = other.has_value();
@@ -210,7 +206,6 @@ public:
     template <class U = T>
     auto operator=(U&& value) -> optional&
     {
-        reset();
         t_move(std::move(value));
         some = true;
         return *this;
