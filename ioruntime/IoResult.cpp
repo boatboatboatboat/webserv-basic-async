@@ -12,6 +12,7 @@ IoResult::IoResult(ssize_t posix_io_result)
         _tag = Error;
     } else if (posix_io_result == 0) {
         _tag = Eof;
+        _bytes_read = 0;
     } else {
         _tag = Success;
         _bytes_read = posix_io_result;

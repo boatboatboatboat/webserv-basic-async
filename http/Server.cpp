@@ -239,7 +239,6 @@ auto Server::ConnectionFuture::poll(Waker&& waker) -> PollResult<void>
                             throw;
                         } catch (cgi::Cgi::CgiError const& cgi_err) {
                             // CGI "init" errors are thrown inside of the ResponseReader.
-                            WARNPRINT("CGI error: " << cgi_err.what());
                             status = status::BAD_GATEWAY;
                         } catch (TimeoutError const&) {
                             status = status::GATEWAY_TIMEOUT;

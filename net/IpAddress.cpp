@@ -85,6 +85,7 @@ auto IpAddress::v4(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4) -> IpAddress
 
     return IpAddress(IpAddress::Ipv4, ip, 0);
 }
+
 auto IpAddress::from_str(std::string_view str) -> IpAddress
 {
     try {
@@ -95,6 +96,56 @@ auto IpAddress::from_str(std::string_view str) -> IpAddress
         } catch (std::exception& e) {
             throw std::runtime_error("could not convert from string");
         }
+    }
+}
+
+auto IpAddress::operator==(const IpAddress& rhs) const -> bool
+{
+    if (tag != rhs.tag) {
+        return false;
+    }
+    switch (tag) {
+        case Ipv4: {
+            return get_v4() == rhs.get_v4();
+        } break;
+        case Ipv6: {
+            return get_v6() == rhs.get_v6();
+        } break;
+    }
+}
+
+auto IpAddress::operator!=(const IpAddress& rhs) const -> bool
+{
+    return !(*this == rhs);
+}
+
+auto IpAddress::operator>(const IpAddress& rhs) const -> bool
+{
+    if (tag > rhs.tag) {
+        return true;
+    }
+    switch (tag) {
+        case Ipv4: {
+            return get_v4() > rhs.get_v4();
+        } break;
+        case Ipv6: {
+            return get_v6() > rhs.get_v6();
+        } break;
+    }
+}
+
+auto IpAddress::operator<(const IpAddress& rhs) const -> bool
+{
+    if (tag < rhs.tag) {
+        return true;
+    }
+    switch (tag) {
+        case Ipv4: {
+            return get_v4() < rhs.get_v4();
+        } break;
+        case Ipv6: {
+            return get_v6() < rhs.get_v6();
+        } break;
     }
 }
 

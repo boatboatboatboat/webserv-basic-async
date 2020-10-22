@@ -2,11 +2,11 @@
 // Created by boat on 11-10-20.
 //
 
-#include "RequestBody.hpp"
+#include "IncomingBody.hpp"
 
 using std::move;
 
-auto http::RequestBody::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
+auto http::IncomingBody::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
 {
     switch (_body_type) {
         case VectorBody: {
@@ -25,7 +25,7 @@ auto http::RequestBody::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollRe
     }
 }
 
-auto http::RequestBody::poll_write(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
+auto http::IncomingBody::poll_write(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
 {
     _should_rewind = true;
     switch (_body_type) {
@@ -69,12 +69,12 @@ auto http::RequestBody::poll_write(span<uint8_t> buffer, Waker&& waker) -> PollR
     }
 }
 
-auto http::RequestBody::size() const -> size_t
+auto http::IncomingBody::size() const -> size_t
 {
     return _size;
 }
 
-http::RequestBody::RequestBody(http::RequestBody&& other) noexcept
+http::IncomingBody::IncomingBody(http::IncomingBody&& other) noexcept
     : _body_type(other._body_type)
     , _size(other._size)
     , _converting(other._converting)
@@ -95,7 +95,7 @@ http::RequestBody::RequestBody(http::RequestBody&& other) noexcept
     }
 }
 
-http::RequestBody& http::RequestBody::operator=(http::RequestBody&& other) noexcept
+http::IncomingBody& http::IncomingBody::operator=(http::IncomingBody&& other) noexcept
 {
     if (&other == this)
         return *this;
@@ -118,7 +118,7 @@ http::RequestBody& http::RequestBody::operator=(http::RequestBody&& other) noexc
     return *this;
 }
 
-http::RequestBody::RequestBody(vector<uint8_t>&& buffer)
+http::IncomingBody::IncomingBody(vector<uint8_t>&& buffer)
     : _vector(move(buffer))
 {
     _size = _vector->size();
@@ -130,7 +130,7 @@ http::RequestBody::RequestBody(vector<uint8_t>&& buffer)
 using ioruntime::IoEventHandler;
 
 // this function is only used in unit tests
-auto http::RequestBody::debug_body(IoEventHandler& ioe) -> vector<uint8_t>
+auto http::IncomingBody::debug_body(IoEventHandler& ioe) -> vector<uint8_t>
 {
     vector<uint8_t> a;
     uint8_t f[8192];
@@ -152,11 +152,11 @@ auto http::RequestBody::debug_body(IoEventHandler& ioe) -> vector<uint8_t>
     }
 }
 
-http::RequestBody::RequestBody()
+http::IncomingBody::IncomingBody()
     : _vector(vector<uint8_t>())
 {
 }
 
-http::RequestBody::~RequestBody() = default;
+http::IncomingBody::~IncomingBody() = default;
 
 #endif

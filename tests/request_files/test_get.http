@@ -8,3 +8,18 @@ GET http://localhost:1234/cgi/body_echo.lua HTTP/1.1
 
 ### bs test
 GET http://localhost:1234/cgi/read_forever.lua HTTP/1.1
+
+### valid
+GET http://localhost:4242/body_echo.lua HTTP/1.1
+
+### valid
+GET http://localhost:4242/test1.js HTTP/1.1
+
+### 404
+GET http://localhost:4242/bofdy_echo.lua HTTP/1.1
+
+### invalid
+GET http://localhost:4242/invalid_lua.lua HTTP/1.1
+
+### invalid
+GET http://localhost:4242/langmodtest.lua HTTP/1.1

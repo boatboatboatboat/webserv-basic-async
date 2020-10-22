@@ -32,9 +32,9 @@ auto RequestBuilder::header(string&& header_name, string&& header_value) -> Requ
     return *this;
 }
 
-auto RequestBuilder::body(RequestBody&& body) -> RequestBuilder&
+auto RequestBuilder::body_incoming(IncomingBody&& body) -> RequestBuilder&
 {
-    _body = std::move(body);
+    _incoming_body = std::move(body);
     return *this;
 }
 
@@ -48,15 +48,30 @@ auto RequestBuilder::build() && -> Request
         std::move(*_uri),
         _version,
         std::move(_headers),
-        std::move(_body));
+        std::move(_incoming_body));
 }
 
-Request::Request(Method method, Uri uri, Version version, Headers headers, optional<RequestBody> body)
+auto RequestBuilder::body_outgoing(OutgoingBody&& body) -> RequestBuilder&
+{
+    _outgoing_body = std::move(body);
+    return *this;
+}
+
+Request::Request(Method method, Uri uri, Version version, Headers headers, optional<IncomingBody>&& body)
     : _method(method)
     , _uri(std::move(uri))
     , _version(version)
     , _headers(std::move(headers))
-    , _body(std::move(body))
+    , _incoming_body(std::move(body))
+{
+}
+
+Request::Request(Method method, Uri uri, Version version, Headers headers, optional<OutgoingBody>&& body)
+    : _method(method)
+    , _uri(std::move(uri))
+    , _version(version)
+    , _headers(std::move(headers))
+    , _outgoing_body(std::move(body))
 {
 }
 
@@ -80,14 +95,14 @@ auto Request::get_headers() const -> Headers const&
     return _headers;
 }
 
-auto Request::get_body() -> optional<RequestBody>&
+auto Request::get_body() -> optional<IncomingBody>&
 {
-    return _body;
+    return _incoming_body;
 }
 
-auto Request::get_body() const -> optional<RequestBody> const&
+auto Request::get_body() const -> optional<IncomingBody> const&
 {
-    return _body;
+    return _incoming_body;
 }
 
 auto Request::get_header(string_view name) const -> optional<string_view>

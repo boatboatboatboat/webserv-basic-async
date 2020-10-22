@@ -232,7 +232,7 @@ TEST(ResponseReaderTests, rr_cgi_body_reqbody)
     reqbody.push_back('o');
 
     auto reqbuilder = RequestBuilder();
-    reqbuilder.uri(Uri("example.com")).method("POST").version(version::v1_1).body(RequestBody(move(reqbody)));
+    reqbuilder.uri(Uri("example.com")).method("POST").version(version::v1_1).body_incoming(IncomingBody(move(reqbody)));
     auto request = move(reqbuilder).build();
     sockaddr_in funny { .sin_port = 0, .sin_addr = { 0 } };
 

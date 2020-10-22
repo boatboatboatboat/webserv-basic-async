@@ -355,7 +355,7 @@ auto RequestParser::inner_poll(Waker&& waker) -> CallState
                                     // switching to body mode with cl=0 will cause
                                     //  the future to never finish.
                                     // instead, return ready now
-                                    builder.body(RequestBody());
+                                    builder.body_incoming(IncomingBody());
                                     return Completed;
                                 }
                                 // use the regular body parser
@@ -485,7 +485,7 @@ auto RequestParser::inner_poll(Waker&& waker) -> CallState
                     } break;
                     case Body: {
                         if (buffer.size() == *content_length) {
-                            builder.body(RequestBody(move(buffer)));
+                            builder.body_incoming(IncomingBody(move(buffer)));
                             return Completed;
                         }
                     } break;
@@ -513,9 +513,9 @@ auto RequestParser::inner_poll(Waker&& waker) -> CallState
                             last_chunk_size = decoded_size.value();
                             if (decoded_size.value() == 0) {
                                 if (decoded_body.has_value()) {
-                                    builder.body(move(*decoded_body));
+                                    builder.body_incoming(move(*decoded_body));
                                 } else {
-                                    builder.body(RequestBody());
+                                    builder.body_incoming(IncomingBody());
                                 }
                                 return Completed;
                             }
@@ -555,7 +555,7 @@ auto RequestParser::inner_poll(Waker&& waker) -> CallState
                         if (!span_reader.has_value()) {
                             span_reader = ioruntime::SpanReader(span(buffer.data(), buffer.size()));
                             if (!decoded_body.has_value()) {
-                                decoded_body = RequestBody();
+                                decoded_body = IncomingBody();
                             }
                             if ((decoded_body->size() + buffer.size()) > body_limit) {
                                 throw BodyExceededLimit();
@@ -571,7 +571,7 @@ auto RequestParser::inner_poll(Waker&& waker) -> CallState
                                 // switch back to size
                                 state = ChunkedBodySize;
                             } else {
-                                builder.body(move(*decoded_body));
+                                builder.body_incoming(move(*decoded_body));
                                 return Completed;
                             }
                         } else {

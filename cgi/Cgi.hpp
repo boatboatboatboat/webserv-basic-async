@@ -5,7 +5,7 @@
 #ifndef WEBSERV_CGI_CGI_HPP
 #define WEBSERV_CGI_CGI_HPP
 
-#include "../http/RequestBody.hpp"
+#include "../http/IncomingBody.hpp"
 #include "../http/RequestParser.hpp"
 #include "../ioruntime/FileDescriptor.hpp"
 #include "../ioruntime/GlobalChildProcessHandler.hpp"
@@ -25,6 +25,12 @@ using net::SocketAddr;
 using std::move;
 using std::string;
 
+struct CgiServerForwardInfo {
+    SocketAddr const& sockaddr;
+    std::string_view server_name;
+    unsigned short server_port;
+};
+
 class Cgi : public IAsyncRead, public IAsyncWrite {
 public:
     class CgiError : public std::runtime_error {
@@ -41,7 +47,9 @@ public:
     };
 
     Cgi(Cgi&&) noexcept = default;
-    explicit Cgi(const string& path, Request&& req, SocketAddr const& addr);
+    explicit Cgi(const string& path, Request&& req, CgiServerForwardInfo const& csfi);
+    template <typename Lang>
+    explicit Cgi(const string& path, Request&& req, CgiServerForwardInfo const& csfi, Lang&& language);
     ~Cgi() override;
 
     auto poll_success(Waker&& waker) -> bool;
@@ -52,12 +60,14 @@ public:
 
 private:
     // methods
-    void generate_env(Request const& req, SocketAddr const& addr);
+    void generate_env(Request const& req, CgiServerForwardInfo const& csfi);
     void create_pipe();
-    void fork_process();
-    void do_child_logic();
+    auto fork_process() -> bool;
+    void setup_redirection();
     void child_indicate_failure();
-    void switch_process();
+    void switch_external_process();
+    template <typename Lang>
+    void switch_internal_process(Lang&& language);
     void verify_executable();
     // members
     int output_redirection_fds[2];
@@ -73,6 +83,36 @@ private:
     Request _request;
     optional<ioruntime::RefIoCopyFuture> _ricf;
 };
+
+template <typename Lang>
+void Cgi::switch_internal_process(Lang&& language)
+{
+    auto executable_start = _path.rfind('/') + 1;
+    auto executable = _path.substr(executable_start);
+    language.load_file(move(executable));
+    language.load_environment(move(env));
+    language.execute();
+}
+
+template <typename Lang>
+Cgi::Cgi(const string& path, Request&& req, CgiServerForwardInfo const& csfi, Lang&& language)
+    : _path(path)
+    , _request(move(req))
+{
+    // don't verify
+    generate_env(_request, csfi);
+    create_pipe();
+    if (fork_process()) {
+        try {
+            setup_redirection();
+            switch_internal_process(std::forward<Lang>(language));
+            // if failed abort
+        } catch (...) {
+            child_indicate_failure();
+        }
+    }
+    env.clear();
+}
 
 }
 

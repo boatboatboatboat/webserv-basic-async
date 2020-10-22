@@ -5,6 +5,7 @@
 #include "Ipv6Address.hpp"
 #include "../utils/mem_zero.hpp"
 #include <arpa/inet.h>
+#include <cstring>
 #include <iostream>
 #include <netinet/in.h>
 
@@ -33,6 +34,30 @@ net::Ipv6Address::Ipv6Address(string_view str)
 net::Ipv6Address::Ipv6Address(in6_addr addr)
     : ip(addr)
 {
+}
+
+auto net::Ipv6Address::operator==(const net::Ipv6Address& rhs) const -> bool
+{
+    // fixme: memcmp
+    return std::memcmp(&ip, &rhs.ip, sizeof(ip)) == 0;
+}
+
+auto net::Ipv6Address::operator!=(const net::Ipv6Address& rhs) const -> bool
+{
+    // fixme: memcmp
+    return std::memcmp(&ip, &rhs.ip, sizeof(ip)) != 0;
+}
+
+auto net::Ipv6Address::operator>(const net::Ipv6Address& rhs) const -> bool
+{
+    // fixme: memcmp
+    return std::memcmp(&ip, &rhs.ip, sizeof(ip)) > 0;
+}
+
+auto net::Ipv6Address::operator<(const net::Ipv6Address& rhs) const -> bool
+{
+    // fixme: memcmp
+    return std::memcmp(&ip, &rhs.ip, sizeof(ip)) < 0;
 }
 
 auto operator<<(std::ostream& os, const net::Ipv6Address& sa) -> std::ostream&

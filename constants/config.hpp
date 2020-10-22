@@ -13,7 +13,7 @@ using std::string_view;
 
 // Software info
 constexpr string_view SERVER_SOFTWARE_NAME = "BroServ/latest";
-constexpr string_view SERVER_SOFTWARE_METAVAR = "SERVER_NAME=BroServ/latest";
+constexpr string_view SERVER_SOFTWARE_METAVAR = "SERVER_SOFTWARE=BroServ/latest";
 
 // Root config key names
 constexpr string_view CONFIG_KEY_HTTP = "http";
@@ -49,6 +49,14 @@ constexpr string_view CONFIG_KEY_REALM = "realm";
 constexpr string_view CONFIG_KEY_UPLOAD = "upload";
 constexpr string_view CONFIG_KEY_UPLOAD_DIRECTORY = "directory";
 constexpr string_view CONFIG_KEY_UPLOAD_MAX_SIZE = "max-size";
+
+// Module key names
+constexpr string_view CONFIG_KEY_MODULES = "modules";
+constexpr string_view MODULE_LUA = "lua";
+constexpr string_view MODULE_ECMASCRIPT = "es";
+
+// Proxy key names
+constexpr string_view CONFIG_KEY_PROXY = "proxy";
 
 // Config default values
 constexpr size_t CONFIG_DEFAULT_UPLOAD_MAX_SIZE = 100000;

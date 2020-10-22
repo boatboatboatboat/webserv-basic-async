@@ -10,8 +10,8 @@
 #include "../net/Socket.hpp"
 #include "DefaultPageReader.hpp"
 #include "Header.hpp"
+#include "OutgoingBody.hpp"
 #include "Request.hpp"
-#include "ResponseBody.hpp"
 #include "RfcConstants.hpp"
 #include "Status.hpp"
 #include "Version.hpp"
@@ -52,7 +52,7 @@ private:
     optional<Headers> _headers;
     Version _version = version::v1_1;
     optional<Status> _status;
-    optional<ResponseBody> _body;
+    optional<OutgoingBody> _body;
     optional<Cgi> _cgi = option::nullopt;
 };
 
@@ -60,7 +60,7 @@ class Response final {
 public:
     // ctors/dtors
     Response() = delete;
-    Response(optional<Headers>&& headers, Version version, Status status, optional<ResponseBody>&& body);
+    Response(optional<Headers>&& headers, Version version, Status status, optional<OutgoingBody>&& body);
     ~Response() = default;
     Response(Response&&) noexcept = default;
     auto operator=(Response&&) noexcept -> Response& = default;
@@ -70,8 +70,8 @@ public:
     [[nodiscard]] auto get_header(HeaderName const& needle_name) const -> optional<HeaderValue>;
     [[nodiscard]] auto get_version() const -> Version const&;
     [[nodiscard]] auto get_status() const -> Status const&;
-    [[nodiscard]] auto get_body() const -> optional<ResponseBody> const&;
-    [[nodiscard]] auto get_body() -> optional<ResponseBody>&;
+    [[nodiscard]] auto get_body() const -> optional<OutgoingBody> const&;
+    [[nodiscard]] auto get_body() -> optional<OutgoingBody>&;
 
     void drop_body();
 
@@ -80,7 +80,7 @@ private:
     Headers _headers;
     Version _version;
     Status _status;
-    optional<ResponseBody> _body;
+    optional<OutgoingBody> _body;
 };
 
 class ResponseReader final : public IAsyncRead {
@@ -139,16 +139,16 @@ private:
     // reads the body 'raw'
     class BodyReader final : public IAsyncRead {
     public:
-        explicit BodyReader(ResponseBody& body);
+        explicit BodyReader(OutgoingBody& body);
         auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
 
     private:
-        ResponseBody& _body;
+        OutgoingBody& _body;
     };
     // reads the body, serialized in cte format
     class ChunkedBodyReader final : public IAsyncRead {
     public:
-        explicit ChunkedBodyReader(ResponseBody& body);
+        explicit ChunkedBodyReader(OutgoingBody& body);
         auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
 
     private:
@@ -163,7 +163,7 @@ private:
         char _num[get_max_num_size(sizeof(_data_buf))];
         span<uint8_t> _current;
         span<uint8_t> _current_body;
-        ResponseBody& _body;
+        OutgoingBody& _body;
     };
     // reads the body from cgi
     class CgiBodyReader final : public IAsyncRead {

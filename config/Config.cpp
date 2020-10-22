@@ -38,7 +38,7 @@ auto BaseConfig::get_autoindex() const -> optional<bool> const&
 }
 
 BaseConfig::BaseConfig(optional<string> root, optional<vector<string>> index_pages, optional<map<uint16_t, string>> error_pages, optional<bool> use_cgi, optional<vector<Method>> allowed_methods, optional<bool> autoindex,
-    optional<AuthConfig>&& authcfg, optional<UploadConfig>&& upcfg, optional<size_t> body_limit)
+    optional<AuthConfig>&& authcfg, optional<UploadConfig>&& upcfg, optional<size_t> body_limit, optional<vector<string>>&& modules)
     : root(std::move(root))
     , index_pages(std::move(index_pages))
     , error_pages(std::move(error_pages))
@@ -48,6 +48,7 @@ BaseConfig::BaseConfig(optional<string> root, optional<vector<string>> index_pag
     , auth_config(std::move(authcfg))
     , upload_config(std::move(upcfg))
     , body_limit(std::move(body_limit))
+    , modules(std::move(modules))
 {
 }
 
@@ -66,14 +67,14 @@ auto ServerConfig::get_server_names() const -> optional<vector<string>> const&
     return server_names;
 }
 
-auto ServerConfig::get_bind_addresses() const -> optional<vector<tuple<IpAddress, uint16_t>>> const&
+auto ServerConfig::get_bind_addresses() const -> vector<tuple<IpAddress, uint16_t>> const&
 {
     return bind_addresses;
 }
 
 ServerConfig::ServerConfig(
     optional<vector<string>>&& server_names,
-    optional<vector<tuple<IpAddress, uint16_t>>>&& bind_addresses,
+    vector<tuple<IpAddress, uint16_t>>&& bind_addresses,
     optional<table<Regex, LocationConfig>>&& locations,
     optional<size_t> buffer_limit,
     optional<size_t> inactivity_timeout,
@@ -89,6 +90,11 @@ ServerConfig::ServerConfig(
 auto BaseConfig::get_body_limit() const -> optional<size_t>
 {
     return body_limit;
+}
+
+auto BaseConfig::get_modules() const -> optional<vector<string>> const&
+{
+    return modules;
 }
 
 auto ServerConfig::get_buffer_limit() const -> optional<size_t>

@@ -3,9 +3,9 @@
 //
 
 #include "Cgi.hpp"
-#include "../utils/base64.hpp"
 #include "../constants/config.hpp"
 #include "../fs/Path.hpp"
+#include "../utils/base64.hpp"
 
 namespace cgi {
 
@@ -25,14 +25,21 @@ Cgi::ForkFailed::ForkFailed()
 {
 }
 
-Cgi::Cgi(const string& path, Request&& req, const SocketAddr& addr)
+Cgi::Cgi(const string& path, Request&& req, CgiServerForwardInfo const& csfi)
     : _path(path)
     , _request(move(req))
 {
     verify_executable();
-    generate_env(_request, addr);
+    generate_env(_request, csfi);
     create_pipe();
-    fork_process();
+    if (fork_process()) {
+        try {
+            setup_redirection();
+            switch_external_process();
+        } catch (...) {
+            child_indicate_failure();
+        }
+    }
     env.clear();
 }
 
@@ -45,7 +52,7 @@ auto Cgi::poll_success(Waker&& waker) -> bool
 
     if (res.is_ready()) {
         if (res.get().is_success()) {
-            throw CgiError("execve failure");
+            throw CgiError("Failed to execute CGI");
         }
         return true;
     } else {
@@ -93,10 +100,12 @@ auto Cgi::poll_write(const span<uint8_t> buffer, Waker&& waker) -> PollResult<Io
     return child_input->poll_write(buffer, std::move(waker));
 }
 
-void Cgi::generate_env(Request const& req, SocketAddr const& addr)
+void Cgi::generate_env(Request const& req, CgiServerForwardInfo const& csfi)
 {
+    const auto& addr = csfi.sockaddr;
     // Set AUTH_TYPE and REMOTE_USER metavar
     {
+        // TODO: some kind of error handling, right now it just does nothing on an error
         auto at = req.get_header(http::header::AUTHORIZATION);
 
         if (at.has_value()) {
@@ -105,7 +114,7 @@ void Cgi::generate_env(Request const& req, SocketAddr const& addr)
                 env.emplace_back("AUTH_TYPE=");
             }
             auto scheme_end = field.find(' ');
-            auto scheme = field.substr(0,scheme_end);
+            auto scheme = field.substr(0, scheme_end);
             if (std::all_of(scheme.begin(), scheme.end(), http::parser_utils::is_tchar)) {
                 std::stringstream var;
                 var << "AUTH_TYPE=" << scheme;
@@ -263,8 +272,20 @@ void Cgi::generate_env(Request const& req, SocketAddr const& addr)
         sn += _path;
         env.push_back(std::move(sn));
     }
-    // TODO: SERVER_NAME metavar
-    // TODO: SERVER_PORT metavar
+    // Set SERVER_NAME metavar
+    {
+        std::string sn("SERVER_NAME=");
+
+        sn += csfi.server_name;
+        env.push_back(std::move(sn));
+    }
+    // Set SERVER_PORT metavar
+    {
+        std::string sp("SERVER_PORT=");
+
+        sp += std::to_string(csfi.server_port);
+        env.push_back(std::move(sp));
+    }
     // Set SERVER_PROTOCOL metavar
     // Let's just hardcode these headers
     env.emplace_back("SERVER_PROTOCOL=HTTP/1.1");
@@ -313,24 +334,25 @@ void Cgi::create_pipe()
     child_error_ipc = FileDescriptor(error_indication_fds[0]);
 }
 
-void Cgi::fork_process()
+auto Cgi::fork_process() -> bool
 {
     pid = fork();
 
     if (pid < 0) {
         throw ForkFailed();
     } else if (pid == 0) {
-        do_child_logic();
+        return true;
     } else {
         close(output_redirection_fds[1]);
         close(input_redirection_fds[0]);
         close(error_indication_fds[1]);
         // TODO: check if this is a race condition, and that the signal may be fired before the handler is created
         GlobalChildProcessHandler::register_handler(pid, BoxPtr<SetReadyFunctor>::make(RcPtr(process_ran)));
+        return false;
     }
 }
 
-void Cgi::do_child_logic()
+void Cgi::setup_redirection()
 {
     // chdir to script parent
     auto path_end = _path.rfind('/');
@@ -355,17 +377,11 @@ void Cgi::do_child_logic()
 
     // close everything
     close(error_indication_fds[0]);
-    close(error_indication_fds[1]);
+    // do NOT close 1
     close(input_redirection_fds[0]);
     close(input_redirection_fds[1]);
     close(output_redirection_fds[0]);
     close(output_redirection_fds[1]);
-    try {
-        switch_process();
-        // if failed abort
-    } catch (...) {
-        child_indicate_failure();
-    }
 }
 
 void Cgi::child_indicate_failure()
@@ -389,7 +405,7 @@ void Cgi::child_indicate_failure()
     }
 }
 
-void Cgi::switch_process()
+void Cgi::switch_external_process()
 {
     auto executable_start = _path.rfind('/') + 1;
     auto executable = _path.substr(executable_start);

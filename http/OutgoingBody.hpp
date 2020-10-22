@@ -2,8 +2,8 @@
 // Created by Djevayo Pattij on 10/2/20.
 //
 
-#ifndef WEBSERV_HTTP_RESPONSEBODY_HPP
-#define WEBSERV_HTTP_RESPONSEBODY_HPP
+#ifndef WEBSERV_HTTP_OUTGOINGBODY_HPP
+#define WEBSERV_HTTP_OUTGOINGBODY_HPP
 
 #include "../cgi/Cgi.hpp"
 #include "../ioruntime/IAsyncRead.hpp"
@@ -13,17 +13,17 @@ namespace http {
 using cgi::Cgi;
 using ioruntime::IAsyncRead;
 
-class ResponseBody final : public IAsyncRead {
+class OutgoingBody final : public IAsyncRead {
 public:
     // special methods
-    ResponseBody() = delete;
-    ResponseBody(ResponseBody&&) noexcept;
-    auto operator=(ResponseBody&&) noexcept -> ResponseBody&;
-    ~ResponseBody() override;
+    OutgoingBody() = delete;
+    OutgoingBody(OutgoingBody&&) noexcept;
+    auto operator=(OutgoingBody&&) noexcept -> OutgoingBody&;
+    ~OutgoingBody() override;
 
     // ctors
-    explicit ResponseBody(BoxPtr<ioruntime::IAsyncRead>&& reader);
-    explicit ResponseBody(Cgi&& cgi);
+    explicit OutgoingBody(BoxPtr<ioruntime::IAsyncRead>&& reader);
+    explicit OutgoingBody(Cgi&& cgi);
 
     // methods
     [[nodiscard]] auto is_reader() const -> bool;
@@ -46,4 +46,4 @@ private:
 
 }
 
-#endif //WEBSERV_HTTP_RESPONSEBODY_HPP
+#endif //WEBSERV_HTTP_OUTGOINGBODY_HPP

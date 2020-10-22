@@ -63,7 +63,8 @@ public:
         optional<bool> autoindex,
         optional<AuthConfig>&& authcfg,
         optional<UploadConfig>&& uploadcfg,
-        optional<size_t> body_limit);
+        optional<size_t> body_limit,
+        optional<vector<string>>&& modules);
     [[nodiscard]] auto get_root() const -> optional<string> const&;
     [[nodiscard]] auto get_index_pages() const -> optional<vector<string>> const&;
     [[nodiscard]] auto get_error_pages() const -> optional<map<uint16_t, string>> const&;
@@ -73,6 +74,7 @@ public:
     [[nodiscard]] auto get_auth_config() const -> optional<AuthConfig> const&;
     [[nodiscard]] auto get_upload_config() const -> optional<UploadConfig> const&;
     [[nodiscard]] auto get_body_limit() const -> optional<size_t>;
+    [[nodiscard]] auto get_modules() const -> optional<vector<string>> const&;
 
 private:
     optional<string> root;
@@ -84,6 +86,7 @@ private:
     optional<AuthConfig> auth_config;
     optional<UploadConfig> upload_config;
     optional<size_t> body_limit;
+    optional<vector<string>> modules;
 };
 
 class LocationConfig : public BaseConfig {
@@ -101,19 +104,19 @@ class ServerConfig : public LocationConfig {
 public:
     ServerConfig(
         optional<vector<string>>&& server_names,
-        optional<vector<tuple<IpAddress, uint16_t>>>&& bind_addresses,
+        vector<tuple<IpAddress, uint16_t>>&& bind_addresses,
         optional<table<Regex, LocationConfig>>&& locations,
         optional<size_t> buffer_limit,
         optional<size_t> inactivity_timeout,
         BaseConfig&& bc);
     [[nodiscard]] auto get_server_names() const -> optional<vector<string>> const&;
-    [[nodiscard]] auto get_bind_addresses() const -> optional<vector<tuple<IpAddress, uint16_t>>> const&;
+    [[nodiscard]] auto get_bind_addresses() const -> vector<tuple<IpAddress, uint16_t>> const&;
     [[nodiscard]] auto get_buffer_limit() const -> optional<size_t>;
     [[nodiscard]] auto get_inactivity_timeout() const -> optional<size_t>;
 
 private:
     optional<vector<string>> server_names;
-    optional<vector<tuple<IpAddress, uint16_t>>> bind_addresses;
+    vector<tuple<IpAddress, uint16_t>> bind_addresses;
     optional<size_t> buffer_limit;
     optional<size_t> inactivity_timeout;
 };

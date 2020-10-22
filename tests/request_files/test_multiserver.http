@@ -1,0 +1,17 @@
+###
+GET http://localhost:1234/
+
+###
+GET http://localhost:1234/directory
+
+###
+GET http://localhost:1235/
+
+###
+GET http://localhost:1235/directory
+
+###
+GET http://localhost:1236/
+
+###
+GET http://localhost:1236/directory

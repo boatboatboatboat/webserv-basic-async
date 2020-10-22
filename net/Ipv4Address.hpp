@@ -19,6 +19,11 @@ public:
     explicit Ipv4Address(uint32_t ip);
     [[nodiscard]] auto get_ip_bytes() const -> uint32_t;
 
+    auto operator==(Ipv4Address const& rhs) const -> bool;
+    auto operator!=(Ipv4Address const& rhs) const -> bool;
+    auto operator>(Ipv4Address const& rhs) const -> bool;
+    auto operator<(Ipv4Address const& rhs) const -> bool;
+
 private:
     uint32_t ip;
 };

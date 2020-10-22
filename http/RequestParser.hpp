@@ -147,7 +147,7 @@ private:
     vector<uint8_t> buffer;
     optional<ioruntime::SpanReader> span_reader;
     optional<ioruntime::RefIoCopyFuture> ricf;
-    optional<RequestBody> decoded_body;
+    optional<IncomingBody> decoded_body;
     RequestBuilder builder;
     bool moved = false;
     bool shift_back = false;

@@ -27,7 +27,8 @@ public:
     [[nodiscard]] auto get_bytes_written() const -> size_t;
     [[nodiscard]] auto has_written_bytes() const -> bool;
     IoCopyFuture(IoCopyFuture&& other) noexcept
-        : _owned_reader(std::move(other._owned_reader))
+        : _bytes_written(other._bytes_written)
+        , _owned_reader(std::move(other._owned_reader))
         , _owned_writer(std::move(other._owned_writer))
         , _reader(_owned_reader)
         , _writer(_owned_writer)
@@ -67,7 +68,8 @@ public:
     [[nodiscard]] auto get_bytes_written() const -> size_t;
     [[nodiscard]] auto has_written_bytes() const -> bool;
     IoCopyFuture(IoCopyFuture&& other) noexcept
-        : _owned_reader(std::move(other._owned_reader))
+        : _bytes_written(other._bytes_written)
+        , _owned_reader(std::move(other._owned_reader))
         , _reader(_owned_reader)
         , _writer(other._writer)
     {
@@ -106,6 +108,7 @@ public:
     [[nodiscard]] auto has_written_bytes() const -> bool;
     IoCopyFuture(IoCopyFuture&& other) noexcept
         : _owned_writer(std::move(other._owned_writer))
+        , _bytes_written(other._bytes_written)
         , _reader(other._reader)
         , _writer(_owned_writer)
     {
@@ -208,7 +211,7 @@ public:
     };
 
     IoCopyFuture(IoCopyFuture&& other) noexcept
-        : _span(span(_buffer, 0))
+        : _bytes_written(other._bytes_written)
         , _reader(other._reader)
         , _writer(other._writer)
     {
@@ -217,7 +220,7 @@ public:
             _span = span(_buffer, other._span->size());
         }
     }
-
+    IoCopyFuture operator=(IoCopyFuture&&) = delete;
 private:
     uint8_t _buffer[64000];
     optional<span<uint8_t>> _span;

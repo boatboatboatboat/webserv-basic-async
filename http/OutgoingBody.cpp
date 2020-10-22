@@ -2,13 +2,13 @@
 // Created by Djevayo Pattij on 10/2/20.
 //
 
-#include "ResponseBody.hpp"
+#include "OutgoingBody.hpp"
 
 namespace http {
 
 using std::move;
 
-ResponseBody::ResponseBody(ResponseBody&& other) noexcept
+OutgoingBody::OutgoingBody(OutgoingBody&& other) noexcept
 {
     if (other._tag == ReaderTag) {
         new (&_reader) BoxPtr<IAsyncRead>(move(other._reader));
@@ -18,7 +18,7 @@ ResponseBody::ResponseBody(ResponseBody&& other) noexcept
     _tag = other._tag;
 }
 
-auto ResponseBody::operator=(ResponseBody&& other) noexcept -> ResponseBody&
+auto OutgoingBody::operator=(OutgoingBody&& other) noexcept -> OutgoingBody&
 {
     if (_tag == ReaderTag) {
         _reader.~BoxPtr();
@@ -34,7 +34,7 @@ auto ResponseBody::operator=(ResponseBody&& other) noexcept -> ResponseBody&
     return *this;
 }
 
-ResponseBody::~ResponseBody()
+OutgoingBody::~OutgoingBody()
 {
     if (_tag == ReaderTag) {
         _reader.~BoxPtr();
@@ -43,34 +43,34 @@ ResponseBody::~ResponseBody()
     }
 }
 
-ResponseBody::ResponseBody(BoxPtr<ioruntime::IAsyncRead>&& reader)
+OutgoingBody::OutgoingBody(BoxPtr<ioruntime::IAsyncRead>&& reader)
 {
     _tag = ReaderTag;
     new (&_reader) BoxPtr<IAsyncRead>(move(reader));
 }
 
-ResponseBody::ResponseBody(Cgi&& cgi)
+OutgoingBody::OutgoingBody(Cgi&& cgi)
 {
     _tag = CgiTag;
     new (&_cgi) Cgi(move(cgi));
 }
 
-auto ResponseBody::is_reader() const -> bool
+auto OutgoingBody::is_reader() const -> bool
 {
     return _tag == ReaderTag;
 }
 
-auto ResponseBody::is_cgi() const -> bool
+auto OutgoingBody::is_cgi() const -> bool
 {
     return _tag == CgiTag;
 }
 
-auto ResponseBody::get_cgi() -> Cgi&
+auto OutgoingBody::get_cgi() -> Cgi&
 {
     return _cgi;
 }
 
-auto ResponseBody::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<ioruntime::IoResult>
+auto OutgoingBody::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<ioruntime::IoResult>
 {
     if (_tag == ReaderTag) {
         return _reader->poll_read(buffer, move(waker));

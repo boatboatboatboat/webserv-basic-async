@@ -51,6 +51,26 @@ net::Ipv4Address::Ipv4Address(string_view str)
     ip = utils::bswap32(x);
 }
 
+auto net::Ipv4Address::operator==(const net::Ipv4Address& rhs) const -> bool
+{
+    return ip == rhs.ip;
+}
+
+auto net::Ipv4Address::operator!=(const net::Ipv4Address& rhs) const -> bool
+{
+    return ip != rhs.ip;
+}
+
+auto net::Ipv4Address::operator>(const net::Ipv4Address& rhs) const -> bool
+{
+    return ip > rhs.ip;
+}
+
+auto net::Ipv4Address::operator<(const net::Ipv4Address& rhs) const -> bool
+{
+    return ip < rhs.ip;
+}
+
 auto operator<<(std::ostream& os, const net::Ipv4Address& sa) -> std::ostream&
 {
     auto ip = sa.get_ip_bytes();

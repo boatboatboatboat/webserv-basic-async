@@ -21,6 +21,11 @@ public:
     [[nodiscard]] auto get_v4() const -> Ipv4Address;
     [[nodiscard]] auto get_v6() const -> Ipv6Address;
 
+    // os x doesn't have spaceship operators :(
+    auto operator==(IpAddress const& rhs) const -> bool;
+    auto operator!=(IpAddress const& rhs) const -> bool;
+    auto operator>(IpAddress const& rhs) const -> bool;
+    auto operator<(IpAddress const& rhs) const -> bool;
 private:
     enum Tag {
         Ipv4,

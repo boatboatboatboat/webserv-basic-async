@@ -2,8 +2,8 @@
 // Created by boat on 11-10-20.
 //
 
-#ifndef WEBSERV_HTTP_REQUESTBODY_HPP
-#define WEBSERV_HTTP_REQUESTBODY_HPP
+#ifndef WEBSERV_HTTP_INCOMINGBODY_HPP
+#define WEBSERV_HTTP_INCOMINGBODY_HPP
 
 #include "../fs/File.hpp"
 #include "../http/SpanReader.hpp"
@@ -34,15 +34,15 @@ using std::vector;
 
 namespace http {
 
-class RequestBody : public IAsyncRead, public IAsyncWrite {
+class IncomingBody : public IAsyncRead, public IAsyncWrite {
 public:
-    RequestBody();
-    explicit RequestBody(vector<uint8_t>&& buffer);
-    RequestBody(RequestBody const&) = delete;
-    RequestBody& operator=(RequestBody const&) = delete;
-    RequestBody(RequestBody&& other) noexcept;
-    RequestBody& operator=(RequestBody&& other) noexcept ;
-    ~RequestBody() override;
+    IncomingBody();
+    explicit IncomingBody(vector<uint8_t>&& buffer);
+    IncomingBody(IncomingBody const&) = delete;
+    IncomingBody& operator=(IncomingBody const&) = delete;
+    IncomingBody(IncomingBody&& other) noexcept;
+    IncomingBody& operator=(IncomingBody&& other) noexcept ;
+    ~IncomingBody() override;
     auto poll_read(span<uint8_t> buffer, Waker&& waker)
         -> PollResult<IoResult> override;
     auto poll_write(span<uint8_t> buffer, Waker&& waker)
@@ -69,4 +69,4 @@ private:
 
 }
 
-#endif //WEBSERV_HTTP_REQUESTBODY_HPP
+#endif //WEBSERV_HTTP_INCOMINGBODY_HPP
