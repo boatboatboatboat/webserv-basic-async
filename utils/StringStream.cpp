@@ -31,3 +31,9 @@ utils::StringStream::StringStream(std::string_view view)
     : _buffer(view)
 {
 }
+
+auto utils::StringStream::operator<<(int view) -> utils::StringStream&
+{
+    _buffer.append(std::to_string(view));
+    return *this;
+}

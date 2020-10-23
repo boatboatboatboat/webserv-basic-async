@@ -71,7 +71,7 @@ auto net::Ipv4Address::operator<(const net::Ipv4Address& rhs) const -> bool
     return ip < rhs.ip;
 }
 
-auto operator<<(std::ostream& os, const net::Ipv4Address& sa) -> std::ostream&
+auto operator<<(utils::StringStream& os, const net::Ipv4Address& sa) -> utils::StringStream&
 {
     auto ip = sa.get_ip_bytes();
     auto* x = reinterpret_cast<uint8_t*>(&ip);

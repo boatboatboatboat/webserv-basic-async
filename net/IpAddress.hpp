@@ -41,6 +41,6 @@ private:
 };
 }
 
-auto operator<<(std::ostream& os, const net::IpAddress& sa) -> std::ostream&;
+auto operator<<(utils::StringStream& os, const net::IpAddress& sa) -> utils::StringStream&;
 
 #endif //WEBSERV_NET_IPADDRESS_HPP

@@ -198,7 +198,7 @@ auto base_config_from_json(json::Json const& config) -> BaseConfig
             optional<string> config_realm;
             if (realm_key.is_string()) {
                 auto sv = realm_key.string_value();
-                std::stringstream realmbuilder;
+                utils::StringStream realmbuilder;
                 for (char c : sv) {
                     if (c == '\\' || c == '"') {
                         realmbuilder << '\\';
@@ -400,10 +400,9 @@ auto config_from_json(json::Json const& config) -> RootConfig
                             }
 
                             auto address = IpAddress::from_str(ip);
-                            auto port_str = std::string_view(combo.data() + combo.rfind(':') + 1, combo.length() - combo.rfind(':'));
+                            auto port_str = std::string_view(combo.data() + combo.rfind(':') + 1, combo.length() - combo.rfind(':') - 1);
 
-                            std::string sv(port_str);
-                            auto port = utils::string_to_uint64(sv);
+                            auto port = utils::string_to_uint64(port_str);
 
                             if (!port.has_value() || *port > UINT16_MAX)
                                 throw std::runtime_error("listen item port is zero or out of unsigned 16-bit range");
@@ -767,7 +766,7 @@ inline static void check_method_and_set_allow(BaseConfig const& bcfg, Method met
     bool method_allowed = false;
     auto allowed_methods = bcfg.get_allowed_methods();
 
-    std::stringstream allow_field_value;
+    utils::StringStream allow_field_value;
     http::Headers allow_header;
 
     if (allowed_methods.has_value()) {

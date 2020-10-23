@@ -116,7 +116,7 @@ void Cgi::generate_env(IncomingRequest const& req, CgiServerForwardInfo const& c
             auto scheme_end = field.find(' ');
             auto scheme = field.substr(0, scheme_end);
             if (std::all_of(scheme.begin(), scheme.end(), http::parser_utils::is_tchar)) {
-                std::stringstream var;
+                utils::StringStream var;
                 var << "AUTH_TYPE=" << scheme;
                 env.emplace_back(var.str());
                 if (scheme == "Basic") {
@@ -124,7 +124,7 @@ void Cgi::generate_env(IncomingRequest const& req, CgiServerForwardInfo const& c
                     auto decoded = utils::base64::decode_string(info);
                     auto user_end = decoded.find(':');
                     if (decoded.find(':') != std::string::npos) {
-                        std::stringstream uinfo;
+                        utils::StringStream uinfo;
                         uinfo << "REMOTE_USER=" << decoded.substr(0, user_end);
                         env.emplace_back(uinfo.str());
                     }
@@ -137,7 +137,7 @@ void Cgi::generate_env(IncomingRequest const& req, CgiServerForwardInfo const& c
         auto cl = message.get_header("Content-Length");
 
         if (message.get_body().has_value()) {
-            std::stringstream var;
+            utils::StringStream var;
             var << "CONTENT_LENGTH=" << message.get_body()->size();
             env.push_back(var.str());
         }
@@ -201,7 +201,7 @@ void Cgi::generate_env(IncomingRequest const& req, CgiServerForwardInfo const& c
     }
     // Set REMOTE_ADDR metavar
     {
-        std::stringstream ra;
+        utils::StringStream ra;
 
         ra << "REMOTE_ADDR=";
         if (addr.is_v4()) {
@@ -235,7 +235,7 @@ void Cgi::generate_env(IncomingRequest const& req, CgiServerForwardInfo const& c
         //
         // NOTE: the SIP CGI definition for REQUEST_URI is absoluteURI.
         // FIXME: the URI is not in absolute form
-        std::stringstream uri;
+        utils::StringStream uri;
         uri << "REQUEST_URI=";
         auto req_uri = req.get_uri();
         if (req_uri.get_scheme().has_value()) {
@@ -297,7 +297,7 @@ void Cgi::generate_env(IncomingRequest const& req, CgiServerForwardInfo const& c
             // remove recommended headers
             continue;
         }
-        std::stringstream new_var;
+        utils::StringStream new_var;
 
         new_var << "HTTP_";
         for (auto c : header.name) {
@@ -346,7 +346,6 @@ auto Cgi::fork_process() -> bool
         close(output_redirection_fds[1]);
         close(input_redirection_fds[0]);
         close(error_indication_fds[1]);
-        // TODO: check if this is a race condition, and that the signal may be fired before the handler is created
         GlobalChildProcessHandler::register_handler(pid, BoxPtr<SetReadyFunctor>::make(RcPtr(process_ran)));
         return false;
     }

@@ -37,7 +37,6 @@ http::DirectoryReader::DirectoryReader(string_view str, string_view real_pathstr
     real_path += "/";
 }
 
-// FIXME: pageend not written?
 auto http::DirectoryReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
 {
     auto written = std::min(buffer.size(), cur.length());

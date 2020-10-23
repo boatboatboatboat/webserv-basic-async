@@ -3,6 +3,7 @@
 //
 
 #include "Ipv6Address.hpp"
+#include "../utils/StringStream.hpp"
 #include "../utils/mem_zero.hpp"
 #include <arpa/inet.h>
 #include <cstring>
@@ -60,11 +61,10 @@ auto net::Ipv6Address::operator<(const net::Ipv6Address& rhs) const -> bool
     return std::memcmp(&ip, &rhs.ip, sizeof(ip)) < 0;
 }
 
-auto operator<<(std::ostream& os, const net::Ipv6Address& sa) -> std::ostream&
+auto operator<<(utils::StringStream& os, const net::Ipv6Address& sa) -> utils::StringStream&
 {
     in6_addr ip_raw = sa.get_ip_posix();
     auto* ip = reinterpret_cast<uint16_t*>(&ip_raw);
-    os << std::hex;
     size_t idx = 0;
     bool pdouble = false;
     while (idx < 8) {
@@ -78,6 +78,7 @@ auto operator<<(std::ostream& os, const net::Ipv6Address& sa) -> std::ostream&
             pdouble = false;
             continue;
         } else {
+            // fixme: hex
             os << __builtin_bswap16(ip[idx]);
         }
         if (idx < 7) {
@@ -86,5 +87,5 @@ auto operator<<(std::ostream& os, const net::Ipv6Address& sa) -> std::ostream&
         }
         idx += 1;
     }
-    return os << std::dec;
+    return os;
 }

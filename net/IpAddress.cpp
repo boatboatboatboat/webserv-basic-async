@@ -151,7 +151,7 @@ auto IpAddress::operator<(const IpAddress& rhs) const -> bool
 
 }
 
-auto operator<<(std::ostream& os, const net::IpAddress& sa) -> std::ostream&
+auto operator<<(utils::StringStream& os, const net::IpAddress& sa) -> utils::StringStream&
 {
     if (sa.is_v4()) {
         os << sa.get_v4();

@@ -210,6 +210,27 @@ inline auto hexstring_to_uint64(std::string_view n) -> option::optional<uint64_t
     return num;
 }
 
+inline auto uint64_to_hexstring(uint64_t n) -> std::string
+{
+    std::string_view charset = "0123456789ABCDEF";
+    // do we really care
+    std::string s;
+    std::string r;
+
+    if (n == 0) {
+        s.push_back(charset[n]);
+    }
+    while (n != 0) {
+        s.push_back(charset[n % 16]);
+        n /= 16;
+    }
+    // LOL
+    for (auto it = s.rbegin(); it != s.rend(); it++) {
+        r.push_back(*it);
+    }
+    return r;
+}
+
 inline auto to_uppercase(char c) -> char
 {
     if (c >= 'a' && c <= 'z')

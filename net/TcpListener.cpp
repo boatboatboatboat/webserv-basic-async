@@ -52,7 +52,7 @@ TcpListener::TcpListener(IpAddress ip, in_port_t port)
         new_address.sin6_family = protocol_specifier;
         new_address.sin6_port = htons(port);
         new_address.sin6_addr = ip.get_v6().get_ip_posix();
-        // FIXME: new_address.sin6_len = sizeof(new_address);
+        new_address.sin6_len = sizeof(new_address);
         new_address.sin6_flowinfo = 0;
         addr = net::SocketAddr(new_address);
     }

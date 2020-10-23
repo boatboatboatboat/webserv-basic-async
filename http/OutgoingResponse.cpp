@@ -176,7 +176,6 @@ auto ResponseReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResul
                     } else {
                         // No CGI - write our own headers
                         _state = HeaderState;
-                        // FIXME: Headers == None is not handled
                         new (&_header) HeadersReader(_response.get_headers());
                     }
                     return PollResult<IoResult>::pending();

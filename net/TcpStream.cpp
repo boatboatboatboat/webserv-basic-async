@@ -9,25 +9,37 @@
 namespace net {
 
 TcpStream::TcpStream(int fd, SocketAddr address)
-    : _socket(fd, address)
+    : _socket(Socket(fd, address))
     , _address(address)
 {
 }
 
 TcpStream::TcpStream(TcpStream&& other) noexcept
     : _socket(std::move(other._socket))
-    , _address(other._address)
+    , _address(std::move(other._address))
 {
 }
 
 auto TcpStream::get_addr() const -> SocketAddr const&
 {
-    return _address;
+    return *_address;
 }
 
 auto TcpStream::get_socket() -> Socket&
 {
-    return _socket;
+    return *_socket;
+}
+
+TcpStream::TcpStream(IpAddress address, uint16_t port)
+{
+    (void)address;
+    (void)port;
+    if (address.is_v4()) {
+        sockaddr_in addr {};
+        (void)addr;
+    } else if (address.is_v6()) {
+    }
+    throw std::logic_error("TcpStream ctor: unreachable");
 }
 
 }

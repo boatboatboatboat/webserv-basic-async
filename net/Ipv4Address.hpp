@@ -5,6 +5,7 @@
 #ifndef WEBSERV_IPV4ADDRESS_HPP
 #define WEBSERV_IPV4ADDRESS_HPP
 
+#include "../utils/StringStream.hpp"
 #include <cstdint>
 #include <string>
 
@@ -30,6 +31,6 @@ private:
 
 }
 
-auto operator<<(std::ostream& os, const net::Ipv4Address& sa) -> std::ostream&;
+auto operator<<(utils::StringStream& os, const net::Ipv4Address& sa) -> utils::StringStream&;
 
 #endif //WEBSERV_IPV4ADDRESS_HPP

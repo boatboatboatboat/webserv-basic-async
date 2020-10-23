@@ -102,7 +102,7 @@ public:
         some = other.has_value();
         other.reset();
     }
-    // FIXME: if U is deduced to a optional<T>, and T is a bool, then C++ ignores explicit bool rules and casts it to a bool
+
     template <typename U = T>
     optional(U&& value) noexcept
         : some(true)

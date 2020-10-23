@@ -22,7 +22,7 @@ Mutex<void>::Mutex()
     int result = pthread_mutex_init(&inner_mutex, nullptr);
 
     if (result) {
-        std::stringstream err;
+        utils::StringStream err;
 
         err << "Failed to lock mutex: " << strerror(errno);
         throw std::runtime_error(err.str());

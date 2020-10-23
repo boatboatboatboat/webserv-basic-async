@@ -5,6 +5,7 @@
 #ifndef WEBSERV_NET_IPV6ADDRESS_HPP
 #define WEBSERV_NET_IPV6ADDRESS_HPP
 
+#include "../utils/StringStream.hpp"
 #include <cstdint>
 #include <netinet/in.h>
 #include <string>
@@ -30,6 +31,6 @@ private:
 };
 }
 
-auto operator<<(std::ostream& os, const net::Ipv6Address& sa) -> std::ostream&;
+auto operator<<(utils::StringStream& os, const net::Ipv6Address& sa) -> utils::StringStream&;
 
 #endif //WEBSERV_NET_IPV6ADDRESS_HPP

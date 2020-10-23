@@ -6,6 +6,7 @@
 #define WEBSERV_IORUNTIME_TCPSTREAM_HPP
 
 #include "../futures/PollResult.hpp"
+#include "IpAddress.hpp"
 #include "Socket.hpp"
 #include "SocketAddr.hpp"
 #include <sys/socket.h>
@@ -19,6 +20,7 @@ class TcpStream {
 public:
     TcpStream() = delete;
     explicit TcpStream(int fd, SocketAddr address);
+    explicit TcpStream(IpAddress address, uint16_t port);
     TcpStream(TcpStream&& other) noexcept;
     ~TcpStream() = default;
 
@@ -26,8 +28,9 @@ public:
     auto get_socket() -> Socket&;
 
 private:
-    Socket _socket;
-    SocketAddr _address;
+    // c++ bad
+    optional<Socket> _socket;
+    optional<SocketAddr> _address;
 };
 }
 
