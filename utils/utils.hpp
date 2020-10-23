@@ -6,6 +6,7 @@
 #define WEBSERV_UTIL_HPP
 #include "../http/RfcConstants.hpp"
 #include "../option/optional.hpp"
+#include "StringStream.hpp"
 #include "cstr.hpp"
 #include "mem_copy.hpp"
 #include "mem_zero.hpp"
@@ -38,7 +39,7 @@ void dbg_puts(std::string const& printme);
 #define SAFEPRINT(x)                           \
     do {                                       \
         try {                                  \
-            std::stringstream __out__;         \
+            utils::StringStream __out__;       \
             __out__ << LINE_INFO << x << "\n"; \
             dbg_puts(__out__.str());           \
         } catch (...) {                        \
@@ -95,8 +96,6 @@ void dbg_puts(std::string const& printme);
 
 #endif
 
-// FIXME: illegal header
-#include <sstream>
 #include <vector>
 
 namespace utils {
@@ -137,13 +136,13 @@ inline std::string toLower(std::string& value)
 inline std::vector<std::string> split(const std::string& source, char delimiter)
 {
     std::vector<std::string> strings;
-    std::istringstream iss(source);
-    std::string s;
 
-    while (std::getline(iss, s, delimiter)) {
-        strings.push_back(utils::trim(s));
+    size_t old_location = 0;
+    while (old_location != std::string::npos) {
+        auto new_location = source.find(delimiter);
+        strings.push_back(source.substr(old_location, new_location));
+        old_location = new_location;
     }
-
     return strings;
 }
 

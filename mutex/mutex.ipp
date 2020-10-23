@@ -31,7 +31,7 @@ MutexGuard<T>::MutexGuard(Mutex<T>& mutex)
 #endif
     int res = pthread_mutex_lock(&mutex.get_inner_mutex());
     if (res) {
-        std::stringstream errmsg;
+        utils::StringStream errmsg;
 
         // fun fact: pthread_mutex_lock does not set errno
         // instead it returns the error value
@@ -63,7 +63,7 @@ MutexGuard<T>::~MutexGuard()
 #endif
     int res = pthread_mutex_unlock(&mutex.get_inner_mutex());
     if (res) {
-        std::stringstream errmsg;
+        utils::StringStream errmsg;
 
         errmsg << "MutexGuard: Failed to unlock mutex: " << strerror(res);
         DBGPRINT(errmsg.str());

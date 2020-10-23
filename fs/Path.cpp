@@ -42,7 +42,11 @@ Path::Path(std::string const& path)
         if (statbuf.st_mode & S_IXUSR) {
             _executable = true;
         }
+#ifdef __linux__
         _mtime = statbuf.st_mtim.tv_sec;
+#elif __APPLE__
+        _mtime = statbuf.st_mtimespec.tv_sec;
+#endif
         _exists = true;
     }
 }

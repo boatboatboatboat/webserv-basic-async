@@ -3,7 +3,12 @@
 //
 
 #include "GlobalChildProcessHandler.hpp"
+
+#ifdef __linux__
 #include <wait.h>
+#elif __APPLE__
+#include <sys/wait.h>
+#endif
 
 namespace ioruntime {
 

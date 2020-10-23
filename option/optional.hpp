@@ -77,7 +77,7 @@ public:
             t_set(other.value());
         some = other.some;
     }
-    constexpr optional(optional&& other)
+    constexpr optional(optional&& other) noexcept
     {
         some = false;
         if (other.has_value())
@@ -94,7 +94,7 @@ public:
         some = other.has_value();
     }
     template <typename U>
-    optional(optional<U>&& other)
+    optional(optional<U>&& other) noexcept
     {
         some = false;
         if (other.has_value())
@@ -104,7 +104,7 @@ public:
     }
     // FIXME: if U is deduced to a optional<T>, and T is a bool, then C++ ignores explicit bool rules and casts it to a bool
     template <typename U = T>
-    optional(U&& value)
+    optional(U&& value) noexcept
         : some(true)
         , t(std::forward<U>(value))
     {
@@ -200,7 +200,7 @@ public:
         return *this;
     }
     template <class U>
-    auto operator=(optional<U>&& other) -> optional&
+    auto operator=(optional<U>&& other) noexcept -> optional&
     {
         if (other.has_value())
             t_move(std::move(other.value()));
@@ -209,7 +209,7 @@ public:
         return *this;
     }
     template <class U = T>
-    auto operator=(U&& value) -> optional&
+    auto operator=(U&& value) noexcept -> optional&
     {
         t_move(std::move(value));
         some = true;

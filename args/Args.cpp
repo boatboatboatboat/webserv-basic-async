@@ -62,12 +62,12 @@ auto ArgsIterator::operator*() -> string_view
     return string_view(_argv[_current_arg]);
 }
 
-auto ArgsIterator::operator==(ArgsIterator& other) const -> bool
+auto ArgsIterator::operator==(ArgsIterator const& other) const -> bool
 {
     return _current_arg == other._current_arg;
 }
 
-auto ArgsIterator::operator!=(ArgsIterator& other) const -> bool
+auto ArgsIterator::operator!=(ArgsIterator const& other) const -> bool
 {
     return !(*this == other);
 }

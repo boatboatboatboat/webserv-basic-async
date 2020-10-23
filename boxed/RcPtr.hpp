@@ -97,7 +97,7 @@ public:
 
     //template<Derived<T> U>
     template <typename U>
-    RcPtr& operator=(RcPtr<U>&& other)
+    RcPtr& operator=(RcPtr<U>&& other) noexcept
     {
         this->refs_mutex = other.get_raw_mutex();
         this->inner = other.get();
@@ -105,7 +105,7 @@ public:
         return *this;
     }
 
-    RcPtr& operator=(RcPtr&& other)
+    RcPtr& operator=(RcPtr&& other) noexcept
     {
         this->refs_mutex = other.get_raw_mutex();
         this->inner = other.inner;
@@ -114,14 +114,14 @@ public:
     }
 
     template <typename U>
-    RcPtr(RcPtr<U>&& other)
+    RcPtr(RcPtr<U>&& other) noexcept
     {
         this->refs_mutex = other.get_raw_mutex();
         this->inner = other.get();
         other.leak();
     }
 
-    RcPtr(RcPtr&& other)
+    RcPtr(RcPtr&& other) noexcept
     {
         this->refs_mutex = other.get_raw_mutex();
         this->inner = other.get();

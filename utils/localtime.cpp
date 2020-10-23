@@ -3,6 +3,7 @@
 //
 
 #include "localtime.hpp"
+#include <string>
 
 namespace utils {
 

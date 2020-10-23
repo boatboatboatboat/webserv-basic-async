@@ -11,6 +11,10 @@
 #include <ctime>
 #include <sys/time.h>
 
+#ifdef __APPLE__
+#include <errno.h>
+#endif
+
 /* 2000-03-01 (mod 400 year, immediately after feb29 */
 #define LEAPOCH (946684800LL + 86400 * (31 + 29))
 

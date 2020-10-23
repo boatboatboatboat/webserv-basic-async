@@ -14,14 +14,15 @@ class Args;
 
 class ArgsIterator {
     friend class Args;
+
 public:
     auto operator++() -> ArgsIterator&;
     auto operator--() -> ArgsIterator&;
     auto operator+=(ssize_t n) -> ArgsIterator&;
     auto operator-=(ssize_t n) -> ArgsIterator&;
     auto operator*() -> string_view;
-    auto operator==(ArgsIterator& other) const -> bool;
-    auto operator!=(ArgsIterator& other) const -> bool;
+    auto operator==(ArgsIterator const& other) const -> bool;
+    auto operator!=(ArgsIterator const& other) const -> bool;
 
 private:
     ArgsIterator(const char** argv, int ca);

@@ -106,12 +106,11 @@ auto base_config_from_json(json::Json const& config) -> BaseConfig
                 if (!page.is_string()) {
                     throw std::runtime_error("http.servers[?].error_pages[?] is not a string");
                 }
-                // FIXME: atoi
-                int code = std::atoi(status_code_str.c_str());
-                if (code < 100 || code > 999) {
+                auto code = utils::string_to_uint64(status_code_str);
+                if (!code.has_value() || *code < 100 || *code > 999) {
                     throw std::runtime_error("http.servers[?].error_pages[KEY] key is not a valid status code");
                 }
-                error_pages.insert(std::pair<uint16_t, string>(code, page.string_value()));
+                error_pages.insert(std::pair<uint16_t, string>(*code, page.string_value()));
             }
 
             config_error_pages = error_pages;
@@ -403,15 +402,14 @@ auto config_from_json(json::Json const& config) -> RootConfig
                             auto address = IpAddress::from_str(ip);
                             auto port_str = std::string_view(combo.data() + combo.rfind(':') + 1, combo.length() - combo.rfind(':'));
 
-                            // fixme: atoll
                             std::string sv(port_str);
-                            ssize_t port = atoll(sv.c_str());
+                            auto port = utils::string_to_uint64(sv);
 
-                            if (port <= 0 || port > UINT16_MAX)
+                            if (!port.has_value() || *port > UINT16_MAX)
                                 throw std::runtime_error("listen item port is zero or out of unsigned 16-bit range");
 
-                            TRACEPRINT("parse ip, port: (" << address << ", " << port << ")");
-                            binds.emplace_back(address, port);
+                            TRACEPRINT("parse ip, port: (" << address << ", " << *port << ")");
+                            binds.emplace_back(address, *port);
                         } else {
                             throw std::runtime_error("listen item is not a string");
                         }
@@ -921,6 +919,7 @@ inline void check_authorization(http::IncomingRequest const& req, BaseConfig con
 }
 
 inline auto is_proxy_request(BaseConfig const& bcfg) -> bool {
+    (void)bcfg;
     return false;
 }
 
@@ -957,7 +956,7 @@ auto main(int argc, const char** argv) -> int
             auto bind_addresses = server.get_bind_addresses();
             std::map<std::tuple<net::IpAddress, unsigned short>, utils::monostate> used_addresses;
             for (auto const& bind_address : bind_addresses) {
-                if (used_addresses.contains(bind_address)) {
+                if (used_addresses.find(bind_address) != used_addresses.end()) {
                     // we already started this server
                     continue;
                 }

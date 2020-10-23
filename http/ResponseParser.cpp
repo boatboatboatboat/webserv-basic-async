@@ -76,7 +76,7 @@ auto ResponseParser::inner_poll(Waker&& waker) -> ResponseParser::CallState
                         }
                         std::string_view aa = _buffer;
                         auto ax = aa.substr(0, abcd);
-                        auto code = utils::string_to_uint64(aa);
+                        auto code = utils::string_to_uint64(ax);
                         if (code.has_value()) {
                             _builder.status(http::Status { static_cast<unsigned short>(*code), "ignored" });
                         } else {
