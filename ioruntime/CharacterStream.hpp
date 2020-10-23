@@ -28,7 +28,7 @@ private:
     uint8_t _buffer[8192];
     size_t _head = 0;
     size_t _max = 0;
-    bool _exhausted = false;
+    bool _exhausted = true;
     option::optional<uint8_t> _last_char;
 };
 

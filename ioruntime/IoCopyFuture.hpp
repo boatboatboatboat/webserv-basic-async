@@ -109,7 +109,7 @@ public:
     IoCopyFuture(IoCopyFuture&& other) noexcept
         : _owned_writer(std::move(other._owned_writer))
         , _bytes_written(other._bytes_written)
-        , _reader(other._reader)
+        , _reader(other._character_stream)
         , _writer(_owned_writer)
     {
         if (other._span.has_value()) {

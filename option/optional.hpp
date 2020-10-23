@@ -16,6 +16,11 @@ struct nullopt_t {
 };
 constexpr nullopt_t nullopt(0);
 
+class BadOptionalAccess: public std::runtime_error {
+public:
+    inline BadOptionalAccess(): std::runtime_error("Bad optional access") {}
+};
+
 // NOT std::optional!
 // optional datatype
 template <typename T>
@@ -120,13 +125,13 @@ public:
     [[nodiscard]] auto value() -> T&
     {
         if (!some)
-            throw std::runtime_error("bad optional access");
+            throw BadOptionalAccess();
         return t;
     }
     [[nodiscard]] auto value() const -> T const&
     {
         if (!some)
-            throw std::runtime_error("bad optional access");
+            throw BadOptionalAccess();
         return t;
     }
     [[nodiscard]] auto value_or(T&& e) -> T&
@@ -156,13 +161,13 @@ public:
     constexpr auto operator*() const&& -> const T&&
     {
         if (!some)
-            throw std::runtime_error("bad optional access");
+            throw BadOptionalAccess();
         return std::move(t);
     }
     constexpr auto operator*() && -> T&&
     {
         if (!some)
-            throw std::runtime_error("bad optional access");
+            throw BadOptionalAccess();
         some = false;
         return std::move(t);
     }

@@ -2,7 +2,7 @@
 // Created by boat on 10/5/20.
 //
 
-#include "../http/Response.hpp"
+#include "../http/OutgoingResponse.hpp"
 #include "../http/StringReader.hpp"
 #include "../ioruntime/GlobalIoEventHandler.hpp"
 #include "../ioruntime/GlobalTimeoutEventHandler.hpp"
@@ -14,7 +14,7 @@ using namespace http;
 using std::move;
 using std::string;
 
-static auto rr_read_to_string(Response&& response) -> string
+static auto rr_read_to_string(OutgoingResponse&& response) -> string
 {
     auto reader = ResponseReader(response);
     uint8_t ibuffer[8192];
@@ -36,7 +36,7 @@ static auto rr_read_to_string(Response&& response) -> string
     return full;
 }
 
-auto rr_read_to_string_ioenabled_inner(ioruntime::IoEventHandler& ioe, Response&& response) -> string
+auto rr_read_to_string_ioenabled_inner(ioruntime::IoEventHandler& ioe, OutgoingResponse&& response) -> string
 {
     auto reader = ResponseReader(response);
     uint8_t ibuffer[8192];
@@ -59,7 +59,7 @@ auto rr_read_to_string_ioenabled_inner(ioruntime::IoEventHandler& ioe, Response&
     return full;
 }
 
-auto rr_read_to_string_ioenabled(ioruntime::IoEventHandler& ioe, Response&& response) -> string
+auto rr_read_to_string_ioenabled(ioruntime::IoEventHandler& ioe, OutgoingResponse&& response) -> string
 {
     ioruntime::GlobalIoEventHandler::set(&ioe);
 
@@ -70,7 +70,7 @@ auto rr_read_to_string_ioenabled(ioruntime::IoEventHandler& ioe, Response&& resp
 namespace {
 TEST(ResponseReaderTests, rr_status_ok)
 {
-    auto builder = ResponseBuilder();
+    auto builder = OutgoingResponseBuilder();
     auto response = builder
                         .status(status::OK)
                         .build();
@@ -81,7 +81,7 @@ TEST(ResponseReaderTests, rr_status_ok)
 
 TEST(ResponseReaderTests, rr_status_ise)
 {
-    auto builder = ResponseBuilder();
+    auto builder = OutgoingResponseBuilder();
     auto response = builder
                         .status(status::INTERNAL_SERVER_ERROR)
                         .build();
@@ -92,7 +92,7 @@ TEST(ResponseReaderTests, rr_status_ise)
 
 TEST(ResponseReaderTests, rr_header_1)
 {
-    auto builder = ResponseBuilder();
+    auto builder = OutgoingResponseBuilder();
     auto response = builder
                         .status(status::OK)
                         .header(header::CONNECTION, "close")
@@ -104,7 +104,7 @@ TEST(ResponseReaderTests, rr_header_1)
 
 TEST(ResponseReaderTests, rr_header_2)
 {
-    auto builder = ResponseBuilder();
+    auto builder = OutgoingResponseBuilder();
     auto response = builder
                         .status(status::OK)
                         .header("X-Useless-Header", "request_perl_tests")
@@ -117,7 +117,7 @@ TEST(ResponseReaderTests, rr_header_2)
 
 TEST(ResponseReaderTests, rr_header_3)
 {
-    auto builder = ResponseBuilder();
+    auto builder = OutgoingResponseBuilder();
     auto response = builder
                         .status(status::OK)
                         .header("X-A", "aa")
@@ -131,7 +131,7 @@ TEST(ResponseReaderTests, rr_header_3)
 
 TEST(ResponseReaderTests, rr_body_1)
 {
-    auto builder = ResponseBuilder();
+    auto builder = OutgoingResponseBuilder();
     auto response = builder
                         .status(status::OK)
                         .body(BoxPtr<StringReader>::make("hello"), 5)
@@ -143,7 +143,7 @@ TEST(ResponseReaderTests, rr_body_1)
 
 TEST(ResponseReaderTests, rr_body_2)
 {
-    auto builder = ResponseBuilder();
+    auto builder = OutgoingResponseBuilder();
     auto response = builder
                         .status(status::OK)
                         .header("X-A", "aa")
@@ -156,7 +156,7 @@ TEST(ResponseReaderTests, rr_body_2)
 
 TEST(ResponseReaderTests, rr_chunked_body_1)
 {
-    auto builder = ResponseBuilder();
+    auto builder = OutgoingResponseBuilder();
     auto response = builder
                         .status(status::OK)
                         .body(BoxPtr<StringReader>::make("Hello, world!"))
@@ -175,15 +175,21 @@ TEST(ResponseReaderTests, rr_cgi_body_basic)
     ioruntime::GlobalTimeoutEventHandler::set(&to);
 
     // fake request data
-    auto reqbuilder = RequestBuilder();
+    auto reqbuilder = IncomingRequestBuilder();
     reqbuilder.uri(Uri("example.com")).method("GET").version(version::v1_1);
     auto request = move(reqbuilder).build();
     sockaddr_in funny { .sin_port = 0, .sin_addr = { 0 } };
 
-    auto builder = ResponseBuilder();
+    cgi::CgiServerForwardInfo csfi {
+        .sockaddr = net::SocketAddr(funny),
+        .server_name = "aaaa",
+        .server_port = 1234,
+    };
+
+    auto builder = OutgoingResponseBuilder();
     auto response = builder
                         .status(status::OK)
-                        .cgi(Cgi("./tests/cgi_test/hello_world.lua", move(request), net::SocketAddr(funny)))
+                        .cgi(Cgi("./tests/cgi_test/hello_world.lua", move(request), csfi))
                         .build();
 
     string result = rr_read_to_string_ioenabled(ioe, move(response));
@@ -199,16 +205,22 @@ TEST(ResponseReaderTests, rr_cgi_fail)
     ioruntime::GlobalTimeoutEventHandler::set(&to);
 
     // fake request data
-    auto reqbuilder = RequestBuilder();
+    auto reqbuilder = IncomingRequestBuilder();
     reqbuilder.uri(Uri("example.com")).method("GET").version(version::v1_1);
     auto request = move(reqbuilder).build();
     sockaddr_in funny { .sin_port = 0, .sin_addr = { 0 } };
 
+    cgi::CgiServerForwardInfo csfi {
+        .sockaddr = net::SocketAddr(funny),
+        .server_name = "aaaa",
+        .server_port = 1234,
+    };
+
     EXPECT_ANY_THROW({
-        auto builder = ResponseBuilder();
+        auto builder = OutgoingResponseBuilder();
         auto response = builder
                             .status(status::OK)
-                            .cgi(Cgi("DAFSDFASDFASDFASDFASDFASDFasdfASDFASDFASDFASDF", move(request), net::SocketAddr(funny)))
+                            .cgi(Cgi("DAFSDFASDFASDFASDFASDFASDFasdfASDFASDFASDFASDF", move(request), csfi))
                             .build();
 
         string result = rr_read_to_string_ioenabled(ioe, move(response));
@@ -231,15 +243,21 @@ TEST(ResponseReaderTests, rr_cgi_body_reqbody)
     reqbody.push_back('l');
     reqbody.push_back('o');
 
-    auto reqbuilder = RequestBuilder();
-    reqbuilder.uri(Uri("example.com")).method("POST").version(version::v1_1).body_incoming(IncomingBody(move(reqbody)));
+    auto reqbuilder = IncomingRequestBuilder();
+    reqbuilder.uri(Uri("example.com")).method("POST").version(version::v1_1).message(IncomingMessage(Headers(), IncomingBody(move(reqbody))));
     auto request = move(reqbuilder).build();
     sockaddr_in funny { .sin_port = 0, .sin_addr = { 0 } };
 
-    auto builder = ResponseBuilder();
+    cgi::CgiServerForwardInfo csfi {
+        .sockaddr = net::SocketAddr(funny),
+        .server_name = "aaaa",
+        .server_port = 1234,
+    };
+
+    auto builder = OutgoingResponseBuilder();
     auto response = builder
                         .status(status::OK)
-                        .cgi(Cgi("./tests/cgi_test/body_echo.lua", move(request), net::SocketAddr(funny)))
+                        .cgi(Cgi("./tests/cgi_test/body_echo.lua", move(request), csfi))
                         .build();
 
     string result = rr_read_to_string_ioenabled(ioe, move(response));

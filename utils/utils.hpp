@@ -174,7 +174,7 @@ inline auto string_to_uint64(std::string_view n) -> option::optional<uint64_t>
     uint64_t num = 0;
 
     while (!n.empty()) {
-        if (!is_hex_digit(n.front())) {
+        if (!is_digit(n.front())) {
             return option::nullopt;
         }
         uint64_t ofc = num;

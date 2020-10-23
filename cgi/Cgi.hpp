@@ -6,6 +6,7 @@
 #define WEBSERV_CGI_CGI_HPP
 
 #include "../http/IncomingBody.hpp"
+#include "../http/IncomingRequest.hpp"
 #include "../http/RequestParser.hpp"
 #include "../ioruntime/FileDescriptor.hpp"
 #include "../ioruntime/GlobalChildProcessHandler.hpp"
@@ -16,7 +17,7 @@
 
 namespace cgi {
 
-using http::Request;
+using http::IncomingRequest;
 using ioruntime::FileDescriptor;
 using ioruntime::GlobalChildProcessHandler;
 using ioruntime::IAsyncWrite;
@@ -47,9 +48,9 @@ public:
     };
 
     Cgi(Cgi&&) noexcept = default;
-    explicit Cgi(const string& path, Request&& req, CgiServerForwardInfo const& csfi);
+    explicit Cgi(const string& path, IncomingRequest&& req, CgiServerForwardInfo const& csfi);
     template <typename Lang>
-    explicit Cgi(const string& path, Request&& req, CgiServerForwardInfo const& csfi, Lang&& language);
+    explicit Cgi(const string& path, IncomingRequest&& req, CgiServerForwardInfo const& csfi, Lang&& language);
     ~Cgi() override;
 
     auto poll_success(Waker&& waker) -> bool;
@@ -60,7 +61,7 @@ public:
 
 private:
     // methods
-    void generate_env(Request const& req, CgiServerForwardInfo const& csfi);
+    void generate_env(IncomingRequest const& req, CgiServerForwardInfo const& csfi);
     void create_pipe();
     auto fork_process() -> bool;
     void setup_redirection();
@@ -80,7 +81,7 @@ private:
     optional<FileDescriptor> child_error_ipc;
     vector<string> env;
     string const& _path;
-    Request _request;
+    IncomingRequest _request;
     optional<ioruntime::RefIoCopyFuture> _ricf;
 };
 
@@ -95,7 +96,7 @@ void Cgi::switch_internal_process(Lang&& language)
 }
 
 template <typename Lang>
-Cgi::Cgi(const string& path, Request&& req, CgiServerForwardInfo const& csfi, Lang&& language)
+Cgi::Cgi(const string& path, IncomingRequest&& req, CgiServerForwardInfo const& csfi, Lang&& language)
     : _path(path)
     , _request(move(req))
 {

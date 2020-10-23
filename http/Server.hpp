@@ -10,8 +10,8 @@
 #include "../ioruntime/TimeoutFuture.hpp"
 #include "../net/TcpListener.hpp"
 #include "../net/TcpStream.hpp"
+#include "OutgoingResponse.hpp"
 #include "RequestParser.hpp"
-#include "Response.hpp"
 
 namespace {
 using futures::ForEachFuture;
@@ -29,7 +29,7 @@ constexpr size_t DEFAULT_BODY_LIMIT = 8192;
 constexpr size_t DEFAULT_BUFFER_LIMIT = 100000;
 constexpr size_t DEFAULT_INACTIVITY_TIMEOUT = 10000;
 
-using RequestHandler = std::function<Response(Request&, SocketAddr const&)>;
+using RequestHandler = std::function<OutgoingResponse(IncomingRequest&, SocketAddr const&)>;
 using ErrorPageHandler = std::function<BoxPtr<IAsyncRead>(Status const&)>;
 
 class TimeoutError final : public std::runtime_error {
@@ -107,10 +107,11 @@ private:
             Respond
         } _state
             = Listen;
-        optional<Request> _request;
-        optional<Response> _response;
+        optional<IncomingRequest> _request;
+        optional<OutgoingResponse> _response;
         optional<ioruntime::IoCopyFuture<void, void>> _copier;
         net::TcpStream _stream;
+        ioruntime::CharacterStream _cstream;
         optional<RequestParser> _parser;
         optional<ResponseReader> _reader;
         bool _is_recovering = false;

@@ -5,6 +5,7 @@
 #include "CharacterStream.hpp"
 
 using futures::StreamPollResult;
+using std::move;
 
 namespace ioruntime {
 

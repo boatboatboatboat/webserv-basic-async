@@ -1,8 +1,8 @@
-#include "Response.hpp"
+#include "OutgoingResponse.hpp"
 #include "../net/Socket.hpp"
 #include "DefaultPageReader.hpp"
 #include "Header.hpp"
-#include "Request.hpp"
+#include "IncomingRequest.hpp"
 #include "RfcConstants.hpp"
 #include "Status.hpp"
 #include "StringReader.hpp"
@@ -11,13 +11,13 @@ using std::move;
 
 namespace http {
 
-auto ResponseBuilder::status(Status status) -> ResponseBuilder&
+auto OutgoingResponseBuilder::status(Status status) -> OutgoingResponseBuilder&
 {
     _status = status;
     return *this;
 }
 
-auto ResponseBuilder::header(HeaderName name, const HeaderValue& value) -> ResponseBuilder&
+auto OutgoingResponseBuilder::header(HeaderName name, const HeaderValue& value) -> OutgoingResponseBuilder&
 {
     if (!_headers.has_value()) {
         _headers = Headers();
@@ -26,20 +26,20 @@ auto ResponseBuilder::header(HeaderName name, const HeaderValue& value) -> Respo
     return *this;
 }
 
-auto ResponseBuilder::body(BoxPtr<ioruntime::IAsyncRead>&& body) -> ResponseBuilder&
+auto OutgoingResponseBuilder::body(BoxPtr<ioruntime::IAsyncRead>&& body) -> OutgoingResponseBuilder&
 {
     _body = OutgoingBody(move(body));
     header(http::header::TRANSFER_ENCODING, "chunked");
     return *this;
 }
 
-auto ResponseBuilder::body(BoxPtr<ioruntime::IAsyncRead>&& body, size_t content_length) -> ResponseBuilder&
+auto OutgoingResponseBuilder::body(BoxPtr<ioruntime::IAsyncRead>&& body, size_t content_length) -> OutgoingResponseBuilder&
 {
     _body = OutgoingBody(move(body));
     return header(http::header::CONTENT_LENGTH, std::to_string(content_length));
 }
 
-auto ResponseBuilder::build() -> Response
+auto OutgoingResponseBuilder::build() -> OutgoingResponse
 {
     if (!_status.has_value()) {
         throw std::runtime_error("ResponseBuilder: no status set");
@@ -47,31 +47,31 @@ auto ResponseBuilder::build() -> Response
     if (!_body.has_value() && _cgi.has_value()) {
         _body = OutgoingBody(move(*_cgi));
     }
-    return Response(
+    return OutgoingResponse(
         move(_headers),
         _version,
         *_status,
         move(_body));
 }
 
-ResponseBuilder::ResponseBuilder()
+OutgoingResponseBuilder::OutgoingResponseBuilder()
     : _status(http::status::IM_A_TEAPOT)
 {
 }
 
-auto ResponseBuilder::version(Version version) -> ResponseBuilder&
+auto OutgoingResponseBuilder::version(Version version) -> OutgoingResponseBuilder&
 {
     _version = version;
     return *this;
 }
 
-auto ResponseBuilder::cgi(Cgi&& proc) -> ResponseBuilder&
+auto OutgoingResponseBuilder::cgi(Cgi&& proc) -> OutgoingResponseBuilder&
 {
     _cgi = std::move(proc);
     return *this;
 }
 
-auto ResponseBuilder::headers(Headers&& headers) -> ResponseBuilder&
+auto OutgoingResponseBuilder::headers(Headers&& headers) -> OutgoingResponseBuilder&
 {
     if (_headers.has_value()) {
         for (auto&& p_header : headers) {
@@ -83,7 +83,7 @@ auto ResponseBuilder::headers(Headers&& headers) -> ResponseBuilder&
     return *this;
 }
 
-Response::Response(optional<Headers>&& headers, Version version, Status status, optional<OutgoingBody>&& body)
+OutgoingResponse::OutgoingResponse(optional<Headers>&& headers, Version version, Status status, optional<OutgoingBody>&& body)
     : _version(version)
     , _status(status)
 {
@@ -95,32 +95,32 @@ Response::Response(optional<Headers>&& headers, Version version, Status status, 
     }
 }
 
-auto Response::get_headers() const -> Headers const&
+auto OutgoingResponse::get_headers() const -> Headers const&
 {
     return _headers;
 }
 
-auto Response::get_version() const -> Version const&
+auto OutgoingResponse::get_version() const -> Version const&
 {
     return _version;
 }
 
-auto Response::get_status() const -> Status const&
+auto OutgoingResponse::get_status() const -> Status const&
 {
     return _status;
 }
 
-auto Response::get_body() const -> optional<OutgoingBody> const&
+auto OutgoingResponse::get_body() const -> optional<OutgoingBody> const&
 {
     return _body;
 }
 
-auto Response::get_body() -> optional<OutgoingBody>&
+auto OutgoingResponse::get_body() -> optional<OutgoingBody>&
 {
     return _body;
 }
 
-auto Response::get_header(HeaderName const& needle_name) const -> optional<HeaderValue>
+auto OutgoingResponse::get_header(HeaderName const& needle_name) const -> optional<HeaderValue>
 {
     for (auto& header : _headers) {
         if (utils::str_eq_case_insensitive(header.name, needle_name)) {
@@ -130,12 +130,12 @@ auto Response::get_header(HeaderName const& needle_name) const -> optional<Heade
     return option::nullopt;
 }
 
-void Response::drop_body()
+void OutgoingResponse::drop_body()
 {
     _body = option::nullopt;
 }
 
-ResponseReader::ResponseReader(Response& response)
+ResponseReader::ResponseReader(OutgoingResponse& response)
     : _response(response)
 {
     auto& body = _response.get_body();

@@ -13,8 +13,8 @@
 #include "futures/ForEachFuture.hpp"
 #include "http/DirectoryReader.hpp"
 #include "http/FutureSeReader.hpp"
-#include "http/Request.hpp"
-#include "http/Response.hpp"
+#include "http/IncomingRequest.hpp"
+#include "http/OutgoingResponse.hpp"
 #include "http/Server.hpp"
 #include "ioruntime/FdStringReadFuture.hpp"
 #include "langmod/ESLanguage.hpp"
@@ -33,7 +33,7 @@ using futures::IFuture;
 using futures::PollResult;
 using http::DirectoryReader;
 using http::HandlerStatusError;
-using http::ResponseBuilder;
+using http::OutgoingResponseBuilder;
 using http::Server;
 using ioruntime::GlobalIoEventHandler;
 using ioruntime::GlobalRuntime;
@@ -554,7 +554,7 @@ void match_location_i(LocationConfig const& cfg, const char*& path, vector<Locat
     }
 }
 
-auto match_location(LocationConfig const& cfg, http::Request& req) -> optional<tuple<vector<LocationConfig const*>, string>>
+auto match_location(LocationConfig const& cfg, http::IncomingRequest& req) -> optional<tuple<vector<LocationConfig const*>, string>>
 {
     vector<LocationConfig const*> location_list;
     const auto& pqf = req.get_uri().get_pqf();
@@ -574,10 +574,10 @@ auto match_location(LocationConfig const& cfg, http::Request& req) -> optional<t
     return x;
 }
 
-auto match_base_config(IpAddress const& addr, unsigned short port, RootConfig const& rcfg, http::Request& req) -> tuple<BaseConfig, string>
+auto match_base_config(IpAddress const& addr, unsigned short port, RootConfig const& rcfg, http::IncomingRequest& req) -> tuple<BaseConfig, string>
 {
     // FIXME: this could be a lot cleaner
-    auto host = req.get_header(http::header::HOST).value_or("");
+    auto host = req.get_message().get_header(http::header::HOST).value_or("");
 
     auto const& hcfg = rcfg.get_http_config();
     auto const& scfg = match_server(addr, port, host, hcfg.get_servers());
@@ -763,7 +763,7 @@ inline static void process_cl_args(args::Args arguments, string& config_file_pat
     }
 }
 
-inline static void check_method_and_set_allow(BaseConfig const& bcfg, Method method, ResponseBuilder& builder)
+inline static void check_method_and_set_allow(BaseConfig const& bcfg, Method method, OutgoingResponseBuilder& builder)
 {
     // set Allow header, check allowed methods
     bool method_allowed = false;
@@ -837,7 +837,7 @@ inline static auto is_request_upload(http::Method method, BaseConfig const& bcfg
 }
 
 inline static auto try_download(
-    http::ResponseBuilder& builder,
+    http::OutgoingResponseBuilder& builder,
     std::string_view base_path,
     std::string const& matched_path,
     optional<http::IncomingBody>& body,
@@ -872,7 +872,7 @@ inline static auto try_download(
     return false;
 }
 
-inline static void check_authorization(http::Request const& req, BaseConfig const& cfg)
+inline void check_authorization(http::IncomingRequest const& req, BaseConfig const& cfg)
 {
     auto auth_enabled = cfg.get_auth_config();
     if (!auth_enabled.has_value()) {
@@ -880,7 +880,7 @@ inline static void check_authorization(http::Request const& req, BaseConfig cons
     }
 
     auto exit_reason = http::status::UNAUTHORIZED;
-    auto auth_header = req.get_header(http::header::AUTHORIZATION);
+    auto auth_header = req.get_message().get_header(http::header::AUTHORIZATION);
 
     if (auth_header.has_value()) {
         auto const& auth_value = *auth_header;
@@ -918,6 +918,10 @@ inline static void check_authorization(http::Request const& req, BaseConfig cons
     http::Headers www_auth;
     www_auth.push_back(http::Header { http::header::WWW_AUTHENTICATE, "Basic realm=\"" + auth_enabled->get_realm().value_or("none") + "\"" });
     throw HandlerStatusError(exit_reason, move(www_auth));
+}
+
+inline auto is_proxy_request(BaseConfig const& bcfg) -> bool {
+    return false;
 }
 
 auto main(int argc, const char** argv) -> int
@@ -961,16 +965,17 @@ auto main(int argc, const char** argv) -> int
                 auto const& [address, port] = bind_address;
                 auto service =
                     [&cfg = std::as_const(cfg), server_address = address, server_port = port](
-                        http::Request& req, net::SocketAddr const& socket_addr) {
+                        http::IncomingRequest& req, net::SocketAddr const& socket_addr) {
                         if (req.get_version().version_string != http::version::v1_1.version_string) {
                             // we're http/1.1, we don't care about the other ones
                             throw HandlerStatusError(http::status::VERSION_NOT_SUPPORTED);
                         }
-                        auto const& host = *req.get_header(http::header::HOST);
+                        auto const& message = req.get_message();
+                        auto const& host = *message.get_header(http::header::HOST);
                         auto const& method = req.get_method();
                         auto const& uri = req.get_uri();
                         auto const& pqf = uri.get_pqf();
-                        auto& body = req.get_body();
+                        auto& body = req.get_message().get_body();
 
                         string_view path = "/";
                         if (pqf.has_value()) {
@@ -979,7 +984,7 @@ auto main(int argc, const char** argv) -> int
                         string hv_location(path);
                         string hv_content_location(path);
 
-                        auto builder = ResponseBuilder();
+                        auto builder = OutgoingResponseBuilder();
                         builder
                             .status(http::status::OK)
                             .header(http::header::CONNECTION, "close");
@@ -994,6 +999,9 @@ auto main(int argc, const char** argv) -> int
                             .header(http::header::DATE, utils::get_http_date_now());
                         // check "inner" body limit
                         check_inner_body_limit(body, bcfg);
+                        if (is_proxy_request(bcfg)) {
+
+                        } else
                         if (is_request_upload(method, bcfg)) {
                             if (try_download(builder, path, matched_path, body, bcfg)) {
                                 return move(builder).build();

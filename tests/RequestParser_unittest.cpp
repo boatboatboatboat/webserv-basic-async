@@ -22,7 +22,8 @@ TEST(ShrpTests, shrp_basic_request)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -44,7 +45,8 @@ TEST(ShrpTests, shrp_basic_request_path)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -66,7 +68,8 @@ TEST(ShrpTests, shrp_request_asterisk)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -88,7 +91,8 @@ TEST(ShrpTests, shrp_basic_authority)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -116,7 +120,8 @@ TEST(ShrpTests, shrp_basic_post_with_body)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -130,7 +135,7 @@ TEST(ShrpTests, shrp_basic_post_with_body)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_query().value(), "inline=test");
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
             EXPECT_EQ(
-                string_view(reinterpret_cast<const char*>(val.get_body()->debug_body(ioe).data()), val.get_body()->size()),
+                string_view(reinterpret_cast<const char*>(val.get_message().get_body()->debug_body(ioe).data()), val.get_message().get_body()->size()),
                 "Hello, world!");
             break;
         }
@@ -148,7 +153,8 @@ TEST(ShrpTests, shrp_basic_post_without_body)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -162,7 +168,7 @@ TEST(ShrpTests, shrp_basic_post_without_body)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_query().value(), "inline=test");
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
             EXPECT_EQ(
-                string_view(reinterpret_cast<const char*>(val.get_body()->debug_body(ioe).data()), val.get_body()->size()),
+                string_view(reinterpret_cast<const char*>(val.get_message().get_body()->debug_body(ioe).data()), val.get_message().get_body()->size()),
                 "");
             break;
         }
@@ -180,7 +186,8 @@ TEST(ShrpTests, shrp_basic_post_with_chunked_body)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -194,7 +201,7 @@ TEST(ShrpTests, shrp_basic_post_with_chunked_body)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_query().value(), "inline=test");
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
             EXPECT_EQ(
-                string_view(reinterpret_cast<const char*>(val.get_body()->debug_body(ioe).data()), val.get_body()->size()),
+                string_view(reinterpret_cast<const char*>(val.get_message().get_body()->debug_body(ioe).data()), val.get_message().get_body()->size()),
                 "Hello, world!");
             break;
         }
@@ -212,7 +219,8 @@ TEST(ShrpTests, shrp_basic_post_with_chunked_body_sc_fakecap1)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true, 1);
+    StringReader srbody(request, true, 1);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -226,7 +234,7 @@ TEST(ShrpTests, shrp_basic_post_with_chunked_body_sc_fakecap1)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_query().value(), "inline=test");
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
             EXPECT_EQ(
-                string_view(reinterpret_cast<const char*>(val.get_body()->debug_body(ioe).data()), val.get_body()->size()),
+                string_view(reinterpret_cast<const char*>(val.get_message().get_body()->debug_body(ioe).data()), val.get_message().get_body()->size()),
                 "abcdefghijk");
             break;
         }
@@ -244,7 +252,8 @@ TEST(ShrpTests, shrp_basic_post_with_chunked_body_sc_fakecap2)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true, 2);
+    StringReader srbody(request, true, 2);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -258,7 +267,7 @@ TEST(ShrpTests, shrp_basic_post_with_chunked_body_sc_fakecap2)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_query().value(), "inline=test");
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
             EXPECT_EQ(
-                string_view(reinterpret_cast<const char*>(val.get_body()->debug_body(ioe).data()), val.get_body()->size()),
+                string_view(reinterpret_cast<const char*>(val.get_message().get_body()->debug_body(ioe).data()), val.get_message().get_body()->size()),
                 "abcdefghijk");
             break;
         }
@@ -276,8 +285,8 @@ TEST(ShrpTests, shrp_basic_post_with_chunked_body_sc_fakecap3)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true, 3);
-
+    StringReader srbody(request, true, 3);
+    auto sbody = ioruntime::CharacterStream(srbody);
     RequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
@@ -290,7 +299,7 @@ TEST(ShrpTests, shrp_basic_post_with_chunked_body_sc_fakecap3)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_query().value(), "inline=test");
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
             EXPECT_EQ(
-                string_view(reinterpret_cast<const char*>(val.get_body()->debug_body(ioe).data()), val.get_body()->size()),
+                string_view(reinterpret_cast<const char*>(val.get_message().get_body()->debug_body(ioe).data()), val.get_message().get_body()->size()),
                 "abcdefghijk");
             break;
         }
@@ -308,7 +317,8 @@ TEST(ShrpTests, shrp_basic_post_with_chunked_body_shk)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -322,7 +332,7 @@ TEST(ShrpTests, shrp_basic_post_with_chunked_body_shk)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_query().value(), "inline=test");
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
             EXPECT_EQ(
-                string_view(reinterpret_cast<const char*>(val.get_body()->debug_body(ioe).data()), val.get_body()->size()),
+                string_view(reinterpret_cast<const char*>(val.get_message().get_body()->debug_body(ioe).data()), val.get_message().get_body()->size()),
                 "abcdefghijklmnopqrs");
             break;
         }
@@ -340,7 +350,8 @@ TEST(ShrpTests, shrp_basic_post_with_chunked_body_ddk)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -354,7 +365,7 @@ TEST(ShrpTests, shrp_basic_post_with_chunked_body_ddk)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_query().value(), "inline=test");
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
             EXPECT_EQ(
-                string_view(reinterpret_cast<const char*>(val.get_body()->debug_body(ioe).data()), val.get_body()->size()),
+                string_view(reinterpret_cast<const char*>(val.get_message().get_body()->debug_body(ioe).data()), val.get_message().get_body()->size()),
                 "0123456789ABCDEF1lmnopqrs");
             break;
         }
@@ -386,8 +397,8 @@ TEST(ShrpTests, shrp_basic_post_with_chunked_body_ones)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true, 6);
-
+    StringReader srbody(request, true, 6);
+    auto sbody = ioruntime::CharacterStream(srbody);
     RequestParser parser(sbody, buffer_limit, body_limit);
 
     while (true) {
@@ -400,7 +411,7 @@ TEST(ShrpTests, shrp_basic_post_with_chunked_body_ones)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_query().value(), "inline=test");
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
             EXPECT_EQ(
-                string_view(reinterpret_cast<const char*>(val.get_body()->debug_body(ioe).data()), val.get_body()->size()),
+                string_view(reinterpret_cast<const char*>(val.get_message().get_body()->debug_body(ioe).data()), val.get_message().get_body()->size()),
                 "abcdefghijklm");
             break;
         }
@@ -418,7 +429,8 @@ TEST(ShrpTests, shrp_body_limit)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 10;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -429,16 +441,17 @@ TEST(ShrpTests, shrp_body_limit)
             ASSERT_FALSE(res.is_ready());
         }
     },
-        RequestParser::BodyExceededLimit);
+        MessageParser::BodyExceededLimit);
 }
 
 TEST(ShrpTests, shrp_buffer_limit_uri)
 {
-    const string request = "POST /form?inline=test HTTP/1.1\r\nHost: test\r\n\r\nHello, world!";
+    const string request = "POST /form?inline=test HTTP/1.1\r\nHost: test\r\n\r\n";
     const size_t buffer_limit = 10;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -448,7 +461,7 @@ TEST(ShrpTests, shrp_buffer_limit_uri)
             ASSERT_FALSE(res.is_ready());
         }
     },
-        RequestParser::RequestUriExceededBuffer);
+        RequestParser::UriExceededBuffer);
 }
 
 TEST(ShrpTests, shrp_buffer_limit_generic)
@@ -457,7 +470,8 @@ TEST(ShrpTests, shrp_buffer_limit_generic)
     const size_t buffer_limit = 10;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -467,7 +481,7 @@ TEST(ShrpTests, shrp_buffer_limit_generic)
             ASSERT_FALSE(res.is_ready());
         }
     },
-        RequestParser::GenericExceededBuffer);
+        MessageParser::GenericExceededBuffer);
 }
 
 TEST(ShrpTests, shrp_get_header)
@@ -476,7 +490,8 @@ TEST(ShrpTests, shrp_get_header)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -488,8 +503,8 @@ TEST(ShrpTests, shrp_get_header)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
             EXPECT_FALSE(val.get_uri().get_pqf().value().get_query().has_value());
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
-            EXPECT_EQ(val.get_headers().size(), 2);
-            EXPECT_EQ(val.get_header("X-Useless-Header").value(), "false");
+            EXPECT_EQ(val.get_message().get_headers().size(), 2);
+            EXPECT_EQ(val.get_message().get_header("X-Useless-Header").value(), "false");
             break;
         }
     }
@@ -501,7 +516,8 @@ TEST(ShrpTests, shrp_get_header_n2)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -513,9 +529,9 @@ TEST(ShrpTests, shrp_get_header_n2)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
             EXPECT_FALSE(val.get_uri().get_pqf().value().get_query().has_value());
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
-            EXPECT_EQ(val.get_headers().size(), 3);
-            EXPECT_EQ(val.get_header("X-Useless-Header").value(), "false");
-            EXPECT_EQ(val.get_header("X-More-Useless-Header").value(), "request_perl_tests");
+            EXPECT_EQ(val.get_message().get_headers().size(), 3);
+            EXPECT_EQ(val.get_message().get_header("X-Useless-Header").value(), "false");
+            EXPECT_EQ(val.get_message().get_header("X-More-Useless-Header").value(), "request_perl_tests");
             break;
         }
     }
@@ -527,7 +543,8 @@ TEST(ShrpTests, shrp_header_buffer_limit)
     const size_t buffer_limit = 10;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -537,7 +554,7 @@ TEST(ShrpTests, shrp_header_buffer_limit)
             ASSERT_FALSE(res.is_ready());
         }
     },
-        RequestParser::GenericExceededBuffer);
+        MessageParser::GenericExceededBuffer);
 }
 
 TEST(ShrpTests, shrp_empty_header_name_error)
@@ -546,7 +563,8 @@ TEST(ShrpTests, shrp_empty_header_name_error)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -556,7 +574,7 @@ TEST(ShrpTests, shrp_empty_header_name_error)
             ASSERT_FALSE(res.is_ready());
         }
     },
-        RequestParser::MalformedRequest);
+        MessageParser::MalformedRequest);
 }
 
 TEST(ShrpTests, shrp_empty_header_name_untrimmed_error_s1)
@@ -565,7 +583,8 @@ TEST(ShrpTests, shrp_empty_header_name_untrimmed_error_s1)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -575,7 +594,7 @@ TEST(ShrpTests, shrp_empty_header_name_untrimmed_error_s1)
             ASSERT_FALSE(res.is_ready());
         }
     },
-        RequestParser::MalformedRequest);
+        MessageParser::MalformedRequest);
 }
 
 TEST(ShrpTests, shrp_empty_header_name_untrimmed_error_s2)
@@ -584,7 +603,8 @@ TEST(ShrpTests, shrp_empty_header_name_untrimmed_error_s2)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -594,7 +614,7 @@ TEST(ShrpTests, shrp_empty_header_name_untrimmed_error_s2)
             ASSERT_FALSE(res.is_ready());
         }
     },
-        RequestParser::MalformedRequest);
+        MessageParser::MalformedRequest);
 }
 
 TEST(ShrpTests, shrp_empty_header_value)
@@ -603,7 +623,8 @@ TEST(ShrpTests, shrp_empty_header_value)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -615,8 +636,8 @@ TEST(ShrpTests, shrp_empty_header_value)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
             EXPECT_FALSE(val.get_uri().get_pqf().value().get_query().has_value());
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
-            EXPECT_EQ(val.get_headers().size(), 2);
-            EXPECT_EQ(val.get_header("X-Useless-Header").value(), "");
+            EXPECT_EQ(val.get_message().get_headers().size(), 2);
+            EXPECT_EQ(val.get_message().get_header("X-Useless-Header").value(), "");
             break;
         }
     }
@@ -628,7 +649,8 @@ TEST(ShrpTests, shrp_empty_header_value_untrimmed)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -640,8 +662,8 @@ TEST(ShrpTests, shrp_empty_header_value_untrimmed)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
             EXPECT_FALSE(val.get_uri().get_pqf().value().get_query().has_value());
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
-            EXPECT_EQ(val.get_headers().size(), 2);
-            EXPECT_EQ(val.get_header("X-Useless-Header").value(), "");
+            EXPECT_EQ(val.get_message().get_headers().size(), 2);
+            EXPECT_EQ(val.get_message().get_header("X-Useless-Header").value(), "");
             break;
         }
     }
@@ -653,7 +675,8 @@ TEST(ShrpTests, shrp_header_user_agent_valid)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -665,8 +688,8 @@ TEST(ShrpTests, shrp_header_user_agent_valid)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
             EXPECT_FALSE(val.get_uri().get_pqf().value().get_query().has_value());
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
-            EXPECT_EQ(val.get_headers().size(), 2);
-            EXPECT_EQ(val.get_header("User-Agent").value(), "webserv_utests");
+            EXPECT_EQ(val.get_message().get_headers().size(), 2);
+            EXPECT_EQ(val.get_message().get_header("User-Agent").value(), "webserv_utests");
             break;
         }
     }
@@ -678,7 +701,8 @@ TEST(ShrpTests, shrp_header_user_agent_valid_productver)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -690,8 +714,8 @@ TEST(ShrpTests, shrp_header_user_agent_valid_productver)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
             EXPECT_FALSE(val.get_uri().get_pqf().value().get_query().has_value());
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
-            EXPECT_EQ(val.get_headers().size(), 2);
-            EXPECT_EQ(val.get_header("User-Agent").value(), "webserv_utests/42.42ft");
+            EXPECT_EQ(val.get_message().get_headers().size(), 2);
+            EXPECT_EQ(val.get_message().get_header("User-Agent").value(), "webserv_utests/42.42ft");
             break;
         }
     }
@@ -703,7 +727,8 @@ TEST(ShrpTests, shrp_header_user_agent_invalid_empty)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -713,7 +738,7 @@ TEST(ShrpTests, shrp_header_user_agent_invalid_empty)
             ASSERT_FALSE(res.is_ready());
         }
     },
-        RequestParser::MalformedRequest);
+        MessageParser::MalformedRequest);
 }
 
 TEST(ShrpTests, shrp_header_user_agent_invalid_no_product)
@@ -722,7 +747,8 @@ TEST(ShrpTests, shrp_header_user_agent_invalid_no_product)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -732,7 +758,7 @@ TEST(ShrpTests, shrp_header_user_agent_invalid_no_product)
             ASSERT_FALSE(res.is_ready());
         }
     },
-        RequestParser::MalformedRequest);
+        MessageParser::MalformedRequest);
 }
 
 TEST(ShrpTests, shrp_header_user_agent_invalid_no_product_version)
@@ -741,7 +767,8 @@ TEST(ShrpTests, shrp_header_user_agent_invalid_no_product_version)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -751,7 +778,7 @@ TEST(ShrpTests, shrp_header_user_agent_invalid_no_product_version)
             ASSERT_FALSE(res.is_ready());
         }
     },
-        RequestParser::MalformedRequest);
+        MessageParser::MalformedRequest);
 }
 
 TEST(ShrpTests, shrp_header_user_agent_invalid_multi_no_product)
@@ -760,7 +787,8 @@ TEST(ShrpTests, shrp_header_user_agent_invalid_multi_no_product)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -770,7 +798,7 @@ TEST(ShrpTests, shrp_header_user_agent_invalid_multi_no_product)
             ASSERT_FALSE(res.is_ready());
         }
     },
-        RequestParser::MalformedRequest);
+        MessageParser::MalformedRequest);
 }
 
 TEST(ShrpTests, shrp_header_user_agent_invalid_multi_no_product_version)
@@ -779,7 +807,8 @@ TEST(ShrpTests, shrp_header_user_agent_invalid_multi_no_product_version)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -789,9 +818,8 @@ TEST(ShrpTests, shrp_header_user_agent_invalid_multi_no_product_version)
             ASSERT_FALSE(res.is_ready());
         }
     },
-        RequestParser::MalformedRequest);
+        MessageParser::MalformedRequest);
 }
-
 
 TEST(ShrpTests, shrp_header_accept_charset_valid)
 {
@@ -799,7 +827,8 @@ TEST(ShrpTests, shrp_header_accept_charset_valid)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -811,8 +840,8 @@ TEST(ShrpTests, shrp_header_accept_charset_valid)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
             EXPECT_FALSE(val.get_uri().get_pqf().value().get_query().has_value());
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
-            EXPECT_EQ(val.get_headers().size(), 2);
-            EXPECT_EQ(val.get_header("Accept-Charset").value(), "webserv_utests");
+            EXPECT_EQ(val.get_message().get_headers().size(), 2);
+            EXPECT_EQ(val.get_message().get_header("Accept-Charset").value(), "webserv_utests");
             break;
         }
     }
@@ -824,7 +853,8 @@ TEST(ShrpTests, shrp_header_accept_charset_valid_odd)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -836,13 +866,12 @@ TEST(ShrpTests, shrp_header_accept_charset_valid_odd)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
             EXPECT_FALSE(val.get_uri().get_pqf().value().get_query().has_value());
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
-            EXPECT_EQ(val.get_headers().size(), 2);
-            EXPECT_EQ(val.get_header("Accept-Charset").value(), "someset , SOMESET;q=0 ,some-set ; q=1.123");
+            EXPECT_EQ(val.get_message().get_headers().size(), 2);
+            EXPECT_EQ(val.get_message().get_header("Accept-Charset").value(), "someset , SOMESET;q=0 ,some-set ; q=1.123");
             break;
         }
     }
 }
-
 
 TEST(ShrpTests, shrp_header_accept_charset_valid_common)
 {
@@ -850,7 +879,8 @@ TEST(ShrpTests, shrp_header_accept_charset_valid_common)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -862,8 +892,8 @@ TEST(ShrpTests, shrp_header_accept_charset_valid_common)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
             EXPECT_FALSE(val.get_uri().get_pqf().value().get_query().has_value());
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
-            EXPECT_EQ(val.get_headers().size(), 2);
-            EXPECT_EQ(val.get_header("Accept-Charset").value(), "utf-8;q=1, iso-8859-1;q=0.8");
+            EXPECT_EQ(val.get_message().get_headers().size(), 2);
+            EXPECT_EQ(val.get_message().get_header("Accept-Charset").value(), "utf-8;q=1, iso-8859-1;q=0.8");
             break;
         }
     }
@@ -875,7 +905,8 @@ TEST(ShrpTests, shrp_header_accept_charset_valid_wildcard)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -887,13 +918,12 @@ TEST(ShrpTests, shrp_header_accept_charset_valid_wildcard)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
             EXPECT_FALSE(val.get_uri().get_pqf().value().get_query().has_value());
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
-            EXPECT_EQ(val.get_headers().size(), 2);
-            EXPECT_EQ(val.get_header("Accept-Charset").value(), "utf-8;q=1, iso-8859-1;q=0.8, *");
+            EXPECT_EQ(val.get_message().get_headers().size(), 2);
+            EXPECT_EQ(val.get_message().get_header("Accept-Charset").value(), "utf-8;q=1, iso-8859-1;q=0.8, *");
             break;
         }
     }
 }
-
 
 TEST(ShrpTests, shrp_header_accept_charset_many_wildcard)
 {
@@ -901,7 +931,8 @@ TEST(ShrpTests, shrp_header_accept_charset_many_wildcard)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -913,8 +944,8 @@ TEST(ShrpTests, shrp_header_accept_charset_many_wildcard)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
             EXPECT_FALSE(val.get_uri().get_pqf().value().get_query().has_value());
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
-            EXPECT_EQ(val.get_headers().size(), 2);
-            EXPECT_EQ(val.get_header("Accept-Charset").value(), "*, * , *;q=0.5");
+            EXPECT_EQ(val.get_message().get_headers().size(), 2);
+            EXPECT_EQ(val.get_message().get_header("Accept-Charset").value(), "*, * , *;q=0.5");
             break;
         }
     }
@@ -926,18 +957,20 @@ TEST(ShrpTests, shrp_header_accept_charset_invalid_empty)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
     EXPECT_THROW(
-    while (true) {
-        auto res = parser.poll(Waker::dead());
-        if (res.is_ready()) {
-            throw std::runtime_error("success");
-            break;
-        }
-    }, http::RequestParser::MalformedRequest);
+        while (true) {
+            auto res = parser.poll(Waker::dead());
+            if (res.is_ready()) {
+                throw std::runtime_error("success");
+                break;
+            }
+        },
+        http::MessageParser::MalformedRequest);
 }
 
 TEST(ShrpTests, shrp_header_accept_charset_invalid_start_comma)
@@ -946,7 +979,8 @@ TEST(ShrpTests, shrp_header_accept_charset_invalid_start_comma)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -957,7 +991,8 @@ TEST(ShrpTests, shrp_header_accept_charset_invalid_start_comma)
                 throw std::runtime_error("success");
                 break;
             }
-        }, http::RequestParser::MalformedRequest);
+        },
+        http::MessageParser::MalformedRequest);
 }
 
 TEST(ShrpTests, shrp_header_accept_charset_invalid_inner_spaced)
@@ -966,7 +1001,8 @@ TEST(ShrpTests, shrp_header_accept_charset_invalid_inner_spaced)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -977,7 +1013,8 @@ TEST(ShrpTests, shrp_header_accept_charset_invalid_inner_spaced)
                 throw std::runtime_error("success");
                 break;
             }
-        }, http::RequestParser::MalformedRequest);
+        },
+        http::MessageParser::MalformedRequest);
 }
 
 TEST(ShrpTests, shrp_header_accept_charset_invalid_comma_empty)
@@ -986,7 +1023,8 @@ TEST(ShrpTests, shrp_header_accept_charset_invalid_comma_empty)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -997,7 +1035,8 @@ TEST(ShrpTests, shrp_header_accept_charset_invalid_comma_empty)
                 throw std::runtime_error("success");
                 break;
             }
-        }, http::RequestParser::MalformedRequest);
+        },
+        http::MessageParser::MalformedRequest);
 }
 
 TEST(ShrpTests, shrp_header_accept_charset_invalid_comma_empty_space)
@@ -1006,7 +1045,8 @@ TEST(ShrpTests, shrp_header_accept_charset_invalid_comma_empty_space)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -1017,9 +1057,9 @@ TEST(ShrpTests, shrp_header_accept_charset_invalid_comma_empty_space)
                 throw std::runtime_error("success");
                 break;
             }
-        }, http::RequestParser::MalformedRequest);
+        },
+        http::MessageParser::MalformedRequest);
 }
-
 
 TEST(ShrpTests, shrp_header_accept_language_invalid_wildcard)
 {
@@ -1027,7 +1067,8 @@ TEST(ShrpTests, shrp_header_accept_language_invalid_wildcard)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -1038,9 +1079,9 @@ TEST(ShrpTests, shrp_header_accept_language_invalid_wildcard)
                 throw std::runtime_error("success");
                 break;
             }
-        }, http::RequestParser::MalformedRequest);
+        },
+        http::MessageParser::MalformedRequest);
 }
-
 
 TEST(ShrpTests, shrp_header_accept_language_valid)
 {
@@ -1048,7 +1089,8 @@ TEST(ShrpTests, shrp_header_accept_language_valid)
     const size_t buffer_limit = 8192;
     const size_t body_limit = 8192;
 
-    StringReader sbody(request, true);
+    StringReader srbody(request, true);
+    auto sbody = ioruntime::CharacterStream(srbody);
 
     RequestParser parser(sbody, buffer_limit, body_limit);
 
@@ -1060,12 +1102,11 @@ TEST(ShrpTests, shrp_header_accept_language_valid)
             EXPECT_EQ(val.get_uri().get_pqf().value().get_path().value(), "/");
             EXPECT_FALSE(val.get_uri().get_pqf().value().get_query().has_value());
             EXPECT_EQ(val.get_version().version_string, http::version::v1_1.version_string);
-            EXPECT_EQ(val.get_headers().size(), 2);
-            EXPECT_EQ(val.get_header("Accept-Language").value(), "nl;q=1, en-GB;q=0.9, en-US, *");
+            EXPECT_EQ(val.get_message().get_headers().size(), 2);
+            EXPECT_EQ(val.get_message().get_header("Accept-Language").value(), "nl;q=1, en-GB;q=0.9, en-US, *");
             break;
         }
     }
 }
-
 
 }

@@ -5,7 +5,7 @@
 #include "Status.hpp"
 #include "RfcConstants.hpp"
 
-std::ostream& operator<<(std::ostream& os, http::Status const& status)
+auto operator<<(std::ostream& os, http::Status const& status) -> std::ostream&
 {
     os << status.code << http::SP << status.message;
     return os;

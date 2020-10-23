@@ -95,7 +95,8 @@ Server::ConnectionFuture::ConnectionFuture(Server::ConnectionFuture&& other) noe
     , _response(move(other._response))
     , _copier(move(other._copier))
     , _stream(move(other._stream))
-    , _parser(RequestParser(move(*other._parser), _stream.get_socket()))
+    , _cstream(_stream.get_socket())
+    , _parser(RequestParser(move(*other._parser), _cstream))
     , _reader(move(other._reader))
     , _is_recovering(other._is_recovering)
     , _timeout(move(other._timeout))
@@ -105,11 +106,12 @@ Server::ConnectionFuture::ConnectionFuture(Server::ConnectionFuture&& other) noe
 
 Server::ConnectionFuture::ConnectionFuture(TcpStream&& stream, ServerProperties props)
     : _stream(move(stream))
+    , _cstream(_stream.get_socket())
     , _timeout(props._inactivity_timeout)
     , _properties(props)
 {
     _parser = RequestParser(
-        _stream.get_socket(),
+        _cstream,
         props._buffer_limit,
         props._body_limit);
 }
@@ -151,22 +153,22 @@ auto Server::ConnectionFuture::poll(Waker&& waker) -> PollResult<void>
             } catch (std::exception const& err) {
                 WARNPRINT("Request handler failed: " << err.what());
                 try {
-                    auto builder = ResponseBuilder();
+                    auto builder = OutgoingResponseBuilder();
                     auto status = status::INTERNAL_SERVER_ERROR;
 
                     try {
                         throw;
-                    } catch (RequestParser::UndeterminedLength const&) {
+                    } catch (MessageParser::UndeterminedLength const&) {
                         status = status::LENGTH_REQUIRED;
-                    } catch (RequestParser::RequestUriExceededBuffer const&) {
-                        status = status::URI_TOO_LONG;
-                    } catch (RequestParser::BodyExceededLimit const&) {
+                   // } catch (NewRequestParser::RequestUriExceededBuffer const&) {
+                     //   status = status::URI_TOO_LONG;
+                    } catch (MessageParser::BodyExceededLimit const&) {
                         status = status::PAYLOAD_TOO_LARGE;
-                    } catch (RequestParser::GenericExceededBuffer const&) {
+                    } catch (MessageParser::GenericExceededBuffer const&) {
                         status = status::REQUEST_HEADER_FIELDS_TOO_LARGE;
                     } catch (RequestParser::InvalidMethod const&) {
                         status = status::NOT_IMPLEMENTED;
-                    } catch (RequestParser::InvalidVersion const&) {
+                    /*} catch (RequestParser::InvalidVersion const&) {
                         status = status::VERSION_NOT_SUPPORTED;
                     } catch (RequestParser::MalformedRequest const&) {
                         status = status::BAD_REQUEST;
@@ -174,7 +176,7 @@ auto Server::ConnectionFuture::poll(Waker&& waker) -> PollResult<void>
                         status = status::BAD_REQUEST;
                     } catch (RequestParser::BadTransferEncoding const&) {
                         status = status::NOT_IMPLEMENTED;
-                    } catch (TimeoutError const&) {
+                    */} catch (TimeoutError const&) {
                         status = status::REQUEST_TIMEOUT;
                         // this header is not required, but it's still nice to have
                         builder.header(header::CONNECTION, "close");
@@ -245,7 +247,7 @@ auto Server::ConnectionFuture::poll(Waker&& waker) -> PollResult<void>
                         } catch (...) {
                             // status is already set to INTERNAL_SERVER_ERROR
                         }
-                        auto builder = ResponseBuilder();
+                        auto builder = OutgoingResponseBuilder();
                         builder
                             .status(status)
                             .body(_properties._error_page_handler(status));

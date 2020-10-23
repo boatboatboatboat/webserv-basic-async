@@ -15,7 +15,6 @@ Cgi::CgiError::CgiError(const char* w)
 }
 
 Cgi::PipeSetupFailed::PipeSetupFailed()
-
     : CgiError("CGI pipe setup failed")
 {
 }
@@ -25,7 +24,7 @@ Cgi::ForkFailed::ForkFailed()
 {
 }
 
-Cgi::Cgi(const string& path, Request&& req, CgiServerForwardInfo const& csfi)
+Cgi::Cgi(const string& path, IncomingRequest&& req, CgiServerForwardInfo const& csfi)
     : _path(path)
     , _request(move(req))
 {
@@ -69,12 +68,12 @@ auto Cgi::poll_success(Waker&& waker) -> bool
 
 auto Cgi::poll_write_body(Waker&& waker) -> PollResult<IoResult>
 {
-    if (!_request.get_body().has_value()) {
+    if (!_request.get_message().get_body().has_value()) {
         child_input = option::nullopt;
         return PollResult<IoResult>::ready(IoResult::eof());
     } else if (child_input.has_value()) {
         if (!_ricf.has_value()) {
-            _ricf = ioruntime::RefIoCopyFuture(*_request.get_body(), *child_input);
+            _ricf = ioruntime::RefIoCopyFuture(*_request.get_message().get_body(), *child_input);
         }
         auto pr = _ricf->poll(move(waker));
         if (pr.is_ready()) {
@@ -100,13 +99,14 @@ auto Cgi::poll_write(const span<uint8_t> buffer, Waker&& waker) -> PollResult<Io
     return child_input->poll_write(buffer, std::move(waker));
 }
 
-void Cgi::generate_env(Request const& req, CgiServerForwardInfo const& csfi)
+void Cgi::generate_env(IncomingRequest const& req, CgiServerForwardInfo const& csfi)
 {
     const auto& addr = csfi.sockaddr;
+    const auto& message = req.get_message();
     // Set AUTH_TYPE and REMOTE_USER metavar
     {
         // TODO: some kind of error handling, right now it just does nothing on an error
-        auto at = req.get_header(http::header::AUTHORIZATION);
+        auto at = message.get_header(http::header::AUTHORIZATION);
 
         if (at.has_value()) {
             auto field = *at;
@@ -134,20 +134,20 @@ void Cgi::generate_env(Request const& req, CgiServerForwardInfo const& csfi)
     }
     // Set CONTENT_LENGTH metavar
     {
-        auto cl = req.get_header("Content-Length");
+        auto cl = message.get_header("Content-Length");
 
-        if (req.get_body().has_value()) {
+        if (message.get_body().has_value()) {
             std::stringstream var;
-            var << "CONTENT_LENGTH=" << req.get_body()->size();
+            var << "CONTENT_LENGTH=" << message.get_body()->size();
             env.push_back(var.str());
         }
     }
     // Set CONTENT_TYPE metavar
     {
-        auto cl = req.get_header("Content-Type");
+        auto cl = message.get_header("Content-Type");
 
         // It should only be set if there's a message body.
-        if (req.get_body().has_value() && cl.has_value()) {
+        if (message.get_body().has_value() && cl.has_value()) {
             std::string var("CONTENT_TYPE=");
             var += *cl;
             env.push_back(std::move(var));
@@ -291,7 +291,7 @@ void Cgi::generate_env(Request const& req, CgiServerForwardInfo const& csfi)
     env.emplace_back("SERVER_PROTOCOL=HTTP/1.1");
     env.emplace_back(SERVER_SOFTWARE_METAVAR);
     // generate http header metavars
-    for (auto& header : _request.get_headers()) {
+    for (auto& header : message.get_headers()) {
         if (header.name == http::header::AUTHORIZATION || header.name == http::header::CONTENT_LENGTH
             || header.name == http::header::CONTENT_TYPE) {
             // remove recommended headers

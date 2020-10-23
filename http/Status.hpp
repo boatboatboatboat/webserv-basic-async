@@ -671,6 +671,6 @@ from an upstream server it needed to access in order to complete the
 
 }
 
-std::ostream& operator<<(std::ostream& os, http::Status const& status);
+auto operator<<(std::ostream& os, http::Status const& status) -> std::ostream&;
 
 #endif //WEBSERV_HTTPSTATUS_HPP

@@ -1,5 +1,6 @@
 {
     "workers": 0,
+    "timeout": 10000000,
     "http": {
         "servers": [
             {
@@ -10,6 +11,7 @@
                 "locations": {
                     "^//?": {
                         "root": "./tests/cgi_test/",
+                        "autoindex": true,
                         "allowed-methods": [
                             "GET"
                         ],

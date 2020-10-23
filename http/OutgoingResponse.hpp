@@ -10,8 +10,8 @@
 #include "../net/Socket.hpp"
 #include "DefaultPageReader.hpp"
 #include "Header.hpp"
+#include "IncomingRequest.hpp"
 #include "OutgoingBody.hpp"
-#include "Request.hpp"
 #include "RfcConstants.hpp"
 #include "Status.hpp"
 #include "Version.hpp"
@@ -34,19 +34,19 @@ static inline constexpr auto get_max_num_size(size_t s) -> size_t
 
 namespace http {
 
-class Response;
+class OutgoingResponse;
 
-class ResponseBuilder final {
+class OutgoingResponseBuilder final {
 public:
-    ResponseBuilder();
-    auto version(Version version) -> ResponseBuilder&;
-    auto status(Status status) -> ResponseBuilder&;
-    auto header(HeaderName name, const HeaderValue& value) -> ResponseBuilder&;
-    auto headers(Headers&& headers) -> ResponseBuilder&;
-    auto body(BoxPtr<ioruntime::IAsyncRead>&& body) -> ResponseBuilder&;
-    auto body(BoxPtr<ioruntime::IAsyncRead>&& body, size_t content_length) -> ResponseBuilder&;
-    auto cgi(Cgi&& proc) -> ResponseBuilder&;
-    auto build() -> Response;
+    OutgoingResponseBuilder();
+    auto version(Version version) -> OutgoingResponseBuilder&;
+    auto status(Status status) -> OutgoingResponseBuilder&;
+    auto header(HeaderName name, const HeaderValue& value) -> OutgoingResponseBuilder&;
+    auto headers(Headers&& headers) -> OutgoingResponseBuilder&;
+    auto body(BoxPtr<ioruntime::IAsyncRead>&& body) -> OutgoingResponseBuilder&;
+    auto body(BoxPtr<ioruntime::IAsyncRead>&& body, size_t content_length) -> OutgoingResponseBuilder&;
+    auto cgi(Cgi&& proc) -> OutgoingResponseBuilder&;
+    auto build() -> OutgoingResponse;
 
 private:
     optional<Headers> _headers;
@@ -56,14 +56,14 @@ private:
     optional<Cgi> _cgi = option::nullopt;
 };
 
-class Response final {
+class OutgoingResponse final {
 public:
     // ctors/dtors
-    Response() = delete;
-    Response(optional<Headers>&& headers, Version version, Status status, optional<OutgoingBody>&& body);
-    ~Response() = default;
-    Response(Response&&) noexcept = default;
-    auto operator=(Response&&) noexcept -> Response& = default;
+    OutgoingResponse() = delete;
+    OutgoingResponse(optional<Headers>&& headers, Version version, Status status, optional<OutgoingBody>&& body);
+    ~OutgoingResponse() = default;
+    OutgoingResponse(OutgoingResponse&&) noexcept = default;
+    auto operator=(OutgoingResponse&&) noexcept -> OutgoingResponse& = default;
 
     // getter methods
     [[nodiscard]] auto get_headers() const -> Headers const&;
@@ -88,7 +88,7 @@ public:
     ResponseReader() = delete;
     ResponseReader(ResponseReader&&) noexcept;
     auto operator=(ResponseReader&&) noexcept -> ResponseReader&;
-    explicit ResponseReader(Response& response);
+    explicit ResponseReader(OutgoingResponse& response);
     ~ResponseReader() override;
     auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
 
@@ -192,7 +192,7 @@ private:
     };
 
     // Members
-    Response& _response;
+    OutgoingResponse& _response;
     enum State {
         CheckCgiState,
         RequestLineState,
