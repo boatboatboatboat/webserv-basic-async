@@ -15,6 +15,18 @@ auto utils::StringStream::operator<<(std::string_view view) -> utils::StringStre
     return *this;
 }
 
+auto utils::StringStream::operator<<(std::string const& view) -> utils::StringStream&
+{
+    _buffer.append(view);
+    return *this;
+}
+
+auto utils::StringStream::operator<<(const char* view) -> utils::StringStream&
+{
+    _buffer.append(view);
+    return *this;
+}
+
 auto utils::StringStream::operator<<(size_t view) -> utils::StringStream&
 {
     _buffer.append(std::to_string(view));
@@ -35,5 +47,11 @@ utils::StringStream::StringStream(std::string_view view)
 auto utils::StringStream::operator<<(int view) -> utils::StringStream&
 {
     _buffer.append(std::to_string(view));
+    return *this;
+}
+
+auto utils::StringStream::operator<<(char view) -> utils::StringStream&
+{
+    _buffer.push_back(view);
     return *this;
 }

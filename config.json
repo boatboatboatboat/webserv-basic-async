@@ -27,6 +27,10 @@
                                     "es"
                                 ],
                                 "final": true
+                            },
+                            "\\.php$": {
+                                "cgi": true,
+                                "final": true
                             }
                         }
                     }
