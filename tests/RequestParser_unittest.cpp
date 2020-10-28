@@ -574,7 +574,7 @@ TEST(ShrpTests, shrp_empty_header_name_error)
             ASSERT_FALSE(res.is_ready());
         }
     },
-        MessageParser::MalformedRequest);
+        MessageParser::MalformedMessage);
 }
 
 TEST(ShrpTests, shrp_empty_header_name_untrimmed_error_s1)
@@ -594,7 +594,7 @@ TEST(ShrpTests, shrp_empty_header_name_untrimmed_error_s1)
             ASSERT_FALSE(res.is_ready());
         }
     },
-        MessageParser::MalformedRequest);
+        MessageParser::MalformedMessage);
 }
 
 TEST(ShrpTests, shrp_empty_header_name_untrimmed_error_s2)
@@ -614,7 +614,7 @@ TEST(ShrpTests, shrp_empty_header_name_untrimmed_error_s2)
             ASSERT_FALSE(res.is_ready());
         }
     },
-        MessageParser::MalformedRequest);
+        MessageParser::MalformedMessage);
 }
 
 TEST(ShrpTests, shrp_empty_header_value)
@@ -738,7 +738,7 @@ TEST(ShrpTests, shrp_header_user_agent_invalid_empty)
             ASSERT_FALSE(res.is_ready());
         }
     },
-        MessageParser::MalformedRequest);
+        MessageParser::MalformedMessage);
 }
 
 TEST(ShrpTests, shrp_header_user_agent_invalid_no_product)
@@ -758,7 +758,7 @@ TEST(ShrpTests, shrp_header_user_agent_invalid_no_product)
             ASSERT_FALSE(res.is_ready());
         }
     },
-        MessageParser::MalformedRequest);
+        MessageParser::MalformedMessage);
 }
 
 TEST(ShrpTests, shrp_header_user_agent_invalid_no_product_version)
@@ -778,7 +778,7 @@ TEST(ShrpTests, shrp_header_user_agent_invalid_no_product_version)
             ASSERT_FALSE(res.is_ready());
         }
     },
-        MessageParser::MalformedRequest);
+        MessageParser::MalformedMessage);
 }
 
 TEST(ShrpTests, shrp_header_user_agent_invalid_multi_no_product)
@@ -798,7 +798,7 @@ TEST(ShrpTests, shrp_header_user_agent_invalid_multi_no_product)
             ASSERT_FALSE(res.is_ready());
         }
     },
-        MessageParser::MalformedRequest);
+        MessageParser::MalformedMessage);
 }
 
 TEST(ShrpTests, shrp_header_user_agent_invalid_multi_no_product_version)
@@ -818,7 +818,7 @@ TEST(ShrpTests, shrp_header_user_agent_invalid_multi_no_product_version)
             ASSERT_FALSE(res.is_ready());
         }
     },
-        MessageParser::MalformedRequest);
+        MessageParser::MalformedMessage);
 }
 
 TEST(ShrpTests, shrp_header_accept_charset_valid)
@@ -970,7 +970,7 @@ TEST(ShrpTests, shrp_header_accept_charset_invalid_empty)
                 break;
             }
         },
-        http::MessageParser::MalformedRequest);
+        http::MessageParser::MalformedMessage);
 }
 
 TEST(ShrpTests, shrp_header_accept_charset_invalid_start_comma)
@@ -992,7 +992,7 @@ TEST(ShrpTests, shrp_header_accept_charset_invalid_start_comma)
                 break;
             }
         },
-        http::MessageParser::MalformedRequest);
+        http::MessageParser::MalformedMessage);
 }
 
 TEST(ShrpTests, shrp_header_accept_charset_invalid_inner_spaced)
@@ -1014,7 +1014,7 @@ TEST(ShrpTests, shrp_header_accept_charset_invalid_inner_spaced)
                 break;
             }
         },
-        http::MessageParser::MalformedRequest);
+        http::MessageParser::MalformedMessage);
 }
 
 TEST(ShrpTests, shrp_header_accept_charset_invalid_comma_empty)
@@ -1036,7 +1036,7 @@ TEST(ShrpTests, shrp_header_accept_charset_invalid_comma_empty)
                 break;
             }
         },
-        http::MessageParser::MalformedRequest);
+        http::MessageParser::MalformedMessage);
 }
 
 TEST(ShrpTests, shrp_header_accept_charset_invalid_comma_empty_space)
@@ -1058,7 +1058,7 @@ TEST(ShrpTests, shrp_header_accept_charset_invalid_comma_empty_space)
                 break;
             }
         },
-        http::MessageParser::MalformedRequest);
+        http::MessageParser::MalformedMessage);
 }
 
 TEST(ShrpTests, shrp_header_accept_language_invalid_wildcard)
@@ -1080,7 +1080,7 @@ TEST(ShrpTests, shrp_header_accept_language_invalid_wildcard)
                 break;
             }
         },
-        http::MessageParser::MalformedRequest);
+        http::MessageParser::MalformedMessage);
 }
 
 TEST(ShrpTests, shrp_header_accept_language_valid)

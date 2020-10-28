@@ -52,7 +52,9 @@ TcpListener::TcpListener(IpAddress ip, in_port_t port)
         new_address.sin6_family = protocol_specifier;
         new_address.sin6_port = htons(port);
         new_address.sin6_addr = ip.get_v6().get_ip_posix();
+#ifdef __APPLE__
         new_address.sin6_len = sizeof(new_address);
+#endif
         new_address.sin6_flowinfo = 0;
         addr = net::SocketAddr(new_address);
     }

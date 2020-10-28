@@ -11,17 +11,32 @@ GET http://localhost:1234/cgi/read_forever.lua HTTP/1.1
 
 ### valid
 GET http://localhost:4242/ HTTP/1.1
-### valid
-GET http://localhost:4242/body_echo.lua HTTP/1.1
 
 ### valid
-GET http://localhost:4242/test1.js HTTP/1.1
+GET http://localhost:4422/ HTTP/1.1
+
+### valid
+GET http://localhost:4242/cgi/body_echo.lua HTTP/1.1
+
+### valid
+GET http://localhost:4242/cgi/bigfile_cl.clua HTTP/1.1
+
+### valid
+GET http://localhost:4242/cgi/bigfile_tc.clua HTTP/1.1
+
+### valid
+POST http://localhost:4242/cgi/tc_echo.clua HTTP/1.1
+
+
+< ../cgi_test/resources/bigfile.txt
+### valid
+GET http://localhost:4242/cgi/test1.js HTTP/1.1
 
 ### 404
-GET http://localhost:4242/bofdy_echo.lua HTTP/1.1
+GET http://localhost:4242/cgi/bofdy_echo.lua HTTP/1.1
 
 ### invalid
-GET http://localhost:4242/invalid_lua.lua HTTP/1.1
+GET http://localhost:4242/cgi/invalid_lua.lua HTTP/1.1
 
 ### invalid
-GET http://localhost:4242/langmodtest.lua HTTP/1.1
+GET http://localhost:4242/cgi/langmodtest.lua HTTP/1.1

@@ -12,6 +12,7 @@
 #include "../net/TcpStream.hpp"
 #include "OutgoingResponse.hpp"
 #include "RequestParser.hpp"
+#include "ServerHandlerResponse.hpp"
 
 namespace {
 using futures::ForEachFuture;
@@ -29,7 +30,7 @@ constexpr size_t DEFAULT_BODY_LIMIT = 8192;
 constexpr size_t DEFAULT_BUFFER_LIMIT = 100000;
 constexpr size_t DEFAULT_INACTIVITY_TIMEOUT = 10000;
 
-using RequestHandler = std::function<OutgoingResponse(IncomingRequest&, SocketAddr const&)>;
+using RequestHandler = std::function<ServerHandlerResponse(IncomingRequest&, SocketAddr const&)>;
 using ErrorPageHandler = std::function<BoxPtr<IAsyncRead>(Status const&)>;
 
 class TimeoutError final : public std::runtime_error {
@@ -104,11 +105,13 @@ private:
         // members
         enum State {
             Listen,
-            Respond
+            PollResponse,
+            Respond,
         } _state
             = Listen;
         optional<IncomingRequest> _request;
         optional<OutgoingResponse> _response;
+        optional<ServerHandlerResponse> _shr;
         optional<ioruntime::IoCopyFuture<void, void>> _copier;
         net::TcpStream _stream;
         ioruntime::CharacterStream _cstream;

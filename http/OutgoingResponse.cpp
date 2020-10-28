@@ -3,6 +3,7 @@
 #include "DefaultPageReader.hpp"
 #include "Header.hpp"
 #include "IncomingRequest.hpp"
+#include "MessageReader.hpp"
 #include "RfcConstants.hpp"
 #include "Status.hpp"
 #include "StringReader.hpp"
@@ -19,39 +20,33 @@ auto OutgoingResponseBuilder::status(Status status) -> OutgoingResponseBuilder&
 
 auto OutgoingResponseBuilder::header(HeaderName name, const HeaderValue& value) -> OutgoingResponseBuilder&
 {
-    if (!_headers.has_value()) {
-        _headers = Headers();
-    }
-    _headers->push_back(Header { move(name), value });
+    _message.header(move(name), string(value));
     return *this;
 }
 
 auto OutgoingResponseBuilder::body(BoxPtr<ioruntime::IAsyncRead>&& body) -> OutgoingResponseBuilder&
 {
-    _body = OutgoingBody(move(body));
+
+    _message.body(OutgoingBody(move(body)));
     header(http::header::TRANSFER_ENCODING, "chunked");
     return *this;
 }
 
 auto OutgoingResponseBuilder::body(BoxPtr<ioruntime::IAsyncRead>&& body, size_t content_length) -> OutgoingResponseBuilder&
 {
-    _body = OutgoingBody(move(body));
+    _message.body(OutgoingBody(move(body)));
     return header(http::header::CONTENT_LENGTH, std::to_string(content_length));
 }
 
-auto OutgoingResponseBuilder::build() -> OutgoingResponse
+auto OutgoingResponseBuilder::build() && -> OutgoingResponse
 {
     if (!_status.has_value()) {
         throw std::runtime_error("ResponseBuilder: no status set");
     }
-    if (!_body.has_value() && _cgi.has_value()) {
-        _body = OutgoingBody(move(*_cgi));
-    }
     return OutgoingResponse(
-        move(_headers),
         _version,
         *_status,
-        move(_body));
+        move(_message).build());
 }
 
 OutgoingResponseBuilder::OutgoingResponseBuilder()
@@ -67,37 +62,26 @@ auto OutgoingResponseBuilder::version(Version version) -> OutgoingResponseBuilde
 
 auto OutgoingResponseBuilder::cgi(Cgi&& proc) -> OutgoingResponseBuilder&
 {
-    _cgi = std::move(proc);
+    _message.body(OutgoingBody(move(proc)));
     return *this;
 }
 
 auto OutgoingResponseBuilder::headers(Headers&& headers) -> OutgoingResponseBuilder&
 {
-    if (_headers.has_value()) {
-        for (auto&& p_header : headers) {
-            _headers->push_back(move(p_header));
-        }
-    } else {
-        _headers = move(headers);
-    }
+    _message.headers(move(headers));
     return *this;
 }
 
-OutgoingResponse::OutgoingResponse(optional<Headers>&& headers, Version version, Status status, optional<OutgoingBody>&& body)
+OutgoingResponse::OutgoingResponse(Version version, Status status, OutgoingMessage&& message)
     : _version(version)
     , _status(status)
+    , _message(move(message))
 {
-    if (headers.has_value()) {
-        _headers = move(*headers);
-    }
-    if (body.has_value()) {
-        _body = move(*body);
-    }
 }
 
 auto OutgoingResponse::get_headers() const -> Headers const&
 {
-    return _headers;
+    return _message.get_headers();
 }
 
 auto OutgoingResponse::get_version() const -> Version const&
@@ -112,27 +96,36 @@ auto OutgoingResponse::get_status() const -> Status const&
 
 auto OutgoingResponse::get_body() const -> optional<OutgoingBody> const&
 {
-    return _body;
+    return _message.get_body();
 }
 
 auto OutgoingResponse::get_body() -> optional<OutgoingBody>&
 {
-    return _body;
+    return _message.get_body();
 }
 
 auto OutgoingResponse::get_header(HeaderName const& needle_name) const -> optional<HeaderValue>
 {
-    for (auto& header : _headers) {
-        if (utils::str_eq_case_insensitive(header.name, needle_name)) {
-            return header.value;
-        }
+    auto res = _message.get_header(needle_name);
+    if (res.has_value()) {
+        return string(*res);
+    } else {
+        return option::nullopt;
     }
-    return option::nullopt;
 }
 
-void OutgoingResponse::drop_body()
+__attribute_deprecated_msg__("drop_body no longer does anything") void OutgoingResponse::drop_body()
 {
-    _body = option::nullopt;
+}
+
+auto OutgoingResponse::get_message() -> OutgoingMessage&
+{
+    return _message;
+}
+
+auto OutgoingResponse::get_message() const -> OutgoingMessage const&
+{
+    return _message;
 }
 
 ResponseReader::ResponseReader(OutgoingResponse& response)
@@ -144,8 +137,8 @@ ResponseReader::ResponseReader(OutgoingResponse& response)
         _state = CheckCgiState;
     } else {
         // CGI has not been set - begin writing a body
-        new (&_request_line) RequestLineReader(_response.get_version(), _response.get_status());
-        _state = RequestLineState;
+        new (&_status_line) StatusLineReader(_response.get_version(), _response.get_status());
+        _state = StatusLineReaderState;
     }
 }
 
@@ -155,79 +148,36 @@ auto ResponseReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResul
         case CheckCgiState: {
             if (_response.get_body()->get_cgi().poll_success(Waker(waker))) {
                 // Change to Status state
-                _state = RequestLineState;
-                new (&_request_line) RequestLineReader(_response.get_version(), _response.get_status());
+                _state = StatusLineReaderState;
+                new (&_status_line) StatusLineReader(_response.get_version(), _response.get_status());
                 return poll_read(buffer, move(waker));
             }
             return PollResult<IoResult>::pending();
         } break;
-        case RequestLineState: {
-            auto poll_res = _request_line.poll_read(buffer, Waker(waker));
+        case StatusLineReaderState: {
+            auto poll_res = _status_line.poll_read(buffer, Waker(waker));
             if (poll_res.is_ready()) {
                 if (poll_res.get().is_eof()) {
                     // Clean up old state
-                    _request_line.~RequestLineReader();
+                    _status_line.~StatusLineReader();
                     // Change to next state
-                    auto& body = _response.get_body();
-                    if (body.has_value() && body->is_cgi()) {
-                        // CGI writes its own headers, so skip to the CGI state
-                        _state = CgiBodyState;
-                        new (&_cgi_body) CgiBodyReader(body->get_cgi());
+                    if (_response.get_body().has_value() && _response.get_body()->is_cgi()) {
+                        _state = CgiState;
+                        new (&_cgi_reader) CgiReader(_response.get_body()->get_cgi());
                     } else {
-                        // No CGI - write our own headers
-                        _state = HeaderState;
-                        new (&_header) HeadersReader(_response.get_headers());
+                        _state = MessageState;
+                        new (&_message) MessageReader(_response.get_message());
                     }
                     return PollResult<IoResult>::pending();
                 }
             }
             return poll_res;
         } break;
-        case HeaderState: {
-            auto poll_res = _header.poll_read(buffer, Waker(waker));
-            if (poll_res.is_ready()) {
-                if (poll_res.get().is_eof()) {
-                    // Clean up old state
-                    _header.~HeadersReader();
-                    new (&_header_terminator) HeaderTerminatorReader();
-                    _state = HeaderTerminatorState;
-                    return PollResult<IoResult>::pending();
-                }
-            }
-            return poll_res;
+        case MessageState: {
+            return _message.poll_read(buffer, move(waker));
         } break;
-        case HeaderTerminatorState: {
-            auto poll_res = _header_terminator.poll_read(buffer, Waker(waker));
-            if (poll_res.is_ready()) {
-                if (poll_res.get().is_eof()) {
-                    // Clean up old state
-                    _header_terminator.~HeaderTerminatorReader();
-                    // Change to Body state
-                    if (!_response.get_body().has_value()) {
-                        // We don't have a body - just terminate
-                        return PollResult<IoResult>::ready(IoResult::eof());
-                    } else if (_response.get_header(http::header::CONTENT_LENGTH).has_value()) {
-                        // Content-Length means regular body
-                        _state = BodyState;
-                        new (&_body) BodyReader(*_response.get_body());
-                    } else {
-                        // No content-length means chunked transfer
-                        _state = ChunkedBodyState;
-                        new (&_chunked_body) ChunkedBodyReader(*_response.get_body());
-                    }
-                    return PollResult<IoResult>::pending();
-                }
-            }
-            return poll_res;
-        } break;
-        case BodyState: {
-            return _body.poll_read(buffer, move(waker));
-        } break;
-        case ChunkedBodyState: {
-            return _chunked_body.poll_read(buffer, move(waker));
-        } break;
-        case CgiBodyState: {
-            return _cgi_body.poll_read(buffer, move(waker));
+        case CgiState: {
+            return _cgi_reader.poll_read(buffer, move(waker));
         } break;
     }
 }
@@ -235,24 +185,12 @@ auto ResponseReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResul
 ResponseReader::~ResponseReader()
 {
     switch (_state) {
-        case RequestLineState: {
-            _request_line.~RequestLineReader();
+        case StatusLineReaderState: {
+            _status_line.~StatusLineReader();
         } break;
-        case HeaderState: {
-            _header.~HeadersReader();
-        } break;
-        case HeaderTerminatorState: {
-            _header_terminator.~HeaderTerminatorReader();
-        } break;
-        case BodyState: {
-            _body.~BodyReader();
-        } break;
-        case ChunkedBodyState: {
-            _chunked_body.~ChunkedBodyReader();
-        } break;
-        case CgiBodyState: {
-            _cgi_body.~CgiBodyReader();
-        } break;
+        case MessageState: {
+            _message.~MessageReader();
+        }
         default:
             break;
     }
@@ -266,28 +204,19 @@ ResponseReader::ResponseReader(ResponseReader&& other) noexcept
         case CheckCgiState: {
             // do nothing
         } break;
-        case RequestLineState: {
-            new (&_request_line) RequestLineReader(move(other._request_line));
+        case StatusLineReaderState: {
+            new (&_status_line) StatusLineReader(move(other._status_line));
         } break;
-        case HeaderState: {
-            new (&_header) HeadersReader(move(other._header));
+        case MessageState: {
+            new (&_message) MessageReader(move(other._message));
         } break;
-        case HeaderTerminatorState: {
-            new (&_header_terminator) HeaderTerminatorReader();
-        } break;
-        case BodyState: {
-            new (&_body) BodyReader(move(other._body));
-        } break;
-        case ChunkedBodyState: {
-            new (&_chunked_body) ChunkedBodyReader(move(other._chunked_body));
-        } break;
-        case CgiBodyState: {
-            new (&_cgi_body) CgiBodyReader(move(other._cgi_body));
+        case CgiState: {
+            new (&_cgi_reader) CgiReader(move(other._cgi_reader));
         } break;
     }
 }
 
-ResponseReader::RequestLineReader::RequestLineReader(Version const& version, Status const& status)
+ResponseReader::StatusLineReader::StatusLineReader(Version const& version, Status const& status)
     : _version(version)
     , _status(status)
 {
@@ -298,7 +227,7 @@ ResponseReader::RequestLineReader::RequestLineReader(Version const& version, Sta
 //
 // Poller for reading the request-line
 //
-auto ResponseReader::RequestLineReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
+auto ResponseReader::StatusLineReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
 {
     switch (_state) {
         case VersionState: {
@@ -309,8 +238,11 @@ auto ResponseReader::RequestLineReader::poll_read(span<uint8_t> buffer, Waker&& 
         } break;
         case Space1: {
             if (_current.empty()) {
-                std::sprintf(_status_code_buf, "%u", _status.code);
-                _current = _status_code_buf;
+                auto b = utils::uint64_to_string(_status.code);
+                _status_code_buf[0] = b[0];
+                _status_code_buf[1] = b[1];
+                _status_code_buf[2] = b[2];
+                _current = std::string_view(_status_code_buf, 3);
                 _state = Code;
             }
         } break;
@@ -346,148 +278,12 @@ auto ResponseReader::RequestLineReader::poll_read(span<uint8_t> buffer, Waker&& 
     return PollResult<IoResult>::ready(written);
 }
 
-ResponseReader::HeadersReader::HeadersReader(Headers const& headers)
-    : _headers(headers)
-{
-    _header_it = _headers.begin();
-    if (_header_it != _headers.end()) {
-        _current = _header_it->name;
-    } else {
-        _state = Clrf;
-        _current = "";
-        --_header_it; // lmao
-    }
-}
-
-auto ResponseReader::HeadersReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
-{
-    switch (_state) {
-        case Name: {
-            if (_current.empty()) {
-                _state = Splitter;
-                _current = ": ";
-            }
-        } break;
-        case Splitter: {
-            if (_current.empty()) {
-                _state = Value;
-                _current = _header_it->value;
-            }
-        } break;
-        case Value: {
-            if (_current.empty()) {
-                _state = Clrf;
-                _current = CLRF;
-            }
-        } break;
-        case Clrf: {
-            if (_current.empty()) {
-                // current depleted, select next header
-                ++_header_it;
-                if (_header_it == _headers.end()) {
-                    return PollResult<IoResult>::ready(IoResult::eof());
-                }
-                _current = _header_it->name;
-                _state = Name;
-            }
-        } break;
-    }
-    auto written = buffer.size() >= _current.size() ? _current.size() : buffer.size();
-    memcpy(buffer.data(), _current.data(), written);
-    _current.remove_prefix(written);
-    waker();
-    return PollResult<IoResult>::ready(written);
-}
-
-ResponseReader::BodyReader::BodyReader(OutgoingBody& body)
-    : _body(body)
-{
-}
-
-auto ResponseReader::BodyReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
-{
-    return _body.poll_read(buffer, move(waker));
-}
-
-ResponseReader::ChunkedBodyReader::ChunkedBodyReader(OutgoingBody& body)
-    : _state(Clrf2)
-    , _current(_data_buf, 0)
-    , _current_body(_data_buf, 0)
-    , _body(body)
-{
-}
-
-auto ResponseReader::ChunkedBodyReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
-{
-    switch (_state) {
-        case ChunkSize: {
-            // write the chunk size
-            if (_current.empty()) {
-                _current = span((uint8_t*)CLRF.data(), CLRF.size());
-                _state = Clrf1;
-                return poll_read(buffer, move(waker));
-            }
-        } break;
-        case Clrf1: {
-            // write the CLRF after the chunk size
-            if (_current.empty()) {
-                _current = _current_body;
-                _state = ChunkData;
-                return poll_read(buffer, move(waker));
-            }
-        } break;
-        case ChunkData: {
-            // write the actual chunk data
-            if (_current.empty()) {
-                _current = span((uint8_t*)CLRF.data(), CLRF.size());
-                _state = Clrf2;
-                return poll_read(buffer, move(waker));
-            }
-        } break;
-        case Clrf2: {
-            // write the CLRF after the chunk data
-            if (_current.empty()) {
-                auto poll_res = _body.poll_read(span(_data_buf, sizeof(_data_buf)), Waker(waker));
-                if (poll_res.is_ready()) {
-                    auto res = poll_res.get();
-                    if (res.is_eof()) {
-                        _current = span((uint8_t*)"0\r\n\r\n", 5);
-                        _state = Eof;
-                    } else if (res.is_error()) {
-                        return PollResult<IoResult>::ready(IoResult::error());
-                    } else if (res.is_success()) {
-                        _current_body = span(_data_buf, res.get_bytes_read());
-                        // FIXME: sprintf hex
-                        std::sprintf(_num, "%zx", res.get_bytes_read());
-                        _current = span((uint8_t*)_num, utils::strlen(_num));
-                        _state = ChunkSize;
-                    }
-                    return poll_read(buffer, move(waker));
-                } else {
-                    return PollResult<IoResult>::pending();
-                }
-            }
-        } break;
-        case Eof: {
-            // write 0\r\n\r\n
-            if (_current.empty()) {
-                return PollResult<IoResult>::ready(IoResult::eof());
-            }
-        } break;
-    }
-    auto written = buffer.size() >= _current.size() ? _current.size() : buffer.size();
-    memcpy(buffer.data(), _current.data(), written);
-    _current.remove_prefix_inplace(written);
-    waker();
-    return PollResult<IoResult>::ready(written);
-}
-
-ResponseReader::CgiBodyReader::CgiBodyReader(Cgi& cgi)
+ResponseReader::CgiReader::CgiReader(Cgi& cgi)
     : _cgi(cgi)
 {
 }
 
-auto ResponseReader::CgiBodyReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
+auto ResponseReader::CgiReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
 {
     switch (_state) {
         case WriteRequestBody: {
@@ -520,15 +316,6 @@ auto ResponseReader::CgiBodyReader::poll_read(span<uint8_t> buffer, Waker&& wake
             return poll_res;
         } break;
     }
-}
-
-auto ResponseReader::HeaderTerminatorReader::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
-{
-    auto written = buffer.size() >= _current.size() ? _current.size() : buffer.size();
-    memcpy(buffer.data(), _current.data(), written);
-    _current.remove_prefix(written);
-    waker();
-    return PollResult<IoResult>::ready(written);
 }
 
 }

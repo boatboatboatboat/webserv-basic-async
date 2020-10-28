@@ -24,9 +24,9 @@ public:
     public:
         GenericExceededBuffer();
     };
-    class MalformedRequest : public ParserError {
+    class MalformedMessage : public ParserError {
     public:
-        MalformedRequest();
+        MalformedMessage();
     };
     class UnexpectedEof : public ParserError {
     public:
@@ -87,6 +87,8 @@ private:
     optional<IncomingBody> _decoded_body;
     optional<ioruntime::SpanReader> _span_reader;
     optional<ioruntime::RefIoCopyFuture> _ricf;
+
+    bool _can_eof = false;
 };
 
 }

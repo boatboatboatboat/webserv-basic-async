@@ -13,9 +13,9 @@ public:
     StringStream() = default;
     explicit StringStream(std::string_view view);
     StringStream(StringStream const&) = default;
-    StringStream& operator=(StringStream const&) = default;
+    auto operator=(StringStream const&) -> StringStream& = default;
     StringStream(StringStream&&) = default;
-    StringStream& operator=(StringStream&&) = default;
+    auto operator=(StringStream&&) -> StringStream& = default;
     virtual ~StringStream() = default;
 
     auto str() -> std::string;

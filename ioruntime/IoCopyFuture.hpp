@@ -43,7 +43,7 @@ public:
     IoCopyFuture operator=(IoCopyFuture&&) = delete;
 
 private:
-    uint8_t _buffer[64000];
+    uint8_t _buffer[4096];
     optional<span<uint8_t>> _span;
     size_t _bytes_written = 0;
     size_t _head = 0;
@@ -83,7 +83,7 @@ public:
     IoCopyFuture operator=(IoCopyFuture&&) = delete;
 
 private:
-    uint8_t _buffer[64000];
+    uint8_t _buffer[4096];
     optional<span<uint8_t>> _span;
     size_t _bytes_written = 0;
     size_t _head = 0;
@@ -122,7 +122,7 @@ public:
     IoCopyFuture operator=(IoCopyFuture&&) = delete;
 
 private:
-    uint8_t _buffer[64000];
+    uint8_t _buffer[4096];
     optional<span<uint8_t>> _span;
     size_t _bytes_written = 0;
     size_t _head = 0;
@@ -222,7 +222,7 @@ public:
     }
     IoCopyFuture operator=(IoCopyFuture&&) = delete;
 private:
-    uint8_t _buffer[64000];
+    uint8_t _buffer[4096];
     optional<span<uint8_t>> _span;
     size_t _bytes_written = 0;
     size_t _head = 0;

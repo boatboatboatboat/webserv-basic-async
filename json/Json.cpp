@@ -344,9 +344,9 @@ static inline string esc(char c)
 {
     char buf[12];
     if (static_cast<uint8_t>(c) >= 0x20 && static_cast<uint8_t>(c) <= 0x7f) {
-        snprintf(buf, sizeof buf, "'%c' (%d)", c, c);
+        std::snprintf(buf, sizeof buf, "'%c' (%d)", c, c);
     } else {
-        snprintf(buf, sizeof buf, "(%d)", c);
+        std::snprintf(buf, sizeof buf, "(%d)", c);
     }
     return string(buf);
 }
@@ -593,8 +593,8 @@ namespace {
 
             if (str[i] != '.' && str[i] != 'e' && str[i] != 'E'
                 && (i - start_pos) <= static_cast<size_t>(std::numeric_limits<int>::digits10)) {
-                // TODO: use strtol
-                return std::atoi(str.c_str() + start_pos);
+                auto num = utils::string_to_uint64_atoilike(str.c_str() + start_pos);
+                return int(*num);
             }
 
             // Decimal part

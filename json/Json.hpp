@@ -139,7 +139,6 @@ protected:
     virtual const Json& operator[](const std::string& key) const;
 
 public:
-    // FIXME: how even
     virtual ~JsonValue() = default;
 };
 }

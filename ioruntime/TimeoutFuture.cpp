@@ -11,7 +11,7 @@ class CombinedFunctor : public Functor {
 public:
     CombinedFunctor(Waker&& waker, SetReadyFunctor&& srf)
         : _waker(waker)
-        , _srf(srf)
+        , _srf(std::move(srf))
     {
     }
     void operator()() override

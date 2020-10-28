@@ -62,6 +62,8 @@ auto ResponseParser::inner_poll(Waker&& waker) -> ResponseParser::CallState
                         } else {
                             throw std::runtime_error("Unsupported version");
                         }
+                        _state = Status;
+                        _buffer.clear();
                         return Running;
                     }
                     _buffer.push_back(character);
@@ -78,11 +80,14 @@ auto ResponseParser::inner_poll(Waker&& waker) -> ResponseParser::CallState
                         auto ax = aa.substr(0, abcd);
                         auto code = utils::string_to_uint64(ax);
                         if (code.has_value()) {
-                            _builder.status(http::Status { static_cast<unsigned short>(*code), "ignored" });
+                            _builder.status(http::Status { static_cast<unsigned short>(*code), ":-)" });
+                            _buffer.clear();
+                            _state = Message;
                         } else {
                             throw std::runtime_error("Bad status code");
                         }
                     }
+                    _buffer.push_back(character);
                     return Running;
                 } break;
                 case Message: {
@@ -105,7 +110,14 @@ auto ResponseParser::inner_poll(Waker&& waker) -> ResponseParser::CallState
             }
         } break;
         case StreamPollResult<unsigned char>::Status::Finished: {
-            throw MessageParser::UnexpectedEof();
+            _reader.shift_back(0);
+            auto res = _message_parser->poll(move(waker));
+            if (res.is_pending()) {
+                return Pending;
+            } else {
+                _builder.message(move(res.get()));
+                return Completed;
+            }
         } break;
     }
     return Completed;

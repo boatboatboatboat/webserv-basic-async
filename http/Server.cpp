@@ -66,8 +66,6 @@ auto ServerBuilder::serve(RequestHandler request_handler) -> Server
     return server;
 }
 
-// lmao @ clang-format indenting
-// TODO: error handler for foreachfuture is not set
 Server::Server(IpAddress address, uint16_t port, ServerProperties props)
     : _listener(TcpListener(address, port)
                     .for_each<TcpListener>([props](TcpStream&& stream) {
@@ -138,9 +136,9 @@ auto Server::ConnectionFuture::poll(Waker&& waker) -> PollResult<void>
                 if (poll_result.is_ready()) {
                     // forward the request to the request handler
                     _request = move(poll_result.get());
-                    _response = _properties._request_handler(*_request, _stream.get_addr());
+                    _shr = _properties._request_handler(*_request, _stream.get_addr());
+                    _state = PollResponse;
                     // switch to respond mode
-                    switch_to_respond_mode();
                     return poll(move(waker));
                 }
                 auto timer_result = _timeout->poll(Waker(waker));
@@ -160,23 +158,23 @@ auto Server::ConnectionFuture::poll(Waker&& waker) -> PollResult<void>
                         throw;
                     } catch (MessageParser::UndeterminedLength const&) {
                         status = status::LENGTH_REQUIRED;
-                   // } catch (NewRequestParser::RequestUriExceededBuffer const&) {
-                     //   status = status::URI_TOO_LONG;
+                    } catch (RequestParser::UriExceededBuffer const&) {
+                        status = status::URI_TOO_LONG;
                     } catch (MessageParser::BodyExceededLimit const&) {
                         status = status::PAYLOAD_TOO_LARGE;
                     } catch (MessageParser::GenericExceededBuffer const&) {
                         status = status::REQUEST_HEADER_FIELDS_TOO_LARGE;
                     } catch (RequestParser::InvalidMethod const&) {
                         status = status::NOT_IMPLEMENTED;
-                    /*} catch (RequestParser::InvalidVersion const&) {
+                    } catch (RequestParser::UnsupportedVersion const&) {
                         status = status::VERSION_NOT_SUPPORTED;
-                    } catch (RequestParser::MalformedRequest const&) {
+                    } catch (MessageParser::MalformedMessage const&) {
                         status = status::BAD_REQUEST;
-                    } catch (RequestParser::UnexpectedEof const&) {
+                    } catch (MessageParser::UnexpectedEof const&) {
                         status = status::BAD_REQUEST;
-                    } catch (RequestParser::BadTransferEncoding const&) {
+                    } catch (MessageParser::BadTransferEncoding const&) {
                         status = status::NOT_IMPLEMENTED;
-                    */} catch (TimeoutError const&) {
+                    } catch (TimeoutError const&) {
                         status = status::REQUEST_TIMEOUT;
                         // this header is not required, but it's still nice to have
                         builder.header(header::CONNECTION, "close");
@@ -194,6 +192,7 @@ auto Server::ConnectionFuture::poll(Waker&& waker) -> PollResult<void>
 
                     builder
                         .status(status)
+                        .header(http::header::CONNECTION, "close")
                         .body(_properties._error_page_handler(status));
                     _response = move(builder).build();
                     switch_to_respond_mode();
@@ -203,6 +202,15 @@ auto Server::ConnectionFuture::poll(Waker&& waker) -> PollResult<void>
                     return PollResult<void>::ready();
                 }
             }
+        } break;
+        case PollResponse: {
+            auto pr = _shr->poll(Waker(waker));
+            if (pr.is_ready()) {
+                _response = move(pr.get());
+                switch_to_respond_mode();
+                return poll(move(waker));
+            }
+            return PollResult<void>::pending();
         } break;
         case Respond: {
             try {
@@ -244,12 +252,14 @@ auto Server::ConnectionFuture::poll(Waker&& waker) -> PollResult<void>
                             status = status::BAD_GATEWAY;
                         } catch (TimeoutError const&) {
                             status = status::GATEWAY_TIMEOUT;
-                        } catch (...) {
+                        } catch (std::exception const& e) {
+                            WARNPRINT("Unknown exception: " << e.what());
                             // status is already set to INTERNAL_SERVER_ERROR
                         }
                         auto builder = OutgoingResponseBuilder();
                         builder
                             .status(status)
+                            .header(http::header::CONNECTION, "close")
                             .body(_properties._error_page_handler(status));
                         _response = move(builder).build();
                         switch_to_respond_mode();

@@ -17,7 +17,7 @@ public:
     // force reconstruction
     CharacterStream(CharacterStream const&) = delete;
     auto operator=(CharacterStream const&) -> CharacterStream& = delete;
-    CharacterStream(CharacterStream&&) noexcept = delete;
+    CharacterStream(CharacterStream&&) noexcept = default;
     auto operator=(CharacterStream&&) noexcept -> CharacterStream&& = delete;
 
     auto poll_next(Waker&& waker) -> futures::StreamPollResult<uint8_t> override;
@@ -29,6 +29,7 @@ private:
     size_t _head = 0;
     size_t _max = 0;
     bool _exhausted = true;
+    bool _finished = false;
     option::optional<uint8_t> _last_char;
 };
 

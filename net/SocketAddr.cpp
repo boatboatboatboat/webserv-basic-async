@@ -3,6 +3,7 @@
 //
 
 #include "SocketAddr.hpp"
+#include "../utils/utils.hpp"
 #include <iostream>
 
 namespace net {
@@ -59,9 +60,22 @@ auto SocketAddr::get_v6() const -> in6_addr
     return addr_v6.sin6_addr;
 }
 
+SocketAddr::SocketAddr(sockaddr addr)
+{
+    if (addr.sa_family == AF_INET) {
+        tag = IpV4;
+        addr_v4 = reinterpret_cast<sockaddr_in&>(addr);
+    } else if (addr.sa_family == AF_INET6) {
+        tag = IpV6;
+        addr_v6 = reinterpret_cast<sockaddr_in6&>(addr);
+    } else {
+        throw std::logic_error("SocketAddr: non-internet socket");
+    }
 }
 
-auto operator<<(std::ostream& os, const net::SocketAddr& sa) -> std::ostream&
+}
+
+auto operator<<(utils::StringStream& os, const net::SocketAddr& sa) -> utils::StringStream&
 {
     if (sa.is_v4()) {
         uint32_t ip_raw = sa.get_v4();
@@ -80,7 +94,7 @@ auto operator<<(std::ostream& os, const net::SocketAddr& sa) -> std::ostream&
     } else if (sa.is_v6()) {
         in6_addr ip_raw = sa.get_v6();
         auto* ip = reinterpret_cast<uint16_t*>(&ip_raw);
-        os << "[" << std::hex;
+        os << "[";
         size_t idx = 0;
         bool pdouble = false;
         while (idx < 8) {
@@ -94,7 +108,7 @@ auto operator<<(std::ostream& os, const net::SocketAddr& sa) -> std::ostream&
                 pdouble = false;
                 continue;
             } else {
-                os << __builtin_bswap16(ip[idx]);
+                os << utils::uint64_to_hexstring(__builtin_bswap16(ip[idx]));
             }
             if (idx < 7) {
                 pdouble = true;
@@ -103,7 +117,6 @@ auto operator<<(std::ostream& os, const net::SocketAddr& sa) -> std::ostream&
             idx += 1;
         }
         os << "]:" << std::to_string(sa.get_port());
-        os << std::dec;
     }
     return os;
 }

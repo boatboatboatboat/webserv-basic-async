@@ -85,7 +85,6 @@ MutexGuard<T>::MutexGuard(Mutex<T>& mutex, const char* fin, int line, const char
     std::stringstream fuck;
     pid_t tid = syscall(SYS_gettid);
     fuck << "LockAcq: " << &mutex.get_inner_mutex() << " from " << tid;
-    //        DBGPRINT(fuck.str());
 
     int res = pthread_mutex_lock(&mutex.get_inner_mutex());
     if (res) {

@@ -6,6 +6,7 @@
 #define WEBSERV_HTTP_URI_HPP
 
 #include "../option/optional.hpp"
+#include "../utils/StringStream.hpp"
 #include <algorithm>
 #include <string>
 
@@ -39,6 +40,7 @@ public:
     [[nodiscard]] auto is_none() const -> bool;
     [[nodiscard]] auto is_custom() const -> bool;
     [[nodiscard]] auto get() const -> string_view;
+
 private:
     enum SchemeType {
         None,
@@ -63,6 +65,7 @@ public:
     [[nodiscard]] auto get_userinfo() const -> optional<string> const&;
     [[nodiscard]] auto get_host() const -> string const&;
     [[nodiscard]] auto get_port() const -> optional<uint16_t>;
+
 private:
     optional<string> _userinfo;
     string _host;
@@ -81,6 +84,7 @@ public:
     [[nodiscard]] auto get_path_escaped() const -> optional<string_view>;
     [[nodiscard]] auto get_query() const -> optional<string_view>;
     [[nodiscard]] auto get_fragment() const -> optional<string_view>;
+
 private:
     struct Path {
         string _escaped;
@@ -109,12 +113,17 @@ public:
     };
 
     Uri() = delete;
+    Uri(Uri&&) noexcept = default;
+    Uri(Uri const&) = default;
+    auto operator=(Uri&&) noexcept -> Uri& = default;
+    auto operator=(Uri const&) -> Uri& = default;
     explicit Uri(string_view str);
 
     [[nodiscard]] auto get_target_form() const -> RequestTargetForm;
     [[nodiscard]] auto get_scheme() const -> optional<Scheme> const&;
     [[nodiscard]] auto get_authority() const -> optional<Authority> const&;
     [[nodiscard]] auto get_pqf() const -> optional<PathQueryFragment> const&;
+
 private:
     RequestTargetForm _target_form;
     optional<Scheme> _scheme = option::nullopt;
@@ -122,6 +131,59 @@ private:
     optional<PathQueryFragment> _pqf = option::nullopt;
 };
 
+}
+
+inline auto operator<<(utils::StringStream& stream, http::Uri const& uri) -> utils::StringStream&
+{
+    switch (uri.get_target_form()) {
+        case http::Uri::OriginForm: {
+            auto const& pqf = uri.get_pqf();
+            stream << *pqf->get_path();
+            if (pqf->get_query().has_value()) {
+                stream << "?" << *pqf->get_query();
+            }
+            if (pqf->get_fragment().has_value()) {
+                stream << "#" << *pqf->get_fragment();
+            }
+        } break;
+        case http::Uri::AbsoluteForm: {
+            auto const& scheme = *uri.get_scheme();
+            auto const& authority = *uri.get_authority();
+            auto const& pqf = *uri.get_pqf();
+            stream << scheme.get() << "://";
+            if (authority.get_userinfo().has_value()) {
+                stream << *authority.get_userinfo() << "@";
+            }
+            stream << authority.get_host();
+            if (authority.get_port().has_value()) {
+                stream << ":" << *authority.get_port();
+            }
+            stream << *pqf.get_path();
+            if (pqf.get_query().has_value()) {
+                stream << *pqf.get_query();
+            }
+            if (pqf.get_fragment().has_value()) {
+                stream << *pqf.get_fragment();
+            }
+        } break;
+        case http::Uri::AuthorityForm: {
+            auto const& authority = *uri.get_authority();
+            if (authority.get_userinfo().has_value()) {
+                stream << *authority.get_userinfo() << "@";
+            }
+            stream << authority.get_host();
+            if (authority.get_port().has_value()) {
+                stream << ":" << *authority.get_port();
+            }
+        } break;
+        case http::Uri::AsteriskForm: {
+            stream << "*";
+        } break;
+        default: {
+            throw std::logic_error("unreachable uri target form");
+        } break;
+    }
+    return stream;
 }
 
 #endif //WEBSERV_HTTP_URI_HPP

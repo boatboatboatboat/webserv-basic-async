@@ -87,16 +87,15 @@ void PooledExecutor::respawn(RcPtr<Task>&& future)
     }
 }
 
-bool PooledExecutor::step()
+auto PooledExecutor::step() -> bool
 {
     auto tasks_running = tasks_running_mutex.lock();
 
-    // fixme: worker threads can outlive the executor
     return *tasks_running > 0;
 }
 
-[[noreturn]] void*
-PooledExecutor::worker_thread_function(WorkerMessage* message)
+[[noreturn]] auto
+PooledExecutor::worker_thread_function(WorkerMessage* message) -> void*
 {
     for (;;) {
         // usleep(0) hints the cpu to halt
@@ -125,7 +124,25 @@ PooledExecutor::worker_thread_function(WorkerMessage* message)
         }
 
         if (task_found) {
+            BoxPtr<IFuture<void>> future_slot(nullptr);
+
             try {
+                auto waker = Waker(RcPtr(task));
+
+                if (task->consume(future_slot)) {
+                    auto result = future_slot->poll(std::move(waker));
+                    if (result.is_pending()) {
+                        task->deconsume(std::move(future_slot));
+                    } else {
+                        auto tasks_running = message->tasks_running_mutex->lock();
+                        *tasks_running -= 1;
+                    }
+                }
+            } catch (std::exception const& e) {
+                WARNPRINT("Poll error: " << e.what());
+            }
+            /*
+             * try {
                 BoxPtr<IFuture<void>> future_slot(nullptr);
                 auto waker = Waker(RcPtr(task));
 
@@ -150,12 +167,12 @@ PooledExecutor::worker_thread_function(WorkerMessage* message)
             } catch (std::exception& e) {
                 WARNPRINT("Poll failed: " << e.what());
                 throw std::runtime_error("Poll failed - exiting to prevent spin");
-            }
+            } */
         }
     }
 }
 
-bool PooledExecutor::steal_task(WorkerMessage* message, RcPtr<Task>& task)
+auto PooledExecutor::steal_task(WorkerMessage* message, RcPtr<Task>& task) -> bool
 {
     int other_id = 0;
     for (auto& other_queue_mutex : *(message->queues)) {

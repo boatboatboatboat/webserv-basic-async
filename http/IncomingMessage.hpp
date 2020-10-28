@@ -41,11 +41,11 @@ public:
     auto operator=(IncomingMessageBuilder const&) noexcept -> IncomingMessageBuilder& = delete;
     virtual ~IncomingMessageBuilder() = default;
 
-    auto header(HeaderName, HeaderValue) -> IncomingMessageBuilder&;
+    auto header(HeaderName&&, HeaderValue&&) -> IncomingMessageBuilder&;
     auto headers(Headers&&) -> IncomingMessageBuilder&;
     auto body(IncomingBody&&) -> IncomingMessageBuilder&;
 
-    auto build() && -> IncomingMessage;
+    [[nodiscard]] auto build() && -> IncomingMessage;
 
 private:
     Headers _headers;

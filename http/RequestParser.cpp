@@ -72,7 +72,13 @@ auto RequestParser::poll(Waker&& waker) -> PollResult<IncomingRequest>
     if (call_state == Pending) {
         return PollResult<IncomingRequest>::pending();
     } else {
-        return PollResult<IncomingRequest>::ready(move(_builder).build());
+        auto req = move(_builder).build();
+        if (req.get_version().version_string == http::version::v1_1.version_string) {
+            if (!req.get_message().get_header(http::header::HOST).has_value()) {
+                throw MessageParser::MalformedMessage();
+            }
+        }
+        return PollResult<IncomingRequest>::ready(move(req));
     }
 }
 

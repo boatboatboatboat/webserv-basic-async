@@ -20,6 +20,8 @@ public:
     explicit FileDescriptor(int fd);
     FileDescriptor(FileDescriptor&& other) noexcept;
     auto operator=(FileDescriptor&& other) noexcept -> FileDescriptor&;
+    FileDescriptor(FileDescriptor const&) = delete;
+    auto operator=(FileDescriptor const&) -> FileDescriptor& = delete;
     ~FileDescriptor() override;
     virtual auto read(void* buffer, size_t size) -> ssize_t;
     virtual auto write(void const* buffer, size_t size) -> ssize_t;
@@ -32,6 +34,7 @@ public:
 
 protected:
     int descriptor;
+    bool failed_once = false;
     RcPtr<Mutex<bool>> ready_to_read = RcPtr(Mutex(false));
     RcPtr<Mutex<bool>> ready_to_write = RcPtr(Mutex(false));
 

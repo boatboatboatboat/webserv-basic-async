@@ -24,8 +24,7 @@ net::Ipv4Address::Ipv4Address(string_view str)
     uint8_t c = 0;
     bool ns = false;
     for (auto chr : str) {
-        // fixme: isdigit
-        if (isdigit(chr)) {
+        if (http::parser_utils::is_digit(chr)) {
             ns = true;
             uint8_t n = chr - '0';
             c = c * 10 + n;

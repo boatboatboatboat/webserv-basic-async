@@ -5,6 +5,7 @@
 #ifndef WEBSERV_IORUNTIME_SOCKETADDR_HPP
 #define WEBSERV_IORUNTIME_SOCKETADDR_HPP
 
+#include "../utils/StringStream.hpp"
 #include <netinet/in.h>
 #include <string>
 
@@ -12,6 +13,7 @@ namespace net {
 
 class SocketAddr {
 public:
+    explicit SocketAddr(sockaddr addr);
     explicit SocketAddr(sockaddr_in addr);
     explicit SocketAddr(sockaddr_in6 addr);
     [[nodiscard]] auto get_v4() const -> uint32_t;
@@ -34,6 +36,6 @@ private:
 };
 }
 
-auto operator<<(std::ostream& os, const net::SocketAddr& sa) -> std::ostream&;
+auto operator<<(utils::StringStream& os, const net::SocketAddr& sa) -> utils::StringStream&;
 
 #endif //WEBSERV_IORUNTIME_SOCKETADDR_HPP

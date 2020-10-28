@@ -19,6 +19,8 @@ public:
     OutgoingBody() = delete;
     OutgoingBody(OutgoingBody&&) noexcept;
     auto operator=(OutgoingBody&&) noexcept -> OutgoingBody&;
+    OutgoingBody(OutgoingBody const&) = delete;
+    auto operator=(OutgoingBody const&) -> OutgoingBody& = delete;
     ~OutgoingBody() override;
 
     // ctors

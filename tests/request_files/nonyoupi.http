@@ -1,0 +1,4 @@
+POST http://localhost:1234/put_test/balls
+Transfer-Encoding: chunked
+
+< /dev/null

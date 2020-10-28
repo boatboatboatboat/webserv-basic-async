@@ -15,6 +15,7 @@
 #include "http/FutureSeReader.hpp"
 #include "http/IncomingRequest.hpp"
 #include "http/OutgoingResponse.hpp"
+#include "http/Proxy.hpp"
 #include "http/Server.hpp"
 #include "ioruntime/FdStringReadFuture.hpp"
 #include "langmod/ESLanguage.hpp"
@@ -61,6 +62,7 @@ auto base_config_from_json(json::Json const& config) -> BaseConfig
     optional<AuthConfig> config_auth;
     optional<UploadConfig> config_upload;
     optional<vector<string>> config_modules;
+    optional<tuple<IpAddress, uint16_t>> config_proxy;
 
     // set root field
     {
@@ -285,6 +287,50 @@ auto base_config_from_json(json::Json const& config) -> BaseConfig
         }
     }
 
+    {
+        auto proxy_key = config[CONFIG_KEY_PROXY.data()];
+        if (proxy_key.is_string()) {
+            auto combo = proxy_key.string_value();
+            std::string_view ip;
+            bool port_found = false;
+
+            if (combo.starts_with("[")) {
+                if (combo.find("]:") != std::string::npos) {
+                    ip = std::string_view(combo.data() + 1, combo.find("]:") - 1);
+                    port_found = true;
+                } else if (combo.find("]") != std::string::npos) {
+                    ip = std::string_view(combo.data() + 1, combo.size() - 2);
+                } else {
+                    throw std::runtime_error("proxy bad format ip");
+                }
+            } else {
+                if (combo.find(':') != std::string::npos) {
+                    ip = std::string_view(combo.data(), combo.find(':'));
+                    port_found = true;
+                } else {
+                    ip = combo;
+                }
+            }
+
+            auto address = IpAddress::from_str(ip);
+            uint64_t port = 80;
+
+            if (port_found) {
+                auto port_str = std::string_view(combo.data() + combo.rfind(':') + 1, combo.length() - combo.rfind(':') - 1);
+
+                auto port_opt = utils::string_to_uint64(port_str);
+
+                if (!port_opt.has_value() || *port_opt > UINT16_MAX)
+                    throw std::runtime_error("proxy item port is zero or out of unsigned 16-bit range");
+                port = *port_opt;
+            }
+            TRACEPRINT("parse ip, port: (" << address << ", " << *port << ")");
+            config_proxy = tuple { address, port };
+        } else if (!proxy_key.is_null()) {
+            throw std::runtime_error("proxy is not a string");
+        }
+    }
+
     return BaseConfig(
         move(config_root),
         move(config_index_pages),
@@ -295,7 +341,8 @@ auto base_config_from_json(json::Json const& config) -> BaseConfig
         move(config_auth),
         move(config_upload),
         move(body_limit),
-        move(config_modules));
+        move(config_modules),
+        move(config_proxy));
 }
 
 auto recursive_locations(json::Json const& cfg) -> optional<table<Regex, LocationConfig>>
@@ -573,7 +620,6 @@ auto match_location(LocationConfig const& cfg, http::IncomingRequest& req) -> op
 
 auto match_base_config(IpAddress const& addr, unsigned short port, RootConfig const& rcfg, http::IncomingRequest& req) -> tuple<BaseConfig, string>
 {
-    // FIXME: this could be a lot cleaner
     auto host = req.get_message().get_header(http::header::HOST).value_or("");
 
     auto const& hcfg = rcfg.get_http_config();
@@ -598,6 +644,7 @@ auto match_base_config(IpAddress const& addr, unsigned short port, RootConfig co
     optional<UploadConfig> upcfg;
     optional<size_t> body_limit;
     optional<vector<string>> modules;
+    optional<tuple<IpAddress, uint16_t>> proxy;
 
     if (lcfg_o.has_value()) {
         auto& [lcfg_v, lcfg_p] = *lcfg_o;
@@ -636,6 +683,9 @@ auto match_base_config(IpAddress const& addr, unsigned short port, RootConfig co
             if (!modules.has_value() && lcfg->get_modules().has_value()) {
                 modules = lcfg->get_modules();
             }
+            if (!proxy.has_value() && lcfg->get_proxy().has_value()) {
+                proxy = lcfg->get_proxy();
+            }
         }
     }
 
@@ -670,6 +720,9 @@ auto match_base_config(IpAddress const& addr, unsigned short port, RootConfig co
     if (!modules.has_value() && scfg.get_modules().has_value()) {
         modules = scfg.get_modules();
     }
+    if (!proxy.has_value() && scfg.get_proxy().has_value()) {
+        proxy = scfg.get_proxy();
+    }
     // HCFG
     if (!root.has_value() && hcfg.get_root().has_value()) {
         root = hcfg.get_root();
@@ -701,6 +754,9 @@ auto match_base_config(IpAddress const& addr, unsigned short port, RootConfig co
     if (!modules.has_value() && hcfg.get_modules().has_value()) {
         modules = hcfg.get_modules();
     }
+    if (!proxy.has_value() && hcfg.get_proxy().has_value()) {
+        proxy = hcfg.get_proxy();
+    }
     return tuple {
         BaseConfig(
             move(root),
@@ -712,7 +768,8 @@ auto match_base_config(IpAddress const& addr, unsigned short port, RootConfig co
             move(authcfg),
             move(upcfg),
             move(body_limit),
-            move(modules)),
+            move(modules),
+            move(proxy)),
         string(matched_path)
     };
 }
@@ -917,9 +974,9 @@ inline void check_authorization(http::IncomingRequest const& req, BaseConfig con
     throw HandlerStatusError(exit_reason, move(www_auth));
 }
 
-inline auto is_proxy_request(BaseConfig const& bcfg) -> bool {
-    (void)bcfg;
-    return false;
+inline auto is_proxy_request(BaseConfig const& bcfg) -> bool
+{
+    return bcfg.get_proxy().has_value();
 }
 
 auto main(int argc, const char** argv) -> int
@@ -963,171 +1020,173 @@ auto main(int argc, const char** argv) -> int
                 auto const& [address, port] = bind_address;
                 auto service =
                     [&cfg = std::as_const(cfg), server_address = address, server_port = port](
-                        http::IncomingRequest& req, net::SocketAddr const& socket_addr) {
-                        if (req.get_version().version_string != http::version::v1_1.version_string) {
-                            // we're http/1.1, we don't care about the other ones
-                            throw HandlerStatusError(http::status::VERSION_NOT_SUPPORTED);
-                        }
-                        auto const& message = req.get_message();
-                        auto const& host = *message.get_header(http::header::HOST);
-                        auto const& method = req.get_method();
-                        auto const& uri = req.get_uri();
-                        auto const& pqf = uri.get_pqf();
-                        auto& body = req.get_message().get_body();
+                        http::IncomingRequest& req, net::SocketAddr const& socket_addr)
+                    -> http::ServerHandlerResponse {
+                    if (req.get_version().version_string != http::version::v1_1.version_string) {
+                        // we're http/1.1, we don't care about the other ones
+                        throw HandlerStatusError(http::status::VERSION_NOT_SUPPORTED);
+                    }
+                    auto const& message = req.get_message();
+                    auto host = *message.get_header(http::header::HOST);
+                    auto const& method = req.get_method();
+                    auto const& uri = req.get_uri();
+                    auto const& pqf = uri.get_pqf();
+                    auto& body = req.get_message().get_body();
 
-                        string_view path = "/";
-                        if (pqf.has_value()) {
-                            path = pqf->get_path_escaped().value_or("/");
-                        }
-                        string hv_location(path);
-                        string hv_content_location(path);
+                    string_view path = "/";
+                    if (pqf.has_value()) {
+                        path = pqf->get_path_escaped().value_or("/");
+                    }
+                    string hv_location(path);
+                    string hv_content_location(path);
 
-                        auto builder = OutgoingResponseBuilder();
-                        builder
-                            .status(http::status::OK)
-                            .header(http::header::CONNECTION, "close");
-                        const auto [bcfg, matched_path] = match_base_config(server_address, server_port, cfg, req);
-                        // check if authorized
-                        check_authorization(req, bcfg);
-                        // set allow header
-                        check_method_and_set_allow(bcfg, method, builder);
-                        // set software name header
-                        builder
-                            .header(http::header::SERVER, string(SERVER_SOFTWARE_NAME))
-                            .header(http::header::DATE, utils::get_http_date_now());
-                        // check "inner" body limit
-                        check_inner_body_limit(body, bcfg);
-                        if (is_proxy_request(bcfg)) {
-
-                        } else
-                        if (is_request_upload(method, bcfg)) {
-                            if (try_download(builder, path, matched_path, body, bcfg)) {
-                                return move(builder).build();
-                            } else {
-                                throw fs::FileNotFound();
-                            }
+                    auto builder = OutgoingResponseBuilder();
+                    builder
+                        .status(http::status::OK)
+                        .header(http::header::CONNECTION, "close");
+                    const auto [bcfg, matched_path] = match_base_config(server_address, server_port, cfg, req);
+                    // check if authorized
+                    check_authorization(req, bcfg);
+                    // set allow header
+                    check_method_and_set_allow(bcfg, method, builder);
+                    // set software name header
+                    builder
+                        .header(http::header::SERVER, string(SERVER_SOFTWARE_NAME))
+                        .header(http::header::DATE, utils::get_http_date_now());
+                    // check "inner" body limit
+                    check_inner_body_limit(body, bcfg);
+                    if (is_proxy_request(bcfg)) {
+                        const auto& [proxy_address, proxy_port] = *bcfg.get_proxy();
+                        auto connection = TcpStream(proxy_address, proxy_port);
+                        return http::Proxy(move(connection), move(req));
+                    } else if (is_request_upload(method, bcfg)) {
+                        if (try_download(builder, path, matched_path, body, bcfg)) {
+                            return move(builder).build();
                         } else {
-                            // Find and serve files
-                            auto auto_index = bcfg.get_autoindex().value_or(false);
-                            auto const& root = bcfg.get_root();
+                            throw fs::FileNotFound();
+                        }
+                    } else {
+                        // Find and serve files
+                        auto auto_index = bcfg.get_autoindex().value_or(false);
+                        auto const& root = bcfg.get_root();
 
-                            if (!root.has_value()) {
-                                throw fs::FileNotFound();
+                        if (!root.has_value()) {
+                            throw fs::FileNotFound();
+                        }
+
+                        auto search_path = string(*root);
+                        auto root_path_info = fs::Path::no_traversal(*root);
+
+                        if (!root_path_info.exists()) {
+                            throw fs::FileNotFound();
+                        } else if (root_path_info.is_directory()) {
+                            if (!search_path.ends_with('/')) {
+                                search_path += '/';
                             }
+                        }
+                        search_path.append(matched_path);
 
-                            auto search_path = string(*root);
-                            auto root_path_info = fs::Path::no_traversal(*root);
-
-                            if (!root_path_info.exists()) {
-                                throw fs::FileNotFound();
-                            } else if (root_path_info.is_directory()) {
+                        auto search_path_info = fs::Path::no_traversal(search_path);
+                        if (!search_path_info.exists()) {
+                            throw fs::FileNotFound();
+                        } else if (search_path_info.is_directory()) {
+                            if (auto_index) {
+                                auto directory = BoxPtr<DirectoryReader>::make(search_path, path);
+                                return move(builder
+                                                .header(http::header::CONTENT_ENCODING, "text/html")
+                                                .header(http::header::LOCATION, string(path))
+                                                .header(http::header::LAST_MODIFIED, utils::get_http_date(*search_path_info.get_last_modification_time()))
+                                                .body(move(directory)))
+                                    .build();
+                            } else {
                                 if (!search_path.ends_with('/')) {
                                     search_path += '/';
                                 }
-                            }
-                            search_path.append(matched_path);
-
-                            auto search_path_info = fs::Path::no_traversal(search_path);
-                            if (!search_path_info.exists()) {
-                                throw fs::FileNotFound();
-                            } else if (search_path_info.is_directory()) {
-                                if (auto_index) {
-                                    auto directory = BoxPtr<DirectoryReader>::make(search_path, path);
-                                    return move(builder
-                                                    .header(http::header::CONTENT_ENCODING, "text/html")
-                                                    .header(http::header::LOCATION, string(path))
-                                                    .header(http::header::LAST_MODIFIED, utils::get_http_date(*search_path_info.get_last_modification_time()))
-                                                    .body(move(directory)))
-                                        .build();
-                                } else {
-                                    if (!search_path.ends_with('/')) {
-                                        search_path += '/';
-                                    }
-                                    if (!hv_content_location.ends_with('/')) {
-                                        hv_content_location += '/';
-                                    }
-                                    // find first matching index
-                                    auto index_pages = bcfg.get_index_pages();
-                                    bool matched = false;
-                                    if (index_pages.has_value()) {
-                                        for (auto const& filename : *index_pages) {
-                                            auto file_path = search_path + filename;
-                                            auto index_path_info = fs::Path::path(file_path);
-                                            if (index_path_info.exists() && index_path_info.is_file()) {
-                                                matched = true;
-                                                search_path = move(file_path);
-                                                hv_content_location += filename;
-                                                break;
-                                            }
+                                if (!hv_content_location.ends_with('/')) {
+                                    hv_content_location += '/';
+                                }
+                                // find first matching index
+                                auto index_pages = bcfg.get_index_pages();
+                                bool matched = false;
+                                if (index_pages.has_value()) {
+                                    for (auto const& filename : *index_pages) {
+                                        auto file_path = search_path + filename;
+                                        auto index_path_info = fs::Path::path(file_path);
+                                        if (index_path_info.exists() && index_path_info.is_file()) {
+                                            matched = true;
+                                            search_path = move(file_path);
+                                            hv_content_location += filename;
+                                            break;
                                         }
                                     }
-                                    if (!matched) {
-                                        throw fs::FileNotFound();
-                                    }
+                                }
+                                if (!matched) {
+                                    throw fs::FileNotFound();
                                 }
                             }
-
-                            auto fhost = std::string_view(host);
-                            {
-                                auto sc = host.find(':');
-                                if (host.find(':') != std::string::npos) {
-                                    fhost = std::string_view(host.data(), sc);
-                                }
-                            }
-                            auto is_cgi_enabled = bcfg.get_use_cgi().value_or(false);
-                            auto const& modules = bcfg.get_modules();
-                            auto module_response = false;
-                            if (modules.has_value() && !modules->empty()) {
-                                // completely "dynamic" modules
-                                for (auto const& module : *modules) {
-                                    if (module_response) {
-                                        // do nothing - response has already been set
-                                    } else if (module == "lua") {
-                                        cgi::CgiServerForwardInfo csfi {
-                                            .sockaddr = socket_addr,
-                                            .server_name = fhost,
-                                            .server_port = server_port,
-                                        };
-                                        builder.cgi(cgi::Cgi(search_path, move(req), move(csfi), langmod::LuaLanguage()));
-                                        module_response = true; // :-)
-                                    } else if (module == "es") {
-                                        cgi::CgiServerForwardInfo csfi {
-                                            .sockaddr = socket_addr,
-                                            .server_name = fhost,
-                                            .server_port = server_port,
-                                        };
-                                        builder.cgi(cgi::Cgi(search_path, move(req), move(csfi), langmod::ESLanguage()));
-                                        module_response = true; // :-)
-                                    }
-                                }
-                            }
-                            if (module_response) {
-                                // do nothing - response has already been set
-                            } else if (is_cgi_enabled) {
-                                cgi::CgiServerForwardInfo csfi {
-                                    .sockaddr = socket_addr,
-                                    .server_name = fhost,
-                                    .server_port = server_port,
-                                };
-                                builder.cgi(cgi::Cgi(search_path, move(req), move(csfi)));
-                            } else {
-                                auto file_info = fs::Path::no_traversal(search_path);
-                                auto const& file_ext = file_info.get_extension();
-                                if (file_ext.has_value()) {
-                                    auto mime_type = constants::get_mime_type(*file_ext);
-                                    builder.header(http::header::CONTENT_TYPE, string(mime_type))
-                                        .header(http::header::CONTENT_LOCATION, hv_content_location)
-                                        .header(http::header::LAST_MODIFIED, utils::get_http_date(*file_info.get_last_modification_time()))
-                                        .header(http::header::LOCATION, hv_location);
-                                }
-                                auto file = BoxPtr(fs::File::open_no_traversal(search_path));
-                                auto file_size = file->size();
-                                builder.body(move(file), file_size);
-                            }
-                            return move(builder).build();
                         }
-                        throw fs::FileNotFound();
-                    };
+
+                        auto fhost = std::string_view(host);
+                        {
+                            auto sc = host.find(':');
+                            if (host.find(':') != std::string::npos) {
+                                fhost = std::string_view(host.data(), sc);
+                            }
+                        }
+                        auto is_cgi_enabled = bcfg.get_use_cgi().value_or(false);
+                        auto const& modules = bcfg.get_modules();
+                        auto module_response = false;
+                        if (modules.has_value() && !modules->empty()) {
+                            // completely "dynamic" modules
+                            for (auto const& module : *modules) {
+                                if (module_response) {
+                                    // do nothing - response has already been set
+                                } else if (module == "lua") {
+                                    cgi::CgiServerForwardInfo csfi {
+                                        .sockaddr = socket_addr,
+                                        .server_name = fhost,
+                                        .server_port = server_port,
+                                    };
+                                    builder.cgi(cgi::Cgi(search_path, move(req), move(csfi), langmod::LuaLanguage()));
+                                    module_response = true; // :-)
+                                } else if (module == "es") {
+                                    cgi::CgiServerForwardInfo csfi {
+                                        .sockaddr = socket_addr,
+                                        .server_name = fhost,
+                                        .server_port = server_port,
+                                    };
+                                    builder.cgi(cgi::Cgi(search_path, move(req), move(csfi), langmod::ESLanguage()));
+                                    module_response = true; // :-)
+                                }
+                            }
+                        }
+                        if (module_response) {
+                            // do nothing - response has already been set
+                        } else if (is_cgi_enabled) {
+                            cgi::CgiServerForwardInfo csfi {
+                                .sockaddr = socket_addr,
+                                .server_name = fhost,
+                                .server_port = server_port,
+                            };
+                            builder.cgi(cgi::Cgi(search_path, move(req), move(csfi)));
+                        } else {
+                            auto file_info = fs::Path::no_traversal(search_path);
+                            auto const& file_ext = file_info.get_extension();
+                            if (file_ext.has_value()) {
+                                auto mime_type = constants::get_mime_type(*file_ext);
+                                builder.header(http::header::CONTENT_TYPE, string(mime_type))
+                                    .header(http::header::CONTENT_LOCATION, hv_content_location)
+                                    .header(http::header::LAST_MODIFIED, utils::get_http_date(*file_info.get_last_modification_time()))
+                                    .header(http::header::LOCATION, hv_location);
+                            }
+                            auto file = BoxPtr(fs::File::open_no_traversal(search_path));
+                            auto file_size = file->size();
+                            builder.body(move(file), file_size);
+                        }
+                        return move(builder).build();
+                    }
+                    throw fs::FileNotFound();
+                };
                 auto error_page_handler = [&cfg = std::as_const(cfg)](http::Status const& status) {
                     auto const& pages = cfg.get_http_config().get_error_pages();
                     if (pages.has_value()) {

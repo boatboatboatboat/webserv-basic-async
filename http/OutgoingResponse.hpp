@@ -11,6 +11,7 @@
 #include "DefaultPageReader.hpp"
 #include "Header.hpp"
 #include "IncomingRequest.hpp"
+#include "MessageReader.hpp"
 #include "OutgoingBody.hpp"
 #include "RfcConstants.hpp"
 #include "Status.hpp"
@@ -19,18 +20,6 @@
 #include <string>
 
 using cgi::Cgi;
-
-// Get the max size of the buffer to store a chunked transfer size in
-static inline constexpr auto get_max_num_size(size_t s) -> size_t
-{
-    // gets the length of a number in hex notation, + 1
-    size_t n = 0;
-    do {
-        n += 1;
-        s /= 16;
-    } while (s);
-    return n + 1;
-}
 
 namespace http {
 
@@ -46,24 +35,24 @@ public:
     auto body(BoxPtr<ioruntime::IAsyncRead>&& body) -> OutgoingResponseBuilder&;
     auto body(BoxPtr<ioruntime::IAsyncRead>&& body, size_t content_length) -> OutgoingResponseBuilder&;
     auto cgi(Cgi&& proc) -> OutgoingResponseBuilder&;
-    auto build() -> OutgoingResponse;
+    [[nodiscard]] auto build() && -> OutgoingResponse;
 
 private:
-    optional<Headers> _headers;
     Version _version = version::v1_1;
     optional<Status> _status;
-    optional<OutgoingBody> _body;
-    optional<Cgi> _cgi = option::nullopt;
+    OutgoingMessageBuilder _message;
 };
 
 class OutgoingResponse final {
 public:
     // ctors/dtors
     OutgoingResponse() = delete;
-    OutgoingResponse(optional<Headers>&& headers, Version version, Status status, optional<OutgoingBody>&& body);
+    OutgoingResponse(Version version, Status status, OutgoingMessage&& message);
     ~OutgoingResponse() = default;
     OutgoingResponse(OutgoingResponse&&) noexcept = default;
     auto operator=(OutgoingResponse&&) noexcept -> OutgoingResponse& = default;
+    OutgoingResponse(OutgoingResponse const&) = delete;
+    auto operator=(OutgoingResponse const&) -> OutgoingResponse& = delete;
 
     // getter methods
     [[nodiscard]] auto get_headers() const -> Headers const&;
@@ -72,34 +61,37 @@ public:
     [[nodiscard]] auto get_status() const -> Status const&;
     [[nodiscard]] auto get_body() const -> optional<OutgoingBody> const&;
     [[nodiscard]] auto get_body() -> optional<OutgoingBody>&;
+    [[nodiscard]] auto get_message() -> OutgoingMessage&;
+    [[nodiscard]] auto get_message() const -> OutgoingMessage const&;
 
     void drop_body();
 
 private:
-    // FIXME: Proxy-based requests don't have a 'set' header like this
-    Headers _headers;
     Version _version;
     Status _status;
-    optional<OutgoingBody> _body;
+    OutgoingMessage _message;
 };
 
 class ResponseReader final : public IAsyncRead {
 public:
     ResponseReader() = delete;
     ResponseReader(ResponseReader&&) noexcept;
-    auto operator=(ResponseReader&&) noexcept -> ResponseReader&;
-    explicit ResponseReader(OutgoingResponse& response);
+    auto operator=(ResponseReader&&) noexcept -> ResponseReader& = delete;
+    ResponseReader(ResponseReader const&) = delete;
+    auto operator=(ResponseReader const&) -> ResponseReader& = delete;
     ~ResponseReader() override;
+
+    explicit ResponseReader(OutgoingResponse& response);
     auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
 
 private:
     // inner readers
 
-    // reads the request line
-    class RequestLineReader final : public IAsyncRead {
+    // reads the status line
+    class StatusLineReader final : public IAsyncRead {
     public:
-        RequestLineReader() = delete;
-        explicit RequestLineReader(Version const& version, Status const& status);
+        StatusLineReader() = delete;
+        explicit StatusLineReader(Version const& version, Status const& status);
         auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
 
     private:
@@ -117,59 +109,12 @@ private:
         Version const& _version;
         Status const& _status;
     };
-    // reads all the headers + a clrf
-    class HeadersReader final : public IAsyncRead {
-    public:
-        HeadersReader() = delete;
-        explicit HeadersReader(Headers const& headers);
-        auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
 
-    private:
-        enum State {
-            Name,
-            Splitter,
-            Value,
-            Clrf,
-        } _state
-            = Name;
-        string_view _current;
-        Headers::const_iterator _header_it;
-        Headers const& _headers;
-    };
-    // reads the body 'raw'
-    class BodyReader final : public IAsyncRead {
-    public:
-        explicit BodyReader(OutgoingBody& body);
-        auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
-
-    private:
-        OutgoingBody& _body;
-    };
-    // reads the body, serialized in cte format
-    class ChunkedBodyReader final : public IAsyncRead {
-    public:
-        explicit ChunkedBodyReader(OutgoingBody& body);
-        auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
-
-    private:
-        enum State {
-            ChunkSize,
-            Clrf1,
-            ChunkData,
-            Clrf2,
-            Eof,
-        } _state;
-        uint8_t _data_buf[512];
-        char _num[get_max_num_size(sizeof(_data_buf))];
-        span<uint8_t> _current;
-        span<uint8_t> _current_body;
-        OutgoingBody& _body;
-    };
     // reads the body from cgi
-    class CgiBodyReader final : public IAsyncRead {
+    class CgiReader final : public IAsyncRead {
     public:
-        CgiBodyReader() = delete;
-        explicit CgiBodyReader(Cgi& cgi);
+        CgiReader() = delete;
+        explicit CgiReader(Cgi& cgi);
         auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
 
     private:
@@ -182,33 +127,18 @@ private:
         Cgi& _cgi;
     };
 
-    class HeaderTerminatorReader final : public IAsyncRead {
-    public:
-        HeaderTerminatorReader() = default;
-        auto poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult> override;
-
-    private:
-        string_view _current = http::CLRF;
-    };
-
     // Members
     OutgoingResponse& _response;
     enum State {
         CheckCgiState,
-        RequestLineState,
-        HeaderState,
-        HeaderTerminatorState,
-        BodyState,
-        ChunkedBodyState,
-        CgiBodyState
+        StatusLineReaderState,
+        MessageState,
+        CgiState,
     } _state;
     union {
-        RequestLineReader _request_line;
-        HeadersReader _header;
-        HeaderTerminatorReader _header_terminator;
-        BodyReader _body;
-        ChunkedBodyReader _chunked_body;
-        CgiBodyReader _cgi_body;
+        StatusLineReader _status_line;
+        MessageReader _message;
+        CgiReader _cgi_reader;
     };
 };
 

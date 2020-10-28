@@ -33,7 +33,6 @@ private:
     T _t;
 };
 
-// TODO: split to ipp
 template <typename T>
 OwningSpanReader<T>::OwningSpanReader(T&& inner)
     : _t(std::move(inner))

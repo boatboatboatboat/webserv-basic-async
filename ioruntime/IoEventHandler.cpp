@@ -54,7 +54,7 @@ void IoEventHandler::reactor_step()
         safe_fire_listeners(write_fd_in_use, write_selected, write_listeners);
         safe_fire_listeners(special_fd_in_use, special_selected, special_listeners);
     } else if (selected < 0) {
-        TRACEPRINT("Select failed: " << strerror(errno));
+        DBGPRINT("Select failed: " << strerror(errno));
     }
 }
 
@@ -208,7 +208,6 @@ void IoEventHandler::register_callback(int fd,
     {
         auto fds = set.lock();
         FD_SET(fd, &*fds);
-        TRACEPRINT("Fd set: " << fd);
     }
     auto listeners_locked = listeners.lock();
     if (unique != 0) {

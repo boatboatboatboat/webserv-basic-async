@@ -45,8 +45,6 @@ auto IoCopyFuture<R, W>::poll(Waker&& waker) -> PollResult<void>
                 auto res = poll_res.get();
                 if (res.is_error()) {
                     throw std::runtime_error("CopyFuture: write error");
-                } else if (res.is_eof()) {
-                    return PollResult<void>::ready();
                 } else {
                     _bytes_written += res.get_bytes_read();
                     _span->remove_prefix_inplace(res.get_bytes_read());
@@ -166,6 +164,7 @@ auto IoCopyFuture<void, W>::poll(Waker&& waker) -> PollResult<void>
                     _span->remove_prefix_inplace(res.get_bytes_read());
                     if (_span->empty()) {
                         if (_read_finished) {
+                            DBGPRINT("ReadFinished");
                             return PollResult<void>::ready();
                         }
                         state = Reading;

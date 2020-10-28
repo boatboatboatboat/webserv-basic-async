@@ -187,6 +187,26 @@ inline auto string_to_uint64(std::string_view n) -> option::optional<uint64_t>
     return num;
 }
 
+inline auto string_to_uint64_atoilike(std::string_view n) -> option::optional<uint64_t>
+{
+    using namespace http::parser_utils;
+    uint64_t num = 0;
+
+    while (!n.empty()) {
+        if (!is_digit(n.front())) {
+            return num;
+        }
+        uint64_t ofc = num;
+        num *= 10;
+        if (num < ofc) {
+            return option::nullopt;
+        }
+        num += n.front() - '0';
+        n.remove_prefix(1);
+    }
+    return num;
+}
+
 inline auto hexstring_to_uint64(std::string_view n) -> option::optional<uint64_t>
 {
     if (n.empty())
@@ -223,6 +243,27 @@ inline auto uint64_to_hexstring(uint64_t n) -> std::string
     while (n != 0) {
         s.push_back(charset[n % 16]);
         n /= 16;
+    }
+    // LOL
+    for (auto it = s.rbegin(); it != s.rend(); it++) {
+        r.push_back(*it);
+    }
+    return r;
+}
+
+inline auto uint64_to_string(uint64_t n) -> std::string
+{
+    std::string_view charset = "0123456789";
+    // do we really care
+    std::string s;
+    std::string r;
+
+    if (n == 0) {
+        s.push_back(charset[n]);
+    }
+    while (n != 0) {
+        s.push_back(charset[n % 10]);
+        n /= 10;
     }
     // LOL
     for (auto it = s.rbegin(); it != s.rend(); it++) {

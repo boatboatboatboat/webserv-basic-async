@@ -6,6 +6,7 @@
 
 using futures::StreamPollResult;
 using std::move;
+using std::string_view;
 
 namespace ioruntime {
 
@@ -16,6 +17,9 @@ CharacterStream::CharacterStream(IAsyncRead& reader)
 
 auto CharacterStream::poll_next(Waker&& waker) -> StreamPollResult<uint8_t>
 {
+    if (_finished) {
+        return StreamPollResult<uint8_t>::finished();
+    }
     if (_last_char.has_value()) {
         uint8_t lc = *_last_char;
         _last_char.reset();
@@ -36,8 +40,10 @@ auto CharacterStream::poll_next(Waker&& waker) -> StreamPollResult<uint8_t>
             return StreamPollResult<uint8_t>::pending();
         }
     }
-    if (_max == 0)
+    if (_max == 0) {
+        _finished = true;
         return StreamPollResult<uint8_t>::finished();
+    }
     uint8_t c = _buffer[_head];
     _head += 1;
     _exhausted = _head == _max;

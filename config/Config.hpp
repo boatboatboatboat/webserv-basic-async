@@ -64,7 +64,8 @@ public:
         optional<AuthConfig>&& authcfg,
         optional<UploadConfig>&& uploadcfg,
         optional<size_t> body_limit,
-        optional<vector<string>>&& modules);
+        optional<vector<string>>&& modules,
+        optional<tuple<IpAddress, uint16_t>>&& proxy);
     [[nodiscard]] auto get_root() const -> optional<string> const&;
     [[nodiscard]] auto get_index_pages() const -> optional<vector<string>> const&;
     [[nodiscard]] auto get_error_pages() const -> optional<map<uint16_t, string>> const&;
@@ -75,6 +76,7 @@ public:
     [[nodiscard]] auto get_upload_config() const -> optional<UploadConfig> const&;
     [[nodiscard]] auto get_body_limit() const -> optional<size_t>;
     [[nodiscard]] auto get_modules() const -> optional<vector<string>> const&;
+    [[nodiscard]] auto get_proxy() const -> optional<tuple<IpAddress, uint16_t>> const&;
 
 private:
     optional<string> root;
@@ -87,6 +89,7 @@ private:
     optional<UploadConfig> upload_config;
     optional<size_t> body_limit;
     optional<vector<string>> modules;
+    optional<tuple<IpAddress, uint16_t>> proxy;
 };
 
 class LocationConfig : public BaseConfig {

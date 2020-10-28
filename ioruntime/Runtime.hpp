@@ -22,7 +22,7 @@ public:
     enum HandlerType {
         Any,
         Io,
-        Timeout
+        Timeout,
     };
     void register_handler(BoxPtr<IEventHandler>&& handler, HandlerType ht);
     void spawn(BoxPtr<IFuture<void>>&& future);

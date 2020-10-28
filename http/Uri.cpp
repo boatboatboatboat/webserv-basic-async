@@ -210,8 +210,6 @@ Authority::Authority(string_view str)
 
     auto port_start = str.find(':', userinfo_end == string_view::npos ? 0 : userinfo_end);
 
-    // FIXME: read below
-    // an empty port is legal, but it should be treated as if there were no port
     if (port_start != string_view::npos) {
         size_t idx = port_start + 1;
         uint32_t port = 0;

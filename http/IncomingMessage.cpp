@@ -30,11 +30,11 @@ auto IncomingMessage::get_headers() const -> Headers const&
     return _headers;
 }
 
-auto IncomingMessage::get_header(string_view header) const -> optional<string_view>
+auto IncomingMessage::get_header(string_view header) const -> optional<std::string_view>
 {
     for (auto const& header_a : _headers) {
         if (utils::str_eq_case_insensitive(header_a.name, header)) {
-            return string_view(header_a.value);
+            return header_a.value;
         }
     }
     return option::nullopt;
@@ -50,7 +50,7 @@ auto IncomingMessage::get_body() const -> optional<IncomingBody> const&
     return _body;
 }
 
-auto IncomingMessageBuilder::header(HeaderName name, HeaderValue value) -> IncomingMessageBuilder&
+auto IncomingMessageBuilder::header(HeaderName&& name, HeaderValue&& value) -> IncomingMessageBuilder&
 {
     _headers.emplace_back(Header { move(name), move(value) });
     return *this;

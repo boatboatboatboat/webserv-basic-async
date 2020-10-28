@@ -40,6 +40,7 @@ MessageParser::MessageParser(MessageParser&& other) noexcept
     , _decoded_body(move(other._decoded_body))
     , _span_reader(move(other._span_reader))
     , _ricf(move(other._ricf))
+    , _can_eof(other._can_eof)
 {
 }
 
@@ -59,6 +60,7 @@ MessageParser::MessageParser(MessageParser&& other, ioruntime::CharacterStream& 
     , _decoded_body(move(other._decoded_body))
     , _span_reader(move(other._span_reader))
     , _ricf(move(other._ricf))
+    , _can_eof(other._can_eof)
 {
 }
 
@@ -77,7 +79,7 @@ MessageParser::GenericExceededBuffer::GenericExceededBuffer()
 {
 }
 
-MessageParser::MalformedRequest::MalformedRequest()
+MessageParser::MalformedMessage::MalformedMessage()
     : ParserError("Bad HTTP request")
 {
 }
@@ -117,7 +119,7 @@ inline static void validate_field_name(string_view field_name)
     // validate field_name
     if (field_name.empty()) {
         // field name must at least have 1 tchar
-        throw MessageParser::MalformedRequest();
+        throw MessageParser::MalformedMessage();
     }
 
     auto field_name_is_invalid = std::any_of(
@@ -125,7 +127,7 @@ inline static void validate_field_name(string_view field_name)
         [](char c) { return !parser_utils::is_tchar(c); });
 
     if (field_name_is_invalid) {
-        throw MessageParser::MalformedRequest();
+        throw MessageParser::MalformedMessage();
     }
 }
 
@@ -150,11 +152,11 @@ inline static void validate_field_value(string_view field_value)
         } else if (c == ' ' || c == '\t') {
             last_was_separator = true;
         } else {
-            throw MessageParser::MalformedRequest();
+            throw MessageParser::MalformedMessage();
         }
     }
     if (last_was_separator) {
-        throw MessageParser::MalformedRequest();
+        throw MessageParser::MalformedMessage();
     }
 }
 
@@ -286,7 +288,7 @@ auto MessageParser::inner_poll(Waker&& waker) -> MessageParser::CallState
                             // RFC 7230 5.4.
                             // HTTP/1.1 must have Host header field
                             // otherwise, it is invalid
-                            throw MalformedRequest();
+                            throw MalformedMessage();
                         }
                         if (!_has_body) {
                             // this message does not have to parse a body,
@@ -308,7 +310,8 @@ auto MessageParser::inner_poll(Waker&& waker) -> MessageParser::CallState
                         } else {
                             // No length indication was given,
                             // throw the appropriate status error
-                            throw UndeterminedLength();
+                            _can_eof = true;
+                            _state = Body;
                         }
                         return Running;
                     } else {
@@ -317,7 +320,7 @@ auto MessageParser::inner_poll(Waker&& waker) -> MessageParser::CallState
                         auto separator = string_in_buffer.find(':');
                         if (separator == string_view::npos) {
                             // there is no ':', so the headerline is invalid
-                            throw MalformedRequest();
+                            throw MalformedMessage();
                         }
 
                         // field name is everything before the ':'
@@ -340,7 +343,7 @@ auto MessageParser::inner_poll(Waker&& waker) -> MessageParser::CallState
                             if (length.has_value()) {
                                 _content_length = *length;
                             } else {
-                                throw MalformedRequest();
+                                throw MalformedMessage();
                             }
                         } else if (str_eq(field_name, header::TRANSFER_ENCODING)) {
                             // validate Transfer-Encoding
@@ -351,11 +354,15 @@ auto MessageParser::inner_poll(Waker&& waker) -> MessageParser::CallState
                             }
                             _is_chunk_body = true;
                         } else if (str_eq(field_name, header::HOST)) {
-                            // TODO: check uri
+                            Uri u(field_value);
+                            if (u.get_target_form() != Uri::AuthorityForm) {
+                                // host is not in authority form
+                                throw MalformedMessage();
+                            }
                             if (_host_set) {
                                 // RFC 7230 5.4.
                                 // if there's more than 1 Host header it's an invalid request
-                                throw MalformedRequest();
+                                throw MalformedMessage();
                             }
                             _host_set = true;
                         } else if (str_eq(field_name, header::USER_AGENT)) {
@@ -366,13 +373,13 @@ auto MessageParser::inner_poll(Waker&& waker) -> MessageParser::CallState
                             for (char c : field_value) {
                                 if (c == ' ' || c == '\t') {
                                     if (last_was_ver) {
-                                        throw MalformedRequest();
+                                        throw MalformedMessage();
                                     }
                                     last_was_space = true;
                                     last_was_ver = false;
                                 } else if (c == '/') {
                                     if (last_was_space || !is_token) {
-                                        throw MalformedRequest();
+                                        throw MalformedMessage();
                                     }
                                     last_was_space = false;
                                     last_was_ver = true;
@@ -383,7 +390,7 @@ auto MessageParser::inner_poll(Waker&& waker) -> MessageParser::CallState
                                 }
                             }
                             if (!is_token || last_was_space || last_was_ver) {
-                                throw MalformedRequest();
+                                throw MalformedMessage();
                             }
                         } else if (str_eq(field_name, header::REFERER)) {
                             // validate Referer [sic] header
@@ -397,24 +404,24 @@ auto MessageParser::inner_poll(Waker&& waker) -> MessageParser::CallState
                                     // origin form has pqf, so we can deref
                                     // a partial-URI is OriginForm without a fragment
                                     if (referer_value.get_pqf()->get_fragment().has_value()) {
-                                        throw MalformedRequest();
+                                        throw MalformedMessage();
                                     }
                                 } break;
                                 default: {
-                                    throw MalformedRequest();
+                                    throw MalformedMessage();
                                 } break;
                             }
                         } else if (str_eq(field_name, header::ACCEPT_CHARSET)) {
                             try {
                                 validate_accept_charset(field_value);
                             } catch (...) {
-                                throw MalformedRequest();
+                                throw MalformedMessage();
                             }
                         } else if (str_eq(field_name, header::ACCEPT_LANGUAGE)) {
                             try {
                                 validate_accept_language(field_value);
                             } catch (...) {
-                                throw MalformedRequest();
+                                throw MalformedMessage();
                             }
                         }
                         _builder.header(string(field_name), string(field_value));
@@ -427,7 +434,7 @@ auto MessageParser::inner_poll(Waker&& waker) -> MessageParser::CallState
                     if (_buffer.size() > _body_limit) {
                         throw BodyExceededLimit();
                     }
-                    if (_buffer.size() == *_content_length) {
+                    if (!_can_eof && _buffer.size() == *_content_length) {
                         _builder.body(IncomingBody(move(_buffer)));
                         return Completed;
                     }
@@ -457,7 +464,7 @@ auto MessageParser::inner_poll(Waker&& waker) -> MessageParser::CallState
                     } else {
                         for (auto& c : string_in_buffer.substr(first_separator, string_in_buffer.length())) {
                             if (!parser_utils::is_tchar(c) && c != ';') {
-                                throw MalformedRequest();
+                                throw MalformedMessage();
                             }
                         }
                     }
@@ -484,7 +491,7 @@ auto MessageParser::inner_poll(Waker&& waker) -> MessageParser::CallState
                         _buffer.clear();
                         _state = ChunkedBodyData;
                     } else {
-                        throw MalformedRequest();
+                        throw MalformedMessage();
                     }
                     return Running;
                 } break;
@@ -492,11 +499,11 @@ auto MessageParser::inner_poll(Waker&& waker) -> MessageParser::CallState
                     _buffer.push_back(character);
                     if (_buffer.size() == _last_chunk_size + 2) {
                         if (_buffer.back() != '\n') {
-                            throw MalformedRequest();
+                            throw MalformedMessage();
                         }
                         _buffer.pop_back();
                         if (_buffer.back() != '\r') {
-                            throw MalformedRequest();
+                            throw MalformedMessage();
                         }
                         _buffer.pop_back();
                         _state = AppendToBody;
@@ -535,7 +542,12 @@ auto MessageParser::inner_poll(Waker&& waker) -> MessageParser::CallState
         } break;
         case StreamPollResult<uint8_t>::Status::Finished: {
             // All EOFs are unexpected - TCE/CL indicates the end.
-            throw UnexpectedEof();
+            if (_can_eof) {
+                _builder.body(IncomingBody(move(_buffer)));
+                return Completed;
+            } else {
+                throw UnexpectedEof();
+            }
         } break;
     }
     return Pending;

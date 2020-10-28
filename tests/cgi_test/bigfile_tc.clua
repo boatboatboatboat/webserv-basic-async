@@ -1,0 +1,27 @@
+#!/usr/bin/lua
+
+local CHUNK_SIZE_MAX = 10;
+
+local str = ""
+
+local function echo(...)
+    local strized = {}
+    for k, v in pairs({...}) do
+        table.insert(strized, tostring(v));
+    end
+    str = str .. table.concat(strized, '\t') .. "\n"
+end
+
+for i = 1, 1000 do
+    echo("L" .. i, "1234567890");
+end
+
+io.write("Transfer-Encoding: chunked\r\n\r\n");
+
+for i = 1, str:len(), CHUNK_SIZE_MAX do
+    local chunk = str:sub(i, i + CHUNK_SIZE_MAX - 1);
+    io.write(string.format("%x", chunk:len()) .. "\r\n" .. chunk .. "\r\n");
+end
+
+io.write("0\r\n\r\n")
+io.flush()

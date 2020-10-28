@@ -1,5 +1,5 @@
 {
-    "workers": 0,
+    "workers": 4,
     "http": {
         "error-pages": {
             "404": "../html/index.html"
@@ -35,18 +35,22 @@
                         ],
                         "body-limit": 100
                     },
+                    "^/autoindextest/?": {
+                        "root": "./YoupiBanane",
+                        "autoindex": true
+                    },
                     "^/directory/?": {
                         "root": "./YoupiBanane",
                         "index": [
                             "youpi.bad_extension"
                         ],
+                        "allowed-methods": [
+                            "GET",
+                            "POST"
+                        ],
                         "locations": {
                             "\\.bla$": {
                                 "root": "./ubuntu_cgi_tester",
-                                "allowed-methods": [
-                                    "GET",
-                                    "POST"
-                                ],
                                 "final": false,
                                 "cgi": true
                             }

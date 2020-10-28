@@ -91,7 +91,13 @@ auto Cgi::poll_write_body(Waker&& waker) -> PollResult<IoResult>
 auto Cgi::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
 {
     GlobalChildProcessHandler::register_handler(pid, waker.boxed());
-    return child_output->poll_read(buffer, std::move(waker));
+    auto res = child_output->poll_read(buffer, std::move(waker));
+    if (res.is_ready()) {
+        if (res.get().is_eof()) {
+            TRACEPRINT("cgi read eof");
+        }
+    }
+    return res;
 }
 
 auto Cgi::poll_write(const span<uint8_t> buffer, Waker&& waker) -> PollResult<IoResult>
@@ -105,7 +111,6 @@ void Cgi::generate_env(IncomingRequest const& req, CgiServerForwardInfo const& c
     const auto& message = req.get_message();
     // Set AUTH_TYPE and REMOTE_USER metavar
     {
-        // TODO: some kind of error handling, right now it just does nothing on an error
         auto at = message.get_header(http::header::AUTHORIZATION);
 
         if (at.has_value()) {
@@ -232,9 +237,6 @@ void Cgi::generate_env(IncomingRequest const& req, CgiServerForwardInfo const& c
         // and not a HTTP CGI.
         // There is no defined behaviour for this value in HTTP CGI,
         // so let's just return the uri
-        //
-        // NOTE: the SIP CGI definition for REQUEST_URI is absoluteURI.
-        // FIXME: the URI is not in absolute form
         utils::StringStream uri;
         uri << "REQUEST_URI=";
         auto req_uri = req.get_uri();

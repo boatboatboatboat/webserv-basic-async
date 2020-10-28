@@ -22,9 +22,6 @@ namespace net {
 
 auto Socket::read(void* buffer, size_t size) -> ssize_t
 {
-    // shhh don't tell anyone
-    if (fcntl(descriptor, F_SETFL, O_NONBLOCK) < 0)
-        return -1;
     ssize_t res;
 #ifdef __linux__
     // MSG_NOSIGNAL disables SIGPIPE being called on a broken pipe
@@ -33,7 +30,7 @@ auto Socket::read(void* buffer, size_t size) -> ssize_t
 #ifdef __APPLE__
     res = recv(descriptor, buffer, size, 0);
 #endif
-#ifdef DEBUG_SOCKET_PRINTER
+#ifdef DEBUG_SOCKET_INCOMING_PRINTER
     if (res > 0) {
         DBGPRINT("SOCKET " << res << " " << std::string_view((const char*)buffer, res));
     } else if (res == 0) {
@@ -47,23 +44,30 @@ auto Socket::read(void* buffer, size_t size) -> ssize_t
 
 auto Socket::write(void const* buffer, size_t size) -> ssize_t
 {
-    // shhh don't tell anyone
-    if (fcntl(descriptor, F_SETFL, O_NONBLOCK) < 0)
-        return -1;
+    ssize_t res;
 #ifdef __linux__
     // MSG_NOSIGNAL disables SIGPIPE being called on a broken pipe
-    return send(descriptor, buffer, size, MSG_NOSIGNAL);
+    res = send(descriptor, buffer, size, MSG_NOSIGNAL);
 #endif
 #ifdef __APPLE__
-    return send(descriptor, buffer, size, 0);
+    res = send(descriptor, buffer, size, 0);
 #endif
+#ifdef DEBUG_SOCKET_OUTGOING_PRINTER
+    if (res > 0) {
+        DBGPRINT("SOCKET[" << descriptor << "] " << res << "\n"
+                           << std::string_view((const char*)buffer, res));
+    } else if (res < 0) {
+        DBGPRINT("SOCKET[" << descriptor << "] ERR " << strerror(errno));
+    }
+#endif
+    return res;
 }
 
 Socket::Socket(int fd, SocketAddr addr)
     : FileDescriptor(fd)
     , _addr(addr)
 {
-    TRACEPRINT("socket register "<< fd);
+    TRACEPRINT("socket register " << fd);
     GlobalIoEventHandler::register_special_callback(descriptor, BoxFunctor(new FunnyFunctor()), false, 0);
 }
 

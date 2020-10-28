@@ -1,0 +1,18 @@
+#!/usr/bin/lua
+
+local str = ""
+
+local function echo(...)
+    local strized = {}
+    for k, v in pairs({...}) do
+        table.insert(strized, tostring(v));
+    end
+    str = str .. table.concat(strized, '\t') .. "\n"
+end
+
+for i = 1, 100 do
+    echo("L" .. i .. " 1234567890");
+end
+
+io.write("Content-Length: " .. tonumber(str:len()) .. "\r\n\r\n" .. str)
+io.flush()

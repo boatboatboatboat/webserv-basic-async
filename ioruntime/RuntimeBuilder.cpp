@@ -3,6 +3,7 @@
 //
 
 #include "RuntimeBuilder.hpp"
+#include "GlobalChildProcessHandler.hpp"
 #include "PooledExecutor.hpp"
 #include "Runtime.hpp"
 #include "ThreadlessExecutor.hpp"
@@ -38,6 +39,7 @@ Runtime RuntimeBuilder::build()
     }
     rt.register_handler(BoxPtr<IoEventHandler>::make(), Runtime::Io);
     rt.register_handler(BoxPtr<TimeoutEventHandler>::make(), Runtime::Timeout);
+    rt.register_handler(BoxPtr<GlobalChildProcessHandler>::make(), Runtime::Any);
     return rt;
 }
 

@@ -13,14 +13,22 @@ auto http::IncomingBody::poll_read(span<uint8_t> buffer, Waker&& waker) -> PollR
             if (!_spr.has_value()) {
                 _spr = ioruntime::SpanReader(span(_vector->data(), _size));
             }
-            return _spr->poll_read(buffer, move(waker));
+            auto res = _spr->poll_read(buffer, move(waker));
+            if (res.is_ready()) {
+                TRACEPRINT("VectorRead " << res.get().get_bytes_read());
+            }
+            return res;
         } break;
         case TemporaryBody: {
             if (_should_rewind) {
                 _should_rewind = false;
                 lseek(_temp->get_descriptor(), 0, SEEK_SET);
             }
-            return _temp->poll_read(buffer, move(waker));
+            auto res = _temp->poll_read(buffer, move(waker));
+            if (res.is_ready()) {
+                TRACEPRINT("FileRead " << res.get().get_bytes_read());
+            }
+            return res;
         } break;
     }
 }
@@ -95,7 +103,7 @@ http::IncomingBody::IncomingBody(http::IncomingBody&& other) noexcept
     }
 }
 
-http::IncomingBody& http::IncomingBody::operator=(http::IncomingBody&& other) noexcept
+auto http::IncomingBody::operator=(http::IncomingBody&& other) noexcept -> http::IncomingBody&
 {
     if (&other == this)
         return *this;

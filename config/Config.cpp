@@ -38,7 +38,7 @@ auto BaseConfig::get_autoindex() const -> optional<bool> const&
 }
 
 BaseConfig::BaseConfig(optional<string> root, optional<vector<string>> index_pages, optional<map<uint16_t, string>> error_pages, optional<bool> use_cgi, optional<vector<Method>> allowed_methods, optional<bool> autoindex,
-    optional<AuthConfig>&& authcfg, optional<UploadConfig>&& upcfg, optional<size_t> body_limit, optional<vector<string>>&& modules)
+    optional<AuthConfig>&& authcfg, optional<UploadConfig>&& upcfg, optional<size_t> body_limit, optional<vector<string>>&& modules, optional<tuple<IpAddress, uint16_t>>&& proxy)
     : root(std::move(root))
     , index_pages(std::move(index_pages))
     , error_pages(std::move(error_pages))
@@ -49,6 +49,7 @@ BaseConfig::BaseConfig(optional<string> root, optional<vector<string>> index_pag
     , upload_config(std::move(upcfg))
     , body_limit(std::move(body_limit))
     , modules(std::move(modules))
+    , proxy(std::move(proxy))
 {
 }
 
@@ -60,6 +61,11 @@ auto BaseConfig::get_auth_config() const -> optional<AuthConfig> const&
 auto BaseConfig::get_upload_config() const -> optional<UploadConfig> const&
 {
     return upload_config;
+}
+
+auto BaseConfig::get_proxy() const -> const optional<tuple<IpAddress, uint16_t>>&
+{
+    return proxy;
 }
 
 auto ServerConfig::get_server_names() const -> optional<vector<string>> const&

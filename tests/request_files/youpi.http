@@ -17,7 +17,7 @@ GET http://localhost:1234/directory/youpi.bad_extension
 GET http://localhost:1234/directory/youpi.bla
 
 ###EXPECT 404
-GET  http://localhost:1234/directory/oulalala
+GET http://localhost:1234/directory/oulalala
 
 ###
 GET http://localhost:1234/directory/nop
@@ -36,7 +36,6 @@ ik moet die velgen hebben man
 doalijk kom ik s ff naar buite dan sloop ik je
 ja kom maar
 ja dan wacht maar s effe jij
-
 
 ###
 PUT http://localhost:1234/put_test/

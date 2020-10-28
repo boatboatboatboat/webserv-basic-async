@@ -1,20 +1,26 @@
 {
-    "workers": 0,
+    "workers": 1,
     "timeout": 10000000,
     "http": {
         "servers": [
             {
+                "body-limit": 100000000,
                 "root": ".",
                 "listen": [
                     "127.0.0.1:4242"
                 ],
                 "locations": {
-                    "^//?": {
+                    "^/": {
+                        "root": ".",
+                        "autoindex": true
+                    },
+                    "^/cgi/?": {
                         "root": "./tests/cgi_test/",
                         "autoindex": true,
                         "allowed-methods": [
-                            "GET"
+                            "GET", "POST"
                         ],
+                        "cgi": true,
                         "locations": {
                             "\\.lua$": {
                                 "modules": [
@@ -27,12 +33,21 @@
                                     "es"
                                 ],
                                 "final": true
-                            },
-                            "\\.php$": {
-                                "cgi": true,
-                                "final": true
                             }
                         }
+                    }
+                }
+            },
+            {
+                "root": ".",
+                "listen": [
+                    "127.0.0.1:4422"
+                ],
+                "locations": {
+                    ".*": {
+                        "proxy": "216.58.208.110",
+                        "allowed-methods":  ["GET", "POST", "HEAD"],
+                        "final": true
                     }
                 }
             }
