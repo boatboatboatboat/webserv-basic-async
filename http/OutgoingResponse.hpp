@@ -64,8 +64,6 @@ public:
     [[nodiscard]] auto get_message() -> OutgoingMessage&;
     [[nodiscard]] auto get_message() const -> OutgoingMessage const&;
 
-    void drop_body();
-
 private:
     Version _version;
     Status _status;

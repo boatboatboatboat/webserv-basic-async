@@ -366,7 +366,7 @@ auto recursive_locations(json::Json const& cfg) -> optional<table<Regex, Locatio
     }
 
     // fixes c++ bug
-    optional<typeof(locations)> a;
+    optional<decltype(locations)> a;
 
     if (!locations.empty()) {
         a = locations;
@@ -914,12 +914,12 @@ inline static auto try_download(
         auto file = fs::File::create_no_traversal(concatenated);
         if (body.has_value()) {
             auto& span_reader = *body;
-            auto copy_future = ioruntime::IoCopyFuture<typeof(span_reader), typeof(file)>(move(span_reader), move(file));
+            auto copy_future = ioruntime::IoCopyFuture<std::remove_reference<decltype(span_reader)>::type, decltype(file)>(move(span_reader), move(file));
             builder
                 .status(http::status::CREATED)
                 .header(http::header::CONTENT_LOCATION, string(base_path)) // RFC 7231-3.1.4.2.
                 .header(http::header::LOCATION, string(base_path))
-                .body(BoxPtr<http::FutureSeReader<typeof(copy_future)>>::make(move(copy_future)));
+                .body(BoxPtr<http::FutureSeReader<decltype(copy_future)>>::make(move(copy_future)));
         }
         return true;
     }
@@ -981,9 +981,7 @@ inline auto is_proxy_request(BaseConfig const& bcfg) -> bool
 
 auto main(int argc, const char** argv) -> int
 {
-    // ignore SIGPIPE,
-    // a dos attack can cause so many SIGPIPEs (to the point of 30k queued),
-    // that all threads are preoccupied with running the signal handler
+    // ignore SIGPIPE lol
     signal(SIGPIPE, SIG_IGN);
     try {
         std::string config_file_path = "./config.json";

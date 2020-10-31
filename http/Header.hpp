@@ -1,5 +1,3 @@
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "cert-err58-cpp"
 //
 // Created by boat on 8/27/20.
 //
@@ -54,5 +52,3 @@ namespace header {
 }
 
 #endif //WEBSERV_HTTPHEADER_HPP
-
-#pragma clang diagnostic pop

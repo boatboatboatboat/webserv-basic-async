@@ -73,4 +73,9 @@ auto OutgoingMessage::get_header(string_view name) const -> optional<string_view
     return option::nullopt;
 }
 
+void OutgoingMessage::drop_body()
+{
+    _body.reset();
+}
+
 }

@@ -29,10 +29,11 @@ bool ThreadlessExecutor::step()
 {
     auto te = tasks.empty();
     if (te) {
-        usleep(0);
         return (tasks_until_completion > 0);
     }
+    int set = 0;
     while (!tasks.empty()) {
+        set += 1;
         auto task = tasks.front();
         BoxPtr<IFuture<void>> future_slot(nullptr);
 

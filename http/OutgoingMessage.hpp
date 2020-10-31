@@ -28,6 +28,7 @@ public:
     [[nodiscard]] auto get_body() -> optional<OutgoingBody>&;
     [[nodiscard]] auto get_body() const -> optional<OutgoingBody> const&;
 
+    void drop_body();
 private:
     Headers _headers;
     optional<OutgoingBody> _body;

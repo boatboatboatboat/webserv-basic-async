@@ -114,10 +114,6 @@ auto OutgoingResponse::get_header(HeaderName const& needle_name) const -> option
     }
 }
 
-__attribute_deprecated_msg__("drop_body no longer does anything") void OutgoingResponse::drop_body()
-{
-}
-
 auto OutgoingResponse::get_message() -> OutgoingMessage&
 {
     return _message;

@@ -6,6 +6,7 @@
 #define WEBSERV_UTILS_SPAN_HPP
 
 #include <cstdio>
+#include <algorithm>
 
 namespace utils {
 

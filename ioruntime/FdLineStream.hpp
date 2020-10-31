@@ -51,8 +51,6 @@ public:
         if (completed) {
             return StreamPollResult<std::string>::finished();
         }
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "EndlessLoop"
         for (;;) {
             char c;
             GncResult res = get_next_character(c, Waker(waker));
@@ -96,7 +94,6 @@ public:
             } break;
             }
         }
-#pragma clang diagnostic pop
     }
 
 private:

@@ -3,20 +3,20 @@ project(webserv)
 
 
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -g3 -Wall -Wextra -Werror -Wno-unknown-pragmas")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -g3 -Wall -Wextra -Werror")
 
 add_compile_definitions(
         LOG_DEBUG=1
         DEBUG
         SAFEPRINT_LINE_INFO
-        _DARWIN_UNLIMITED_SELECT=1
+        # _DARWIN_UNLIMITED_SELECT=1
         #DEBUG_MUTEX_CANARY
-        #EVIL_CHECK_ERRNO
+        EVIL_CHECK_ERRNO
         #DEBUG_REQUEST_BODY_ALWAYS_SWITCH
         # DEBUG_SOCKET_INCOMING_PRINTER
         #DEBUG_SOCKET_OUTGOING_PRINTER
         #DEBUG_FILEDESCRIPTOR_OUTGOING_PRINTER
-        #FD_SETSIZE=64
+        #FD_SETSIZE=
 )
 
 

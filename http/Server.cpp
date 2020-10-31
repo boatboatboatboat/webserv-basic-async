@@ -118,7 +118,7 @@ void Server::ConnectionFuture::switch_to_respond_mode()
 {
     // lol
     if (_request.has_value() && _request->get_method() == method::HEAD) {
-        _response->drop_body();
+        _response->get_message().drop_body();
     }
     _reader = ResponseReader(*_response);
     _copier = ioruntime::IoCopyFuture<void, void>(*_reader, _stream.get_socket());

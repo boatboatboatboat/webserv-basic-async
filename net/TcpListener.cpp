@@ -8,6 +8,11 @@
 #include "SocketAddr.hpp"
 #include <netinet/in.h>
 
+// fix funny os x "haha lets error everything" bug
+#ifndef SO_NOSIGPIPE
+#define SO_NOSIGPIPE 0
+#endif
+
 using ioruntime::GlobalIoEventHandler;
 
 namespace net {
@@ -89,6 +94,10 @@ auto TcpListener::poll_next(Waker&& waker) -> StreamPollResult<TcpStream>
             GlobalIoEventHandler::register_reader_callback(descriptor, std::move(cb), true);
             *is_ready = false;
             throw std::runtime_error(strerror(errno));
+        }
+        int enable = 1;
+        if (setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &enable, sizeof(enable)) < 0) {
+            WARNPRINT("noo client doesn't work noo");
         }
         TRACEPRINT("Accepted TCP connection from " << client);
 

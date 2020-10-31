@@ -1,5 +1,5 @@
 {
-    "workers": 4,
+    "workers": 0,
     "http": {
         "error-pages": {
             "404": "../html/index.html"
@@ -50,7 +50,7 @@
                         ],
                         "locations": {
                             "\\.bla$": {
-                                "root": "./ubuntu_cgi_tester",
+                                "root": "./cgi_tester",
                                 "final": false,
                                 "cgi": true
                             }

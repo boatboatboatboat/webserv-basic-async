@@ -17,11 +17,8 @@ public:
 
     // ctors
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "google-explicit-constructor"
     // Construct a IoResult from a read/write result
     IoResult(ssize_t posix_io_result);
-#pragma clang diagnostic pop
     [[nodiscard]] static auto eof() -> IoResult;
     [[nodiscard]] static auto error() -> IoResult;
     [[nodiscard]] static auto success(size_t bytes_read) -> IoResult;

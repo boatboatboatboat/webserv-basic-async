@@ -132,6 +132,13 @@ http::IncomingBody::IncomingBody(vector<uint8_t>&& buffer)
     _size = _vector->size();
 }
 
+http::IncomingBody::IncomingBody()
+    : _vector(vector<uint8_t>())
+{
+}
+
+http::IncomingBody::~IncomingBody() = default;
+
 #ifdef DEBUG
 
 #include "../ioruntime/IoEventHandler.hpp"
@@ -159,12 +166,5 @@ auto http::IncomingBody::debug_body(IoEventHandler& ioe) -> vector<uint8_t>
         }
     }
 }
-
-http::IncomingBody::IncomingBody()
-    : _vector(vector<uint8_t>())
-{
-}
-
-http::IncomingBody::~IncomingBody() = default;
 
 #endif
