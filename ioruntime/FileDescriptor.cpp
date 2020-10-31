@@ -17,7 +17,7 @@ FileDescriptor::FileDescriptor(int fd)
         if (nonblocking_error) {
             throw std::runtime_error("FileDescriptor: ctor: failed to set fd as nonblocking");
         }
-        DBGPRINT("Descriptor bound to " << fd);
+        TRACEPRINT("Descriptor bound to " << fd);
         descriptor = fd;
         BoxFunctor read_cb = BoxFunctor(new SetReadyFunctor(RcPtr(ready_to_read), descriptor));
         BoxFunctor write_cb = BoxFunctor(new SetReadyFunctor(RcPtr(ready_to_write), descriptor));
@@ -130,8 +130,8 @@ auto FileDescriptor::poll_write(span<uint8_t> buffer, Waker&& waker) -> PollResu
                 GlobalIoEventHandler::register_writer_callback(descriptor, waker.boxed(), true, 10);
                 return PollResult<IoResult>::pending();
             }
-        }
 #endif
+        }
     }
     // Re-register the "ready" callback
     BoxFunctor read_cb = BoxFunctor(new SetReadyFunctor(RcPtr(ready_to_write), descriptor));

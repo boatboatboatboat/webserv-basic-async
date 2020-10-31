@@ -17,9 +17,9 @@
 #include "http/OutgoingResponse.hpp"
 #include "http/Proxy.hpp"
 #include "http/Server.hpp"
+#include "ioruntime/FdLineStream.hpp"
 #include "ioruntime/FdStringReadFuture.hpp"
-#include "langmod/ESLanguage.hpp"
-#include "langmod/LuaLanguage.hpp"
+#include "modules/GlobalModules.hpp"
 #include "net/SocketAddr.hpp"
 #include "regex/Regex.hpp"
 #include "utils/base64.hpp"
@@ -1008,6 +1008,30 @@ auto main(int argc, const char** argv) -> int
         auto runtime = builder.build();
         runtime.globalize();
 
+        futures::FdLineStream input_stream(STDIN_FILENO);
+        auto input_handler = [](std::string const& str) {
+            auto sv = string_view(str);
+            if (sv.ends_with('\n')) {
+                sv.remove_suffix(1);
+            }
+            auto cmd_end = sv.find('/');
+            auto cmd = sv.substr(0, cmd_end);
+
+            if (cmd == "load") {
+                auto arg1 = sv.substr(cmd_end + 1);
+                modules::GlobalModules().enable_module(string(arg1));
+            } else if (cmd == "unload") {
+                auto arg1 = sv.substr(cmd_end + 1);
+                modules::GlobalModules().disable_module(string(arg1));
+            } else if (cmd == "exit") {
+                INFOPRINT("exiting");
+                exit(0);
+            } else {
+                WARNPRINT("unknown command");
+            }
+        };
+        GlobalRuntime::spawn(ForEachFuture(move(input_stream), input_handler));
+
         for (auto& server : cfg.get_http_config().get_servers()) {
             auto bind_addresses = server.get_bind_addresses();
             std::map<std::tuple<net::IpAddress, unsigned short>, utils::monostate> used_addresses;
@@ -1138,25 +1162,16 @@ auto main(int argc, const char** argv) -> int
                         auto module_response = false;
                         if (modules.has_value() && !modules->empty()) {
                             // completely "dynamic" modules
-                            for (auto const& module : *modules) {
-                                if (module_response) {
-                                    // do nothing - response has already been set
-                                } else if (module == "lua") {
-                                    cgi::CgiServerForwardInfo csfi {
+                            for (auto const& module_name : *modules) {
+                                auto module = modules::GlobalModules().get_body_module(module_name);
+                                if (!module_response && module.has_value()) {
+                                    auto csfi = cgi::CgiServerForwardInfo {
                                         .sockaddr = socket_addr,
                                         .server_name = fhost,
                                         .server_port = server_port,
                                     };
-                                    builder.cgi(cgi::Cgi(search_path, move(req), move(csfi), langmod::LuaLanguage()));
-                                    module_response = true; // :-)
-                                } else if (module == "es") {
-                                    cgi::CgiServerForwardInfo csfi {
-                                        .sockaddr = socket_addr,
-                                        .server_name = fhost,
-                                        .server_port = server_port,
-                                    };
-                                    builder.cgi(cgi::Cgi(search_path, move(req), move(csfi), langmod::ESLanguage()));
-                                    module_response = true; // :-)
+                                    (**module)->execute(req, builder, modules::ModuleLoaderStateInfo { search_path, csfi });
+                                    module_response = true;
                                 }
                             }
                         }

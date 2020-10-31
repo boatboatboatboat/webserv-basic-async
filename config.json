@@ -1,5 +1,5 @@
 {
-    "workers": 1,
+    "workers": 0,
     "timeout": 10000000,
     "http": {
         "servers": [

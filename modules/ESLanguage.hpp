@@ -8,7 +8,7 @@
 #include "ScriptReader.hpp"
 #include "es/duktape.h"
 
-namespace langmod {
+namespace modules {
 
 class ESLanguage: public ILanguage {
 public:

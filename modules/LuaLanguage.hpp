@@ -8,7 +8,7 @@
 #include "ScriptReader.hpp"
 #include <lua.hpp>
 
-namespace langmod {
+namespace modules {
 
 // LuaConcreteLanguageAbstractFactoryInterface
 

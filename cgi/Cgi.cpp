@@ -177,7 +177,6 @@ void Cgi::generate_env(IncomingRequest const& req, CgiServerForwardInfo const& c
     // Set PATH_TRANSLATED metavar
     {
         std::string builder("PATH_TRANSLATED=");
-        // FIXME: empty paths are not handled
         builder += _path.substr(0, _path.rfind('/'));
         auto pqf = req.get_uri().get_pqf();
 

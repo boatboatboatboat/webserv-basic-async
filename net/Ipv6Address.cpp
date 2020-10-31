@@ -150,8 +150,7 @@ static auto local_inet_pton6(const char* src, const char* src_endp, unsigned cha
             return 0;
         }
         size_t n = tp - colonp;
-        // fixme: memmove
-        std::memmove(endp - n, colonp, n);
+        utils::ft_memmove(endp - n, colonp, n);
         utils::ft_memset(colonp, 0, endp - n - colonp);
         tp = endp;
     }

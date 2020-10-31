@@ -29,7 +29,7 @@ bool ThreadlessExecutor::step()
 {
     auto te = tasks.empty();
     if (te) {
-      //  usleep(0);
+        usleep(0);
         return (tasks_until_completion > 0);
     }
     while (!tasks.empty()) {

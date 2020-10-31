@@ -180,6 +180,8 @@ auto Server::ConnectionFuture::poll(Waker&& waker) -> PollResult<void>
                         builder.header(header::CONNECTION, "close");
                     } catch (fs::FileNotFound const&) {
                         status = status::NOT_FOUND;
+                    } catch (cgi::Cgi::CgiError const&) {
+                        status = status::BAD_GATEWAY;
                     } catch (HandlerStatusError& hse) {
                         status = hse.status();
                         if (hse.headers().has_value()) {

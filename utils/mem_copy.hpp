@@ -11,6 +11,7 @@
 namespace utils {
 
 void* ft_memcpy(void* dest, void const* src, size_t length);
+auto ft_memmove(void* dest, const void* src, size_t length) -> void*;
 
 template <typename T>
 void memcpy(T& destination, T& source)
@@ -19,6 +20,15 @@ void memcpy(T& destination, T& source)
         return;
 
     ft_memcpy(&destination, &source, sizeof(T));
+}
+
+template <typename T>
+void memmove(T& destination, T& source)
+{
+    if (&destination == &source)
+        return;
+
+    ft_memmove(&destination, &source, sizeof(T));
 }
 
 } // namespace utils

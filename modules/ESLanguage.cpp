@@ -5,7 +5,7 @@
 #include "ESLanguage.hpp"
 #include "es/duk_print_alert.h"
 #include <fcntl.h>
-namespace langmod {
+namespace modules {
 
 void ESLanguage::load_file(std::string&& path)
 {

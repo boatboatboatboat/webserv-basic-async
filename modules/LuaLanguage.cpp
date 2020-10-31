@@ -15,7 +15,7 @@ static int l_getenv(lua_State* state)
     return 1;
 }
 
-namespace langmod {
+namespace modules {
 
 LuaLanguage::~LuaLanguage()
 {

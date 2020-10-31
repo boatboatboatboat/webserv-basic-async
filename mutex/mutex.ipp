@@ -82,15 +82,15 @@ template <typename T>
 MutexGuard<T>::MutexGuard(Mutex<T>& mutex, const char* fin, int line, const char* fun)
     : mutex(mutex)
 {
-    std::stringstream fuck;
+    utils::StringStream heck;
     pid_t tid = syscall(SYS_gettid);
-    fuck << "LockAcq: " << &mutex.get_inner_mutex() << " from " << tid;
+    heck << "LockAcq: " << &mutex.get_inner_mutex() << " from " << tid;
 
     int res = pthread_mutex_lock(&mutex.get_inner_mutex());
     if (res) {
-        std::stringstream fuck;
-        fuck << "Mutex lock failure " << strerror(errno);
-        DBGPRINT(fuck.str());
+        utils::StringStream heck;
+        heck << "Mutex lock failure " << strerror(errno);
+        DBGPRINT(heck.str());
     }
     pthread_mutex_lock(&mutex.locked_already_mutex);
     mutex.locked_already = gettid();

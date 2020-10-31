@@ -8,7 +8,7 @@
 #include "../ioruntime/IAsyncRead.hpp"
 #include "../ioruntime/IAsyncWrite.hpp"
 
-namespace langmod {
+namespace modules {
 
 // LanguageAbstractFactoryInterface
 
