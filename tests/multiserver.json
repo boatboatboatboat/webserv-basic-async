@@ -1,0 +1,136 @@
+{
+    "workers": 0,
+    "http": {
+        "error-pages": {
+            "404": "../html/index.html"
+        },
+        "servers": [
+            {
+                "body-limit": 1000000000,
+                "buffer-limit": 1000000000,
+                "timeout": 40000000,
+                "root": ".",
+                "listen": [
+                    "127.0.0.1:1236"
+                ],
+                "locations": {
+                    "^//?$": {
+                        "root": "./youpi_tester/YoupiBanane/index.html",
+                        "allowed-methods": [
+                            "GET"
+                        ]
+                    },
+                    "^/put_test/?": {
+                        "allowed-methods": [
+                            "PUT"
+                        ],
+                        "upload": {
+                            "directory": "./output"
+                        }
+                    },
+                    "^/post_body/?": {
+                        "root": "./youpi_tester/YoupiBanane/index.html",
+                        "allowed-methods": [
+                            "POST"
+                        ],
+                        "body-limit": 100
+                    },
+                    "^/directory/?": {
+                        "root": "./youpi_tester/YoupiBanane",
+                        "index": [
+                            "youpi.bad_extension"
+                        ],
+                        "locations": {
+                            "\\.bla$": {
+                                "root": "./youpi_tester/ubuntu_cgi_tester",
+                                "allowed-methods": [
+                                    "GET",
+                                    "POST"
+                                ],
+                                "final": false,
+                                "cgi": true
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "names": ["localhost"],
+                "listen": [
+                    "127.0.0.1:1235"
+                ],
+                "locations": {
+                    "^/$": {
+                        "root": "./html",
+                        "autoindex": true
+                    }
+                }
+            },
+            {
+                "body-limit": 8192,
+                "buffer-limit": 65535,
+                "timeout": 5000,
+                "names": [
+                    "localhost"
+                ],
+                "listen": [
+                    "127.0.0.1:1234"
+                ],
+                "locations": {
+                    "^/": {
+                        "root": "./html",
+                        "index": [
+                            "index.html",
+                            "index.php"
+                        ],
+                        "allowed-methods": [
+                            "GET"
+                        ],
+                        "autoindex": false
+                    },
+                    "^/authtest/?": {
+                        "root": ".",
+                        "auth": {
+                            "username": "hello",
+                            "password": "world",
+                            "realm": "\\funny\"realm"
+                        },
+                        "autoindex": true
+                    },
+                    "^/dirtest/?": {
+                        "root": ".",
+                        "index": [
+                            "index.html",
+                            "index.php"
+                        ],
+                        "locations": {
+                            "\\.cpp$": {
+                                "final": true,
+                                "root": "/"
+                            }
+                        },
+                        "allowed-methods": [
+                            "GET"
+                        ],
+                        "autoindex": true
+                    },
+                    "^/cgi/?": {
+                        "final": false,
+                        "root": "./cgi_test",
+                        "allowed-methods": [
+                            "GET",
+                            "POST"
+                        ],
+                        "cgi": true,
+                        "locations": {
+                            ".+$": {
+                                "final": true
+                            }
+                        },
+                        "autoindex": true
+                    }
+                }
+            }
+        ]
+    }
+}

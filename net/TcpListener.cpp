@@ -95,10 +95,12 @@ auto TcpListener::poll_next(Waker&& waker) -> StreamPollResult<TcpStream>
             *is_ready = false;
             throw std::runtime_error(strerror(errno));
         }
+#ifdef __APPLE__
         int enable = 1;
         if (setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &enable, sizeof(enable)) < 0) {
             WARNPRINT("noo client doesn't work noo");
         }
+#endif
         TRACEPRINT("Accepted TCP connection from " << client);
 
         *is_ready = false;

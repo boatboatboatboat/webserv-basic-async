@@ -11,7 +11,7 @@
                 "timeout": 40000000,
                 "root": ".",
                 "listen": [
-                    "127.0.0.1:1234"
+                    "0.0.0.0:1234"
                 ],
                 "locations": {
                     "^//?$": {
@@ -50,7 +50,7 @@
                         ],
                         "locations": {
                             "\\.bla$": {
-                                "root": "./cgi_tester",
+                                "root": "./ubuntu_cgi_tester",
                                 "final": false,
                                 "cgi": true
                             }

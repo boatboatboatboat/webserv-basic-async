@@ -35,7 +35,9 @@ auto safe_streq(std::string_view unsafe, std::string_view safe) -> bool {
         i = i + 1;
     }
 
-    return eq == 0;
+    volatile bool x = usl == sl;
+    x = x & (eq == 0);
+    return x;
 }
 
 }

@@ -14,13 +14,16 @@
 
 NAME			=	webserv
 
+CXX             =   clang++
+CC              =   clang
 CC_FLAGS		=	-O3
 CC_FLAGS_DEBUG	=	-g
 CC_FLAGS_RDBG	=	-g
 CXX_FLAGS		=	-O3 -Wall -Wextra -Werror -std=c++2a -DLOG_DEBUG=1
+CXX_FLAGS_MT    =   -O3 -Wall -Wextra -Werror -std=c++2a -DLOG_DEBUG=1 -DEVIL_CHECK_ERRNO
 CXX_FLAGS_DEBUG	=	-Wall -Wextra -g -std=c++2a
 CXX_FLAGS_RDBG	=	-Wall -Wextra -Werror -std=c++2a -g
-FLAGS_BIN		=	-O3
+FLAGS_BIN		=	-O3 -pthread
 FLAGS_BIN_ASAN	=	-fsanitize=address
 
 INCLUDE_DIRS	=	./modules/lua/
@@ -96,7 +99,7 @@ $(NAME): $(OBJ_C_FILES) $(OBJ_CXX_FILES)
 	@$(CXX)	$^ \
 			-o $(NAME) \
 			$(CXX_FLAGS) \
-			$(CXX_FLAGS_BIN)
+			$(FLAGS_BIN)
 
 $(OBJ_DIR)%.o: $(SRC_DIR)%.c
 	@mkdir -p	$(OBJ_DIR) \
@@ -129,6 +132,8 @@ fclean: clean
 
 debug: FLAGS = $(FLAGS_DEBUG)
 debug: all
+threaded: CXX_FLAGS = $(CXX_FLAGS_MT)
+threaded: all
 asan: FLAGS_BIN = $(FLAGS_BIN_ASAN)
 asan: rdb
 

@@ -39,7 +39,7 @@ void IoEventHandler::reactor_step()
 
     struct timeval tv {
         .tv_sec = 0,
-        .tv_usec = GlobalTimeoutEventHandler::is_clocks_empty() ? 5000 : 0
+        .tv_usec = 5000,
     };
 
     int max;
