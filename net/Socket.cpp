@@ -56,7 +56,7 @@ auto Socket::write(void const* buffer, size_t size) -> ssize_t
 #endif
 #ifndef __AAA__
     if (res > 0) {
-        DBGPRINT("SOCKET[" << descriptor << "] " << res << "\n"
+        DBGPRINT("SOCKET[" << descriptor << "] " << res << "/" << size << "\n"
                            << std::string_view((const char*)buffer, res));
     } else if (res < 0) {
         DBGPRINT("SOCKET[" << descriptor << "] ERR " << strerror(errno));
