@@ -103,7 +103,7 @@ auto TcpListener::poll_next(Waker&& waker) -> StreamPollResult<TcpStream>
             WARNPRINT("noo client doesn't work noo");
         }
 #endif
-        DBGPRINT("TCP ACCEPT fd(" << client << "), addr(" << net::SocketAddr(*client_address_in) << ")");
+        TRACEPRINT("TCP ACCEPT fd(" << client << "), addr(" << net::SocketAddr(*client_address_in) << ")");
 
         *is_ready = false;
         BoxFunctor cb = BoxFunctor(new SetReadyFunctor(RcPtr(connection_ready)));

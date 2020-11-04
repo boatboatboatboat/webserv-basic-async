@@ -53,6 +53,8 @@ auto Socket::write(void const* buffer, size_t size) -> ssize_t
     res = send(descriptor, buffer, size, 0);
 #endif
 #ifdef DEBUG_SOCKET_OUTGOING_PRINTER
+#endif
+#ifndef __AAA__
     if (res > 0) {
         DBGPRINT("SOCKET[" << descriptor << "] " << res << "\n"
                            << std::string_view((const char*)buffer, res));
