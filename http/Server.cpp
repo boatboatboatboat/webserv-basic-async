@@ -68,11 +68,11 @@ auto ServerBuilder::serve(RequestHandler request_handler) -> Server
 
 Server::Server(IpAddress address, uint16_t port, ServerProperties props)
     : _listener(TcpListener(address, port)
-                    .for_each<TcpListener>([props](TcpStream&& stream) {
-                        GlobalRuntime::spawn(
-                            ConnectionFuture(
-                                move(stream),
-                                props));
+                    .for_each<TcpListener>([props](TcpStream&& stream) { GlobalRuntime::spawn(
+                                                                             ConnectionFuture(
+                                                                                 move(stream),
+                                                                                 props)); }, [](std::exception& e) {
+                        ERRORPRINT("TcpListener caught an error: " << e.what());
                     }))
     , _properties(move(props))
 {

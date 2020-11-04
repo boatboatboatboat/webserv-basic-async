@@ -38,7 +38,7 @@ void IoEventHandler::reactor_step()
     }
 
     struct timeval tv {
-        .tv_sec = 0,
+        .tv_sec = 4,
         .tv_usec = 5000,
     };
 
@@ -142,6 +142,7 @@ bool IoEventHandler::fire_listeners_for(int fd, fd_set& selected,
     Mutex<Listeners>& listeners_mutex)
 {
     if (FD_ISSET(fd, &selected)) {
+        // DBGPRINT(fd << " is read ready");
         // the IoEventHandler already has exclusive access over the
         // execution of the BoxFunctors, but not over the listeners.
         //

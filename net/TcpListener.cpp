@@ -36,6 +36,8 @@ TcpListener::TcpListener(IpAddress ip, in_port_t port)
     if ((descriptor = socket(protocol_specifier, SOCK_STREAM, 0)) < 0)
         throw std::runtime_error(strerror(errno));
 
+    DBGPRINT("listener bound to " << descriptor);
+
     int enable = 1;
     // SO_REUSEADDR makes used ports (address) of server socket still available when program is killed by signal
     if (setsockopt(descriptor, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
@@ -101,7 +103,7 @@ auto TcpListener::poll_next(Waker&& waker) -> StreamPollResult<TcpStream>
             WARNPRINT("noo client doesn't work noo");
         }
 #endif
-        TRACEPRINT("Accepted TCP connection from " << client);
+        DBGPRINT("TCP ACCEPT fd(" << client << "), addr(" << net::SocketAddr(*client_address_in) << ")");
 
         *is_ready = false;
         BoxFunctor cb = BoxFunctor(new SetReadyFunctor(RcPtr(connection_ready)));
@@ -110,6 +112,7 @@ auto TcpListener::poll_next(Waker&& waker) -> StreamPollResult<TcpStream>
         auto stream = TcpStream(client, net::SocketAddr(*client_address_in));
         return StreamPollResult<TcpStream>::ready(std::move(stream));
     } else {
+        DBGPRINT("TcpListener misfired");
         BoxFunctor cb = BoxFunctor(new SetReadyFunctor(RcPtr(connection_ready)));
         GlobalIoEventHandler::register_reader_callback(descriptor, std::move(cb), true);
         GlobalIoEventHandler::register_reader_callback(descriptor, waker.boxed(), true, 1);

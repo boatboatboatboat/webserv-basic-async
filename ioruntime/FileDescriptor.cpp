@@ -49,7 +49,7 @@ FileDescriptor::~FileDescriptor()
         GlobalIoEventHandler::unregister_reader_callbacks(descriptor);
         GlobalIoEventHandler::unregister_writer_callbacks(descriptor);
         ::close(descriptor);
-        TRACEPRINT("closing " << descriptor);
+        TRACEPRINT("closing fd " << descriptor);
     }
 }
 

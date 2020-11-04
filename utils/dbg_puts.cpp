@@ -6,7 +6,6 @@
 #include <unistd.h>
 
 #define DBG_OUT_FD STDERR_FILENO
-
 void dbg_puts(std::string const& printme)
 {
     unsigned int len = printme.length();

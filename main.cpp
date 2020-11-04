@@ -1006,6 +1006,7 @@ auto main(int argc, const char** argv) -> int
         auto runtime = builder.build();
         runtime.globalize();
 
+/*
         futures::FdLineStream input_stream(STDIN_FILENO);
         auto input_handler = [](std::string const& str) {
             auto sv = string_view(str);
@@ -1029,7 +1030,7 @@ auto main(int argc, const char** argv) -> int
             }
         };
         GlobalRuntime::spawn(ForEachFuture(move(input_stream), input_handler));
-
+*/
         for (auto& server : cfg.get_http_config().get_servers()) {
             auto bind_addresses = server.get_bind_addresses();
             std::map<std::tuple<net::IpAddress, unsigned short>, utils::monostate> used_addresses;
@@ -1044,6 +1045,7 @@ auto main(int argc, const char** argv) -> int
                     [&cfg = std::as_const(cfg), server_address = address, server_port = port](
                         http::IncomingRequest& req, net::SocketAddr const& socket_addr)
                     -> http::ServerHandlerResponse {
+                    TRACEPRINT("Accepting request from " << socket_addr);
                     if (req.get_version().version_string != http::version::v1_1.version_string) {
                         // we're http/1.1, we don't care about the other ones
                         throw HandlerStatusError(http::status::VERSION_NOT_SUPPORTED);

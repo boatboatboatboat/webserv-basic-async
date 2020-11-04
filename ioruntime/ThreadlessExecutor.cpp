@@ -28,6 +28,7 @@ ThreadlessExecutor::ThreadlessExecutor()
 bool ThreadlessExecutor::step()
 {
     auto te = tasks.empty();
+    usleep(0);
     if (te) {
         return (tasks_until_completion > 0);
     }
