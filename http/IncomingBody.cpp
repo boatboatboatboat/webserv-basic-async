@@ -138,33 +138,3 @@ http::IncomingBody::IncomingBody()
 }
 
 http::IncomingBody::~IncomingBody() = default;
-
-#ifdef DEBUG
-
-#include "../ioruntime/IoEventHandler.hpp"
-using ioruntime::IoEventHandler;
-
-// this function is only used in unit tests
-auto http::IncomingBody::debug_body(IoEventHandler& ioe) -> vector<uint8_t>
-{
-    vector<uint8_t> a;
-    uint8_t f[8192];
-    while (true) {
-        ioe.reactor_step();
-        auto r = poll_read(span(f, sizeof(f)), Waker::dead());
-
-        if (r.is_ready()) {
-            auto s = r.get();
-            if (s.is_error()) {
-                throw std::runtime_error("data pr err");
-            } else if (s.is_eof()) {
-                return a;
-            } else {
-                span found(f, s.get_bytes_read());
-                a.insert(a.end(), found.begin(), found.end());
-            }
-        }
-    }
-}
-
-#endif

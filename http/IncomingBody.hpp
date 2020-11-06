@@ -48,9 +48,6 @@ public:
     auto poll_write(span<uint8_t> buffer, Waker&& waker)
         -> PollResult<IoResult> override;
     [[nodiscard]] auto size() const -> size_t;
-#ifdef DEBUG
-    [[nodiscard]] auto debug_body(ioruntime::IoEventHandler& ioe) -> vector<uint8_t>;
-#endif
 
 private:
     enum BodyType {

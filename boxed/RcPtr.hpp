@@ -75,6 +75,9 @@ public:
     template <typename U>
     RcPtr& operator=(RcPtr<U> const& other)
     {
+        if (this == &other)
+            return *this;
+        destroy();
         {
             auto refs = other.get_raw_mutex()->lock();
             *refs += 1;
@@ -86,6 +89,9 @@ public:
 
     RcPtr& operator=(RcPtr const& other)
     {
+        if (this == &other)
+            return *this;
+        destroy();
         {
             auto refs = other.get_raw_mutex()->lock();
             *refs += 1;
@@ -99,6 +105,9 @@ public:
     template <typename U>
     RcPtr& operator=(RcPtr<U>&& other) noexcept
     {
+        if (this == &other)
+            return *this;
+        destroy();
         this->refs_mutex = other.get_raw_mutex();
         this->inner = other.get();
         other.leak();
@@ -107,6 +116,9 @@ public:
 
     RcPtr& operator=(RcPtr&& other) noexcept
     {
+        if (this == &other)
+            return *this;
+        destroy();
         this->refs_mutex = other.get_raw_mutex();
         this->inner = other.inner;
         other.leak();
@@ -154,8 +166,7 @@ public:
 
     Mutex<uint64_t>* get_raw_mutex() const { return this->refs_mutex; }
 
-    ~RcPtr()
-    {
+    void destroy() {
         // if the RcPtr is moved, refs_mutex will be null
         if (this->refs_mutex == nullptr)
             return;
@@ -173,6 +184,11 @@ public:
         // we delete it after the guard has been dropped
         // otherwise the guard will try to change a stale mutex
         delete refs_mutex;
+    }
+
+    ~RcPtr()
+    {
+        destroy();
     }
 
 private:

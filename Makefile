@@ -19,12 +19,13 @@ CC              =   clang
 CC_FLAGS		=	-O3
 CC_FLAGS_DEBUG	=	-g
 CC_FLAGS_RDBG	=	-g
-CXX_FLAGS		=	-O3 -Wall -Wextra -Werror -std=c++2a -DLOG_DEBUG=1
-CXX_FLAGS_MT    =   -O3 -Wall -Wextra -Werror -std=c++2a -DLOG_DEBUG=1 -DEVIL_CHECK_ERRNO
+CXX_FLAGS		=	-O3 -Wall -Wextra -Werror -std=c++2a -DLOG_INFO=1
+CXX_FLAGS_FULL  =   -DMODULE_LOADER_ENABLED -DEVIL_CHECK_ERRNO
 CXX_FLAGS_DEBUG	=	-Wall -Wextra -g -std=c++2a
 CXX_FLAGS_RDBG	=	-Wall -Wextra -Werror -std=c++2a -g
 FLAGS_BIN		=	-O3 -pthread
-FLAGS_BIN_ASAN	=	-fsanitize=address
+FLAGS_BIN_ASAN	=	-fsanitize=address -g
+FLAGS_BIN_LSAN  =   -fsanitize=leak -g
 
 INCLUDE_DIRS	=	./modules/lua/
 SRC_DIR			=	./
@@ -95,7 +96,7 @@ OBJ_SUBDIRS := $(SRC_SUBDIRS:%=$(OBJ_DIR)%)
 all: $(NAME)
 
 $(NAME): $(OBJ_C_FILES) $(OBJ_CXX_FILES)
-	@echo BUILD $(NAME)
+	@echo BUILD $(NAME) $(FLAGS_BIN)
 	@$(CXX)	$^ \
 			-o $(NAME) \
 			$(CXX_FLAGS) \
@@ -132,16 +133,19 @@ fclean: clean
 
 debug: FLAGS = $(FLAGS_DEBUG)
 debug: all
-threaded: CXX_FLAGS = $(CXX_FLAGS_MT)
-threaded: all
+bonus: CXX_FLAGS += $(CXX_FLAGS_FULL)
+bonus: all
 asan: FLAGS_BIN = $(FLAGS_BIN_ASAN)
-asan: rdb
+asan: all
+lsan: FLAGS_BIN = $(FLAGS_BIN_LSAN)
+lsan: all
 
 rdebug: fclean
 	@$(MAKE) debug
 
 srdb: FLAGS = $(FLAGS_RDBG)
 srdb: all
+
 rdb: fclean
 	@$(MAKE) srdb
 

@@ -162,7 +162,9 @@ public:
     {
     }
 };
+}
 
+namespace json {
 /**
  * Implement all default values. This is a smart way to avoid array misses.
  */

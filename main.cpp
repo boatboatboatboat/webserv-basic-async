@@ -1005,8 +1005,7 @@ auto main(int argc, const char** argv) -> int
 
         auto runtime = builder.build();
         runtime.globalize();
-
-/*
+#ifdef MODULE_LOADER_ENABLED
         futures::FdLineStream input_stream(STDIN_FILENO);
         auto input_handler = [](std::string const& str) {
             auto sv = string_view(str);
@@ -1030,7 +1029,8 @@ auto main(int argc, const char** argv) -> int
             }
         };
         GlobalRuntime::spawn(ForEachFuture(move(input_stream), input_handler));
-*/
+#endif
+
         for (auto& server : cfg.get_http_config().get_servers()) {
             auto bind_addresses = server.get_bind_addresses();
             std::map<std::tuple<net::IpAddress, unsigned short>, utils::monostate> used_addresses;

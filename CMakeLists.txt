@@ -3,7 +3,7 @@ project(webserv)
 
 
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -g3 -Wall -Wextra -Werror")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g3 -Wall -Wextra -Werror")
 
 add_compile_definitions(
         LOG_DEBUG=1
@@ -12,6 +12,7 @@ add_compile_definitions(
         # _DARWIN_UNLIMITED_SELECT=1
         #DEBUG_MUTEX_CANARY
         EVIL_CHECK_ERRNO
+        MODULE_LOADER_ENABLED
         #DEBUG_REQUEST_BODY_ALWAYS_SWITCH
         # DEBUG_SOCKET_INCOMING_PRINTER
         #DEBUG_SOCKET_OUTGOING_PRINTER
